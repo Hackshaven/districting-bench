@@ -35,9 +35,21 @@ how much independent information the draws carry, and docs/FEASIBILITY.md sectio
 5.4 found the two disagreeing in direction as well as magnitude on this problem.
 
 Degenerate regimes are handled explicitly rather than returned as a plausible
-number: a constant quantity gives ``nan`` (no variance to compare), chains each
-stuck at a different constant give ``inf`` (they will never agree), and inputs too
-short or too few to support the statistic raise.
+number, and the two of them are kept apart in both statistics, because they are
+opposite findings:
+
+* nothing varies anywhere -> R-hat ``nan``, ESS ``nan``. There is no variance to
+  compare and no distribution being explored; both are 0/0.
+* each chain sits at its own constant -> R-hat ``inf``, ESS ``0.0``. This is the
+  maximally unmixed sample, not a quiet one, and it is a live regime here:
+  docs/FEASIBILITY.md section 5.1 records 7 distinct plans per 300 steps at
+  epsilon=1e-4, so a short chain can genuinely never move. Reporting ``nan`` for
+  it — as an earlier version of ``ess`` did — invites a reader to file it under
+  "degenerate, nothing varied" when the truth is the opposite. R-hat's bad
+  direction is up and ESS's is down, so the mirror of ``inf`` is ``0.0``, which
+  fails a ``ess >= target`` check exactly as ``inf`` fails ``rhat <= target``.
+
+Inputs too short or too few to support the statistic raise.
 """
 
 from __future__ import annotations
@@ -215,18 +227,37 @@ def ess(chains: Sequence[Sequence[float]], rank_normalize: bool = True) -> float
     correction. For i.i.d. draws this lands near ``n * m``; for an AR(1) process
     with coefficient ``phi`` it lands near ``n * m * (1 - phi) / (1 + phi)``.
 
-    Returns ``nan`` when the quantity never varies.
+    Returns:
+        The effective number of draws. ``nan`` when the quantity never varies
+        anywhere — there is no distribution being sampled, and the estimate is
+        0/0. ``0.0`` when every (split) chain sits at its own constant: the
+        chains disagree and none of them ever moves, the autocorrelation is 1 at
+        every lag, so no run length buys an independent draw. The second case is
+        the mirror of :func:`split_rhat` returning ``inf``, and it is kept
+        distinct from the first on purpose — a caller that reads ``nan`` as
+        "degenerate, nothing varied" would otherwise report the opposite of the
+        truth for the most badly unmixed sample there is. See the module
+        docstring.
     """
     matrix = _split(_matrix(chains))
     if _all_equal(matrix):
         return float("nan")
+    if _each_chain_constant(matrix):
+        return 0.0
     if rank_normalize:
         matrix = _rank_normalize(matrix)
     m, n = matrix.shape
     draws = m * n
 
     within, var_hat = _variance_parts(matrix)
-    if within <= 0.0 or var_hat <= 0.0:
+    if within <= 0.0:
+        # Unreachable: within is the mean of the per-chain variances, so it is
+        # zero only when every chain is constant, which is handled above and
+        # exactly, before rank normalization (which maps equal inputs to equal
+        # outputs and so preserves the condition). Kept as a guard, and it
+        # answers with the same 0.0 rather than a fresh meaning for nan.
+        return 0.0
+    if var_hat <= 0.0:
         return float("nan")
 
     acov = np.mean([_autocovariance(matrix[i]) for i in range(m)], axis=0)

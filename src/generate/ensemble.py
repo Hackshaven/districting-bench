@@ -30,6 +30,14 @@ reported. They are never retried under a fresh seed: the seeds that survive are
 not a random subset of the seeds that were tried, so quietly re-drawing until a
 chain lives would hide a real sampling bias behind a clean-looking ensemble. The
 failure rate is a reported quantity of the run.
+
+**Plan quantities take k.** ``district_totals``, ``population_spread`` and
+``canonical`` are public and are called by ``detect`` on plans this module did
+not draw — the enacted map and the adversarially planted ones. A plan with an
+empty district is invisible in its own values, so those functions require the
+number of districts and raise on a district of ``1..k`` that no unit was
+assigned to, rather than reporting a spread over the districts that happen to be
+occupied. See :func:`districts_of`.
 """
 
 from __future__ import annotations
@@ -97,6 +105,12 @@ def check_inputs(
         if not isinstance(value, int) or isinstance(value, bool) or value < 0:
             raise ValueError(f"population for {unit} is not a non-negative int: {value!r}")
     for unit, neighbours in adjacency.items():
+        if len(set(neighbours)) != len(neighbours):
+            repeated = sorted({o for o in neighbours if list(neighbours).count(o) > 1})
+            raise ValueError(
+                f"adjacency of {unit} lists a duplicate neighbour {repeated}; "
+                "an edge listed twice would be counted twice by cut_edges"
+            )
         for other in neighbours:
             if other == unit:
                 raise ValueError(f"self-loop in adjacency at {unit}")
@@ -156,48 +170,133 @@ def build_graph(
 # --------------------------------------------------------------------------
 
 
-def district_totals(plan: Plan, populations: Mapping[str, int]) -> dict[int, int]:
-    """Population per district."""
-    totals: dict[int, int] = {}
+def districts_of(plan: Plan, k: int | None) -> list[int]:
+    """The district ids a k-district plan is about, with the invariant enforced.
+
+    docs/ARCHITECTURE.md section 3 requires district ids to be "exactly 1..K,
+    none empty" and assigns the check to ``evaluate.plan.validate`` — which is on
+    the far side of the firewall and cannot be called from here. So the part of
+    that invariant these functions depend on is re-checked here. The duplication
+    is the deliberate kind (ARCHITECTURE section 1); the alternative is a plan
+    quantity that is quietly wrong.
+
+    ``k`` is a required argument rather than an optional one because the failure
+    it prevents is invisible by construction. A plan whose district ``k`` happens
+    to be empty is, read off its own values, indistinguishable from a
+    ``k-1``-district plan: ``{a:1, b:1, c:2, d:3}`` is a 3-district plan and a
+    4-district plan with an empty district, and no amount of looking at it can
+    tell you which. Inferring the district set from ``plan.values()`` therefore
+    is not a safe default, it is the bug — it reports a max-min spread over three
+    districts when the fourth holds 0 persons, and it makes the two plans compare
+    equal under :func:`canonical`. Passing ``k`` is how the caller says which
+    question it is asking. ReCom output always satisfies the invariant; the
+    enacted and adversarially planted plans that ``detect`` puts through these
+    same functions are not ReCom output.
+
+    Pass ``k=None`` to opt out explicitly and ask only about the districts that
+    appear. That path still rejects gaps and non-positive labels, but it cannot
+    detect a trailing empty district — nothing can — so it is spelled out at the
+    call site rather than reached by omission.
+
+    Returns:
+        ``[1, ..., k]`` (or ``[1, ..., K]`` for the observed ``K`` when
+        ``k is None``).
+
+    Raises:
+        ValueError: if the plan is empty, carries labels outside ``1..k``, or
+            leaves a district of ``1..k`` with no units.
+    """
+    labels = set(plan.values())
+    if not labels:
+        raise ValueError("plan assigns no units")
+    if k is None:
+        observed = sorted(labels)
+        if observed != list(range(1, len(observed) + 1)):
+            raise ValueError(
+                f"district ids must be 1..K with no gaps, got {observed}; "
+                "pass k explicitly if some district is meant to be empty"
+            )
+        return observed
+    if not isinstance(k, int) or isinstance(k, bool) or k < 1:
+        raise ValueError(f"k must be an int >= 1 or None, got {k!r}")
+    expected = set(range(1, k + 1))
+    stray = sorted(labels - expected)
+    if stray:
+        raise ValueError(f"plan assigns districts outside 1..{k}: {stray}")
+    empty = sorted(expected - labels)
+    if empty:
+        raise ValueError(
+            f"plan has no units in district(s) {empty} of 1..{k}; an empty "
+            "district is not a district, and folding it away would understate "
+            "the population spread and canonicalize this as a "
+            f"{len(labels)}-district plan"
+        )
+    return sorted(expected)
+
+
+def district_totals(
+    plan: Plan, populations: Mapping[str, int], k: int | None
+) -> dict[int, int]:
+    """Population per district, keyed by every district in ``1..k``.
+
+    See :func:`districts_of` for why ``k`` is required and what ``k=None`` means.
+    """
+    totals: dict[int, int] = {district: 0 for district in districts_of(plan, k)}
     for unit, district in plan.items():
-        totals[district] = totals.get(district, 0) + int(populations[unit])
+        totals[district] += int(populations[unit])
     return totals
 
 
-def population_spread(plan: Plan, populations: Mapping[str, int]) -> int:
-    """max - min district population, in persons.
+def population_spread(plan: Plan, populations: Mapping[str, int], k: int | None) -> int:
+    """max - min district population over all of ``1..k``, in persons.
 
     Persons, not a fraction of ideal, because that is the number the enacted plan
     is quoted in (94) and the one a reader can check by hand.
+
+    ``k`` is required: an empty district makes this number wrong by an amount the
+    size of a district, and it raises rather than reporting the spread over the
+    districts that happen to be occupied. See :func:`districts_of`.
     """
-    totals = district_totals(plan, populations)
+    totals = district_totals(plan, populations, k)
     return max(totals.values()) - min(totals.values())
 
 
 def cut_edges(plan: Plan, adjacency: Mapping[str, Sequence[str]]) -> int:
     """Count adjacent unit pairs assigned to different districts.
 
-    Each unordered pair is counted once. Requires symmetric adjacency, which
-    :func:`check_inputs` has established.
+    Each unordered pair is counted once: the ``unit < other`` test takes one
+    direction of a symmetric adjacency, and the neighbours of a unit are
+    de-duplicated here so that a repeated entry cannot contribute the same edge
+    twice. :func:`check_inputs` rejects both a duplicate neighbour and an
+    asymmetric list, so on a checked graph the de-duplication is a no-op; it is
+    here because this function is public and is also called on graphs it did not
+    check itself.
     """
     total = 0
     for unit, neighbours in adjacency.items():
-        for other in neighbours:
+        for other in set(neighbours):
             if unit < other and plan[unit] != plan[other]:
                 total += 1
     return total
 
 
-def canonical(plan: Plan) -> frozenset:
+def canonical(plan: Plan, k: int | None) -> frozenset:
     """A district-label-invariant key for a plan.
 
     Two plans that differ only in which district got which number are the same
     plan, and counting them twice would overstate how much of the space a chain
     covered.
+
+    ``k`` is required for the reason given in :func:`districts_of`: with the
+    district set inferred from the plan's own values, a 4-district plan with an
+    empty district produces a 3-block key and compares equal to a genuine
+    3-district plan, so ``distinct_plans`` would conflate the two. With ``k``
+    supplied, an empty district raises instead, and the key always has exactly
+    ``k`` non-empty blocks.
     """
-    groups: dict[int, set] = {}
+    groups: dict[int, set] = {district: set() for district in districts_of(plan, k)}
     for unit, district in plan.items():
-        groups.setdefault(district, set()).add(unit)
+        groups[district].add(unit)
     return frozenset(frozenset(members) for members in groups.values())
 
 
@@ -352,6 +451,23 @@ class EnsembleResult:
     throw away 137 legitimate draws; keeping them means ``plans`` is not a set of
     equal-length chains, which is why ``traces`` exists and why the convergence
     helpers take chains rather than the pooled list.
+
+    **Which sample each number describes.** Three different subsets live in here
+    and docs/ARCHITECTURE.md section 7 makes the difference material -- surviving
+    seeds are not a random subset of attempted seeds -- so no number should have
+    to be guessed at:
+
+    * ``n_requested``, ``chain_failures`` and ``failure_rate`` are over every
+      seed *attempted*. That is the point of them.
+    * ``n_completed`` is every draw *produced*, partial traces included, and
+      ``distinct_plans`` counts relabelling-equivalence classes among exactly
+      those draws. The two are reported adjacently in bench-results.json
+      (ARCHITECTURE section 5) and are the same sample.
+    * :meth:`cut_edges_chains`, :meth:`population_spread_chains` and
+      :meth:`population_spread_summary` default to the *completed* chains, since
+      a diagnostic over chains needs a rectangle and a ragged partial trace is
+      not one. They all take ``only_completed`` and the summary reports which it
+      used, so a reader never has to infer it.
     """
 
     k: int
@@ -380,15 +496,51 @@ class EnsembleResult:
         source = self.completed_traces if only_completed else self.traces
         return [list(trace.population_spread) for trace in source]
 
-    def population_spread_summary(self) -> dict[str, float]:
-        values = [spread for trace in self.traces for spread in trace.population_spread]
-        if not values:
-            return {"min": float("nan"), "median": float("nan"), "max": float("nan")}
-        return {
-            "min": float(min(values)),
-            "median": float(median(values)),
-            "max": float(max(values)),
+    def population_spread_summary(self, only_completed: bool = True) -> dict:
+        """min / median / max population spread, over a named subset of draws.
+
+        The default is the *completed* chains, matching
+        :meth:`cut_edges_chains` and :meth:`population_spread_chains`, so that
+        every number that lands in the ``ensemble`` object of bench-results.json
+        describes the same sample. It previously summarised all traces while the
+        diagnostics used only the completed ones, which put two numbers
+        describing two different samples side by side with nothing saying so.
+
+        Which subset it is cannot be left implicit either: docs/ARCHITECTURE.md
+        section 7 records that surviving seeds are not a random subset of
+        attempted seeds, so "completed chains only" is a biased view and
+        "everything drawn" is a ragged one. The choice is therefore reported in
+        the result, in ``sample``, alongside the draw and chain counts it covers.
+        The three-number core is the shape ARCHITECTURE section 5 shows; the
+        provenance keys are the section 7 requirement that the subset be
+        explicit.
+
+        Args:
+            only_completed: restrict to chains that ran to ``steps`` without
+                dying. Pass False for every draw produced, including the partial
+                traces of chains that later failed.
+        """
+        source = self.completed_traces if only_completed else self.traces
+        values = [spread for trace in source for spread in trace.population_spread]
+        label = "completed_chains" if only_completed else "all_draws"
+        summary: dict = {
+            "sample": label,
+            "n_chains": len(source),
+            "n_draws": len(values),
         }
+        if not values:
+            summary.update(
+                {"min": float("nan"), "median": float("nan"), "max": float("nan")}
+            )
+            return summary
+        summary.update(
+            {
+                "min": float(min(values)),
+                "median": float(median(values)),
+                "max": float(max(values)),
+            }
+        )
+        return summary
 
 
 def run_chains(
@@ -415,8 +567,6 @@ def run_chains(
 
     for seed in seeds:
         plans: list[Plan] = []
-        cuts: list[int] = []
-        spreads: list[int] = []
         failure: str | None = None
         chain_started = time.perf_counter()
         try:
@@ -424,10 +574,16 @@ def run_chains(
                 adjacency, populations, k, epsilon, steps, seed, node_repeats
             ):
                 plans.append(plan)
-                cuts.append(cut_edges(plan, adjacency))
-                spreads.append(population_spread(plan, populations))
         except Exception as exc:  # a dead chain is an observation, not a crash
             failure = f"{type(exc).__name__}: {exc}"[:500]
+        # Derived quantities are computed outside the try on purpose. They are
+        # pure functions of a plan that has already been produced, and the only
+        # way they can raise is a violated plan invariant (a district of 1..k
+        # with no units) -- which is a bug in this module, not an unlucky seed.
+        # Computing them inside the try would file that bug as a chain failure
+        # and inflate the failure rate ARCHITECTURE section 7 requires be real.
+        cuts = [cut_edges(plan, adjacency) for plan in plans]
+        spreads = [population_spread(plan, populations, k) for plan in plans]
         traces.append(
             ChainTrace(
                 seed=seed,
@@ -453,7 +609,7 @@ def run_chains(
         n_completed=len(every_plan),
         chain_failures=failures,
         failure_rate=failures / len(seeds),
-        distinct_plans=len({canonical(plan) for plan in every_plan}),
+        distinct_plans=len({canonical(plan, k) for plan in every_plan}),
         traces=tuple(traces),
         seconds=time.perf_counter() - started,
     )

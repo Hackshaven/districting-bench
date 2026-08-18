@@ -19,7 +19,7 @@ metric                 formula as implemented                      + means
 ``efficiency_gap``     ``(wasted_D - wasted_R) / total votes``     favours R
 ``mean_median``        ``mean(D share) - median(D share)``         favours R
 ``declination``        Warrington's angle, ``2*(gamma-theta)/pi``  favours R
-``partisan_bias``      ``D seat share at 50-50 minus 0.5``         favours D
+``partisan_bias``      ``(S_D(v) - S_R(v))/2`` at ``v = 0.5``      favours D
 =====================  ==========================================  ==========
 
 **The directions are not uniform and this module does not silently flip them.**
@@ -49,6 +49,27 @@ What every metric here shares, and what makes them all `VALUE` class:
 * :func:`partisan_bias` and :func:`seats_votes_curve` require a counterfactual
   election that never happened, produced by a uniform swing whose assumption is
   stated in their docstrings.
+
+**A number and the regime it was computed in are reported together.**
+CRITERIA.md section 5.1 says mean-median and partisan bias should not be trusted
+where one party predominates, and a bare float carries none of that.
+:func:`one_party_predominates` decides the regime, :func:`trusted_metrics` says
+which metrics survive it, and :func:`caveats` states both in prose — including,
+positively, what remains usable. On Iowa 2020's enacted plan what remains is the
+efficiency gap and nothing else.
+
+**Two seat-share conventions, both named, neither silent.** A district exactly
+tied at a 0.5 share is a seat for *neither* party in the observed election
+(:func:`seat_counts`, ``all_metrics()["dem_seat_share"]``) and *half a seat for
+each* in the counterfactual swing (:func:`partisan_bias`, and the default of
+:func:`seats_votes_curve`). The first refuses to invent which of two candidates
+a real district elected; the second is what makes the curve antisymmetric, which
+is the property partisan bias is defined from. :data:`SEAT_TIE_RULES` names
+them, and ``seats_votes_curve(..., tie="neither")`` at the observed vote share
+reproduces the reported seat share exactly. **At the observed election the two
+rules agree unless a district is exactly tied**, which :func:`caveats` reports;
+away from it they part company at every swing that lands a district on 0.5,
+which is the counterfactual's business and the reason it has its own rule.
 
 Imports: this module imports from ``evaluate.plan`` only, which is an
 intra-package import and permitted (``tools/firewall.yaml`` sets
@@ -92,11 +113,50 @@ TRUSTED_WHERE_ONE_PARTY_PREDOMINATES: tuple[str, ...] = (
     "declination",
 )
 
-#: Statewide two-party D share outside ``0.5 +/- this`` counts as "one party
-#: predominates" for :func:`caveats`. **This threshold is ours, not
-#: CRITERIA.md's** — section 5.1 names the regime and gives no number. It is a
-#: `VALUE` choice, exposed here so it can be argued with and changed.
+#: First arm of :func:`one_party_predominates`: the **statewide margin**. A
+#: two-party Democratic share outside ``0.5 +/- this`` puts the state in
+#: CRITERIA.md section 5.1's "one party predominates" regime. **This threshold
+#: is ours, not CRITERIA.md's** — section 5.1 names the regime and gives no
+#: number. It is a `VALUE` choice, exposed here so it can be argued with.
+#:
+#: It is only *one* arm, and Iowa 2020 is the case that forced the other two:
+#: the statewide Democratic share there is 0.458167, which is 0.041833 from 0.5
+#: and so **inside** this band, while the Republicans hold four seats of four.
+#: A test keyed to the statewide margin alone calls that competitive and lets
+#: ``mean_median = -0.024256`` — a number whose sign reads as a *Democratic*
+#: advantage — out of this module with nothing attached. That is CRITERIA.md
+#: section 11 failure mode 4, "a defensible number concealing whose definition
+#: it encodes", landing on the repository's only real plan.
 PREDOMINANCE_BAND = 0.05
+
+#: Second arm: the **district sweep**. Districts are sorted by which side of 0.5
+#: their Democratic share falls on; when the weaker side holds no more than this
+#: fraction of them, one party predominates whatever the statewide margin says.
+#: 0.25 is "all, or all but one" in a four-district state (Iowa 2020: zero of
+#: four), two of eight, and it leaves an even split competitive at every size.
+#: Ours, `VALUE` class, arguable, and a keyword parameter for that reason.
+#:
+#: Stated on the district **shares** rather than on the seat tally from
+#: :func:`seat_counts` because the shares are what mean-median, declination,
+#: partisan bias and the seats-votes curve actually consume, and because an
+#: exactly tied district then falls on neither side instead of silently on one.
+#: On any plan without a tied district the two readings coincide, so this is the
+#: seat sweep, measured where the metrics read it.
+MINORITY_DISTRICT_SHARE = 0.25
+
+#: Tie rules for a district sitting exactly on a 0.5 Democratic share. The
+#: module uses **both**, deliberately and by name, because the observed election
+#: and the counterfactual swing are different questions — see
+#: :func:`_seat_share_at` and :func:`all_metrics`.
+#:
+#: ``"neither"``
+#:     A tie elects nobody. The rule for the **observed** election, used by
+#:     :func:`seat_count`, :func:`seat_counts` and :func:`all_metrics`.
+#: ``"half"``
+#:     A tie is half a seat for each party. The rule for the **counterfactual**
+#:     swing, used by :func:`partisan_bias` and by default in
+#:     :func:`seats_votes_curve`.
+SEAT_TIE_RULES: tuple[str, ...] = ("neither", "half")
 
 #: Below this many districts, :func:`caveats` warns that declination is coarse.
 #: Also ours: declination fits one line through the losing districts and one
@@ -413,7 +473,9 @@ def declination(plan: Plan, dem: Votes, rep: Votes) -> float | None:
 # the counterfactual: uniform swing
 # --------------------------------------------------------------------------- #
 
-def _seat_share_at(shares: Sequence[float], target: float, observed: float) -> float:
+def _seat_share_at(
+    shares: Sequence[float], target: float, observed: float, *, tie: str = "half"
+) -> float:
     """Democratic seat share under a uniform swing to ``target`` vote share.
 
     **The uniform partisan swing assumption**, stated once and used by both
@@ -439,19 +501,42 @@ def _seat_share_at(shares: Sequence[float], target: float, observed: float) -> f
       0.5 is used, so a share of -0.1 and one of 0.0 behave identically; the
       unphysicality is in the premise, not the arithmetic.
 
-    A district landing exactly on 0.5 after the shift is counted as **half a
-    seat for each party**. In a counterfactual election a tie is a genuine
-    coin-flip, and the half-seat rule is what makes the seats-votes curve
-    antisymmetric — ``curve(v) = 1 - curve(1 - v)`` for a symmetric plan — which
-    is the property partisan bias is defined in terms of.
+    **The tie rule — the one place this module holds two conventions at once.**
+    A district landing exactly on 0.5 after the shift is counted according to
+    ``tie``:
+
+    ``"half"`` (the default here)
+        Half a seat for each party. In a counterfactual election a tie is a
+        genuine coin-flip, and the half-seat rule is what makes the seats-votes
+        curve antisymmetric — ``curve(v) = 1 - curve(1 - v)`` for a symmetric
+        plan — which is the property :func:`partisan_bias` is *defined* in terms
+        of. Under ``"neither"`` that property fails at every swing that lands a
+        district exactly on 0.5, so partisan bias always uses ``"half"``.
+    ``"neither"``
+        A tie elects nobody: the rule :func:`seat_counts` applies to the
+        **observed** election, where a real district returns one member and this
+        module refuses to invent which. With ``target == observed`` this
+        reproduces ``all_metrics()["dem_seat_share"]`` exactly — the identity
+        ``tests/test_partisan.py`` pins.
+
+    Both conventions are defensible; holding both *silently* is not, so the rule
+    is a named parameter rather than a constant and each caller states which it
+    uses. **At ``target == observed`` the two agree unless a district is exactly
+    tied**, and :func:`caveats` reports that case; away from the observed
+    election they differ at every swing that puts a district exactly on 0.5 —
+    the step edges of the curve — which is a property of the counterfactual, not
+    a disagreement about the election that happened. Iowa 2020 has no tied
+    district, so no number published from the real data depends on the choice.
     """
+    if tie not in SEAT_TIE_RULES:
+        raise ValueError(f"tie must be one of {SEAT_TIE_RULES}; got {tie!r}")
     delta = target - observed
     won = 0.0
     for share in shares:
         moved = share + delta
         if moved > 0.5:
             won += 1.0
-        elif moved == 0.5:
+        elif moved == 0.5 and tie == "half":
             won += 0.5
     return won / len(shares)
 
@@ -459,30 +544,61 @@ def _seat_share_at(shares: Sequence[float], target: float, observed: float) -> f
 def partisan_bias(
     plan: Plan, dem: Votes, rep: Votes, *, at: float = 0.5
 ) -> float:
-    """Seat-share asymmetry at a hypothetical tied election.
+    """Seat-share **asymmetry** at a hypothetical vote share, default 50-50.
 
-    Applies a uniform swing (see :func:`_seat_share_at` for the assumption)
-    until the statewide two-party Democratic vote share is exactly ``at``,
-    defaulting to 0.5, then returns ``D seat share - 0.5``.
+    Applies a uniform swing (see :func:`_seat_share_at` for the assumption) to
+    put the statewide two-party Democratic share at ``at``, and again to put the
+    *Republican* share at ``at``, and returns half the difference between what
+    the two parties get::
 
-    **Sign: positive means the Democrats would win more than half the seats in
-    an election they tied, which is a Democratic advantage.** Negative favours
+        bias(v) = (S_D(v) - S_R(v)) / 2,   S_R(v) = 1 - S_D(1 - v)
+
+    where ``S_D(v)`` is the Democratic seat share when the Democrats hold ``v``
+    of the statewide two-party vote. This is *partisan symmetry* as CRITERIA.md
+    section 5.3 defines it — "each party should get the same seats for the same
+    vote share" — and it is a property of the **plan**, not of the state's lean.
+
+    At the default ``at = 0.5`` this reduces to ``S_D(0.5) - 0.5``, the familiar
+    form, because ``S_R(0.5) = 1 - S_D(0.5)`` exactly: no number this module has
+    ever published changes.
+
+    **It does not reduce to that anywhere else, and the earlier implementation's
+    ``S_D(at) - 0.5`` was wrong for ``at != 0.5``** — it measured how many seats
+    the Democrats win at that vote share, which mixes the plan's asymmetry
+    together with the state's lean and with the ordinary fact that a party with
+    60% of the vote wins more than half the seats under any districting at all.
+    The demonstration is a plan that is symmetric by construction (district
+    shares 0.4, 0.4, 0.6, 0.6): the old expression returned +0.25 at
+    ``at = 0.6`` and -0.25 at ``at = 0.4`` for a plan with no asymmetry
+    whatsoever, while this one returns 0 at every ``at``.
+    ``tests/test_partisan.py`` pins that, and pins that the default is unmoved.
+
+    Because the formula compares the two parties at the same vote share,
+    ``bias(v) == bias(1 - v)``: the asymmetry at 60-40 is one number, not two,
+    and it does not matter which party is named as holding the 60.
+
+    **Sign: positive means the Democrats take a larger seat share at ``at`` of
+    the vote than the Republicans would at the same ``at``, which is a
+    Democratic advantage; at the default it is the familiar "they would win
+    more than half the seats in an election they tied".** Negative favours
     the Republicans. **Note this is the opposite orientation to the other three
     metrics in this module** — it is the orientation the literature and
     PlanScore use, and :data:`FAVOURS` records it so no consumer has to
     remember.
 
-    Equivalent to the symmetry formulation ``(S_D(0.5) - S_R(0.5)) / 2``: under
-    a uniform swing the Republican seat share at 50-50 is ``1 - S_D(0.5)``
-    exactly, so the two definitions coincide.
-
     The unit is **seat share**, in ``[-0.5, 0.5]``, not seats. Multiply by the
-    number of districts for a figure in seats; on a four-district state one seat
-    is 0.25, so the metric is quantised to steps of 0.25 and there is no such
-    thing as a small bias.
+    number of districts for a figure in seats. Because it is half the difference
+    of two seat shares it is quantised to multiples of ``1/(2n)`` — 0.125 on a
+    four-district state, and ``1/(4n)`` at a swing that splits a tied district —
+    so on a small state there is no such thing as a small bias.
 
     CRITERIA.md section 5.1: "requires a counterfactual election" is this
     metric's stated failure mode. Section 5.2: gameable; never optimise toward.
+
+    Ties in the counterfactual are split half a seat each (:data:`SEAT_TIE_RULES`
+    ``"half"``, not a parameter here): the antisymmetry that makes ``S_R(v) =
+    1 - S_D(1 - v)`` hold is exactly what this metric is defined from, and the
+    observed-election rule would break it.
 
     Raises ValueError if any district has no two-party votes, or if ``at`` is
     outside ``[0, 1]``.
@@ -493,7 +609,9 @@ def partisan_bias(
     if not shares:
         raise ValueError("partisan_bias: plan has no districts")
     observed = statewide_dem_share(dem, rep)
-    return _seat_share_at(shares, at, observed) - 0.5
+    dem_seats_at = _seat_share_at(shares, at, observed, tie="half")
+    rep_seats_at = 1.0 - _seat_share_at(shares, 1.0 - at, observed, tie="half")
+    return (dem_seats_at - rep_seats_at) / 2.0
 
 
 def seats_votes_curve(
@@ -501,6 +619,8 @@ def seats_votes_curve(
     dem: Votes,
     rep: Votes,
     swings: Sequence[float] | None = None,
+    *,
+    tie: str = "half",
 ) -> list[tuple[float, float]]:
     """The full mapping from statewide vote share to Democratic seat share.
 
@@ -515,6 +635,16 @@ def seats_votes_curve(
     counterfactual rather than a measurement. Defaults to
     :data:`DEFAULT_SWINGS`, 0.30 to 0.70 in steps of 0.01, which brackets any
     plausible statewide result and contains 0.50 exactly.
+
+    ``tie`` selects the rule for a district sitting exactly on 0.5 after the
+    swing (:data:`SEAT_TIE_RULES`). The default ``"half"`` is what makes the
+    curve antisymmetric and is the convention :func:`partisan_bias` is built on.
+    ``"neither"`` is the observed-election rule from :func:`seat_counts`, and
+    evaluating the curve at the observed statewide share under it returns
+    exactly ``all_metrics()["dem_seat_share"]`` — the two seat-share
+    conventions in this module, named rather than silent. At the observed share
+    they differ by ``1/(2n)`` per tied district and not at all otherwise; at
+    other swings they differ wherever the swing lands a district on 0.5.
 
     The curve is a step function: with ``n`` districts the seat share can only
     take values that are multiples of ``1/(2n)`` (halves appear only at an exact
@@ -544,7 +674,7 @@ def seats_votes_curve(
         raise ValueError("seats_votes_curve: plan has no districts")
     observed = statewide_dem_share(dem, rep)
     return [
-        (float(target), _seat_share_at(shares, target, observed))
+        (float(target), _seat_share_at(shares, target, observed, tie=tie))
         for target in targets
     ]
 
@@ -561,8 +691,15 @@ def all_metrics(plan: Plan, dem: Votes, rep: Votes) -> dict[str, float | None]:
     ``n_districts``, ``dem_seats``, ``rep_seats``, ``tied_districts``
         Counts. ``dem_seats + rep_seats + tied_districts == n_districts``.
     ``dem_seat_share``
-        ``dem_seats / n_districts``. Tied districts count for neither, so this
-        and the Republican seat share need not sum to 1.
+        ``dem_seats / n_districts``, under the **observed-election** tie rule
+        (:data:`SEAT_TIE_RULES` ``"neither"``): a tied district is a seat for
+        neither party, so this and the Republican seat share need not sum to 1.
+        ``seats_votes_curve(plan, dem, rep, swings=[out["dem_vote_share"]],
+        tie="neither")`` returns exactly this number; the curve's *default*
+        ``tie="half"`` splits a tied district instead and is the convention
+        partisan bias needs. Both rules are named, neither is silent, and at the
+        observed election they differ only where :func:`caveats` reports a tied
+        district.
     ``dem_vote_share``
         Statewide, turnout-weighted, two-party (:func:`statewide_dem_share`).
     ``efficiency_gap``, ``mean_median``, ``declination``, ``partisan_bias``
@@ -579,6 +716,17 @@ def all_metrics(plan: Plan, dem: Votes, rep: Votes) -> dict[str, float | None]:
     The metrics can and do disagree in sign about which party a plan favours;
     that disagreement is a finding, not an error, and :data:`FAVOURS` is needed
     to read it because the four are not oriented alike.
+
+    **This dict does not say which of its numbers can be trusted.** It cannot:
+    that depends on the regime the plan and election sit in, which is what
+    :func:`one_party_predominates`, :func:`trusted_metrics` and :func:`caveats`
+    report. On Iowa 2020 this function returns ``mean_median = -0.024256``,
+    whose sign reads as a Democratic advantage, for a plan on which the
+    Republicans hold four seats of four with 54.2% of the two-party vote — the
+    regime CRITERIA.md section 5.1 says to distrust exactly that number in.
+    Publishing this dict without the caveats beside it is CRITERIA.md section 11
+    failure mode 4, and every caller in this repository is expected to report
+    both.
 
     Raises ValueError if any district has no two-party votes, because four of
     the six numbers below would be undefined and returning the other two under
@@ -603,12 +751,173 @@ def all_metrics(plan: Plan, dem: Votes, rep: Votes) -> dict[str, float | None]:
     }
 
 
+def one_party_predominates(
+    plan: Plan,
+    dem: Votes,
+    rep: Votes,
+    *,
+    predominance_band: float = PREDOMINANCE_BAND,
+    minority_district_share: float = MINORITY_DISTRICT_SHARE,
+) -> list[str]:
+    """Reasons this plan sits in CRITERIA.md 5.1's one-party-predominates regime.
+
+    Returns one clause per reason found; an empty list means it does not.
+
+    Section 5.1 names the regime — "published guidance holds that all of these
+    are reliable in competitive states, but that only the efficiency gap and
+    declination should be trusted where one party predominates" — and defines
+    it no further. Quantifying it is therefore ours, `VALUE` class, and this
+    function is where the whole judgement lives so that it can be argued with in
+    one place. :func:`trusted_metrics` and :func:`caveats` both defer to it.
+
+    **Predominance is not the statewide margin.** That was this module's
+    original test and it was the wrong quantity: one party *predominating* is a
+    statement about who ends up holding the seats and about how the district
+    vote shares are distributed around 0.5, and a state can be within a couple
+    of points of a tie statewide while one party holds every district. Iowa 2020
+    is precisely that state, and under the margin-only test it drew no warning
+    at all. Three arms, any one sufficient:
+
+    1. **Statewide margin** — the two-party Democratic share lies outside
+       ``0.5 +/- predominance_band``. Iowa 2020: 0.458167, inside the band, so
+       this arm does **not** fire there.
+    2. **District sweep** — the weaker side of 0.5 holds at most
+       ``minority_district_share`` of the districts. This is the seat sweep,
+       read off the district shares rather than the seat tally so that a tied
+       district counts towards neither side. Iowa 2020: zero districts of four
+       above 0.5, so this arm fires, which is the whole point of the rewrite.
+    3. **Median district** — the median district share itself lies outside
+       ``0.5 +/- predominance_band``, so the middle of the distribution is not
+       competitive. Mean-median compares the mean against that median; when the
+       median district is nowhere near deciding anything, the comparison has no
+       pivot. Iowa 2020: 0.481438, inside the band, so this arm does not fire
+       either. It is here because it catches one-sided distributions that arms 1
+       and 2 miss — an odd district count split 3-2 on shares 0.20, 0.42, 0.44,
+       0.56, 0.90, say, at a statewide tie.
+
+    Arms 2 and 3 overlap heavily with each other on real data, and that is
+    accepted rather than engineered away: they are cheap, each is separately
+    interpretable, and the union is the claim being made. What is *not* accepted
+    is arm 1 standing alone, because Iowa 2020 shows what it lets through.
+
+    The returned strings are clause-length reasons, meant to be joined by
+    :func:`caveats`. Raises ValueError under the same conditions as
+    :func:`district_shares`.
+    """
+    shares = sorted(district_shares(plan, dem, rep).values())
+    n = len(shares)
+    if n == 0:
+        raise ValueError("one_party_predominates: plan has no districts")
+    statewide = statewide_dem_share(dem, rep)
+    below = sum(1 for s in shares if s < 0.5)
+    above = sum(1 for s in shares if s > 0.5)
+    median = statistics.median(shares)
+    reasons: list[str] = []
+
+    if abs(statewide - 0.5) > predominance_band:
+        leader = "Democratic" if statewide > 0.5 else "Republican"
+        reasons.append(
+            f"statewide margin — the two-party Democratic share is "
+            f"{statewide:.6f}, {abs(statewide - 0.5):.6f} from 0.5 and outside "
+            f"the +/-{predominance_band:g} band, a {leader} lead"
+        )
+    if min(below, above) <= minority_district_share * n:
+        if above > below:
+            leader, majority, minority = "Democratic", above, below
+        elif below > above:
+            leader, majority, minority = "Republican", below, above
+        else:
+            leader, majority, minority = "neither party", above, below
+        reasons.append(
+            f"district sweep — {majority} of {n} district vote shares fall on "
+            f"the {leader} side of 0.5 and {minority} on the other, a minority "
+            f"share of {min(below, above) / n:g} at or below the "
+            f"{minority_district_share:g} threshold"
+        )
+    if abs(median - 0.5) > predominance_band:
+        side = "Democratic" if median > 0.5 else "Republican"
+        reasons.append(
+            f"median district — the median district share is {median:.6f}, "
+            f"{abs(median - 0.5):.6f} from 0.5 and outside the "
+            f"+/-{predominance_band:g} band, so the middle of the distribution "
+            f"is itself safely {side} and mean-median has no pivot to compare "
+            f"its mean against"
+        )
+    return reasons
+
+
+def trusted_metrics(
+    plan: Plan,
+    dem: Votes,
+    rep: Votes,
+    *,
+    predominance_band: float = PREDOMINANCE_BAND,
+    minority_district_share: float = MINORITY_DISTRICT_SHARE,
+    min_districts_for_declination: int = DECLINATION_MIN_DISTRICTS,
+) -> tuple[str, ...]:
+    """Which of :data:`METRICS` remain usable on this plan and election.
+
+    Returns a subset of ``METRICS`` in the same order — **names, never values**.
+    Nothing here averages, weights, ranks or scores anything; a caller cannot
+    reduce this to a number, and `prompt.md`'s prohibition on collapsing
+    fairness to one number is not touched by it. It answers the question a bare
+    dict of floats cannot: *which of these numbers is it honest to report as a
+    measurement here?*
+
+    The rule, in order:
+
+    * Where :func:`one_party_predominates` returns any reason, keep only
+      :data:`TRUSTED_WHERE_ONE_PARTY_PREDOMINATES` — the efficiency gap and
+      declination, per CRITERIA.md section 5.1.
+    * Drop declination where :func:`declination` returns ``None``: a metric that
+      is undefined is not a metric that is trusted.
+    * Drop declination below ``min_districts_for_declination`` districts. It is
+      still arithmetic there, but each of its two lines rests on a handful of
+      points (see :data:`DECLINATION_MIN_DISTRICTS`), and "coarse enough that a
+      single district's side of 0.5 dominates the angle" is not a number to
+      publish as a measurement.
+
+    On Iowa 2020's enacted plan this returns ``("efficiency_gap",)`` — one
+    metric of four. That is the honest size of the claim available from this
+    module on the repository's only real dataset, and it is a large part of why
+    this module reports a dict and a caveat list rather than a verdict. The
+    surviving metric is still `VALUE` class and still gameable (CRITERIA.md
+    section 5.2); "trusted" here means *not disqualified by the regime*, which
+    is a much weaker statement than *correct*.
+
+    Partisan bias survives the small-district test even though it is quantised
+    to ``1/n`` of seat share there: quantisation is a resolution limit that
+    :func:`caveats` states outright, not a failure of interpretation. That is a
+    judgement call and it is stated here so it can be overturned.
+    """
+    predominates = bool(
+        one_party_predominates(
+            plan,
+            dem,
+            rep,
+            predominance_band=predominance_band,
+            minority_district_share=minority_district_share,
+        )
+    )
+    usable = [
+        m
+        for m in METRICS
+        if not predominates or m in TRUSTED_WHERE_ONE_PARTY_PREDOMINATES
+    ]
+    if "declination" in usable:
+        n = len(district_votes(plan, dem, rep))
+        if declination(plan, dem, rep) is None or n < min_districts_for_declination:
+            usable.remove("declination")
+    return tuple(usable)
+
+
 def caveats(
     plan: Plan,
     dem: Votes,
     rep: Votes,
     *,
     predominance_band: float = PREDOMINANCE_BAND,
+    minority_district_share: float = MINORITY_DISTRICT_SHARE,
     min_districts_for_declination: int = DECLINATION_MIN_DISTRICTS,
 ) -> list[str]:
     """Plain-language reliability warnings for this plan and this election.
@@ -618,30 +927,43 @@ def caveats(
     meaning what they appear to mean, and a float carries none of that with it.
     Nothing here changes a number; it says which numbers to distrust.
 
+    The last note is the **positive** one: it names the metrics that survive
+    every regime found, because a list of things that are broken is not the same
+    statement as a list of things that are usable, and a reader given only the
+    first will assume the rest are fine. On Iowa 2020 the survivor is the
+    efficiency gap and nothing else. See :func:`trusted_metrics`.
+
     The thresholds are **ours**, not CRITERIA.md's, which names the regimes
     without quantifying them. They are keyword parameters for that reason. See
-    :data:`PREDOMINANCE_BAND` and :data:`DECLINATION_MIN_DISTRICTS`.
+    :data:`PREDOMINANCE_BAND`, :data:`MINORITY_DISTRICT_SHARE` and
+    :data:`DECLINATION_MIN_DISTRICTS`.
     """
     notes: list[str] = []
     totals = district_votes(plan, dem, rep)
     n = len(totals)
     if n == 0:
         raise ValueError("caveats: plan has no districts")
-    share = statewide_dem_share(dem, rep)
     d_seats, r_seats, tied = seat_counts(plan, dem, rep)
 
-    if abs(share - 0.5) > predominance_band:
-        leader = "Democratic" if share > 0.5 else "Republican"
+    predominance = one_party_predominates(
+        plan,
+        dem,
+        rep,
+        predominance_band=predominance_band,
+        minority_district_share=minority_district_share,
+    )
+    if predominance:
         untrusted = [
             m for m in METRICS if m not in TRUSTED_WHERE_ONE_PARTY_PREDOMINATES
         ]
         notes.append(
-            f"One party predominates: the statewide two-party Democratic share "
-            f"is {share:.4f}, more than {predominance_band:g} from 0.5, a "
-            f"{leader} lead. CRITERIA.md section 5.1 holds that only "
-            f"{', '.join(TRUSTED_WHERE_ONE_PARTY_PREDOMINATES)} should be "
-            f"trusted in this regime; treat {', '.join(untrusted)} as "
-            f"unreliable here."
+            "One party predominates ("
+            + "; ".join(predominance)
+            + "). CRITERIA.md section 5.1 holds that only "
+            + ", ".join(TRUSTED_WHERE_ONE_PARTY_PREDOMINATES)
+            + " should be trusted in this regime; treat "
+            + ", ".join(untrusted)
+            + " as unreliable here, whatever their sign says."
         )
     if d_seats == n or r_seats == n:
         winner = "Democratic" if d_seats == n else "Republican"
@@ -654,7 +976,13 @@ def caveats(
         notes.append(
             f"{tied} district(s) are exactly tied. They are seats for neither "
             "party, declination returns None, and any metric reported here "
-            "should be read as a boundary case rather than a measurement."
+            "should be read as a boundary case rather than a measurement. It "
+            "is also the only way the module's two seat-share conventions can "
+            "disagree about the election that happened: the observed seat share "
+            "counts a tie for "
+            "neither party, the seats-votes curve's default counts it as half a "
+            f"seat each, so the two differ by {tied / (2 * n):g} here "
+            "(:data:`SEAT_TIE_RULES`)."
         )
     if n < min_districts_for_declination:
         notes.append(
@@ -663,7 +991,30 @@ def caveats(
             f"{min_districts_for_declination} districts each line rests on a "
             "handful of points and the angle it returns is dominated by which "
             "side of 0.5 a single district falls on. Partisan bias is quantised "
-            f"to steps of {1 / n:g} seat share for the same reason."
+            f"to multiples of {1 / (2 * n):g} seat share for the same reason "
+            f"({1 / (4 * n):g} where a swing splits a tied district), so it has "
+            "no resolution below half a seat here."
+        )
+
+    usable = trusted_metrics(
+        plan,
+        dem,
+        rep,
+        predominance_band=predominance_band,
+        minority_district_share=minority_district_share,
+        min_districts_for_declination=min_districts_for_declination,
+    )
+    if len(usable) < len(METRICS):
+        unusable = [m for m in METRICS if m not in usable]
+        notes.append(
+            "Still usable on this plan and election: "
+            + ", ".join(usable)
+            + f" ({len(usable)} of {len(METRICS)}). Do not report "
+            + ", ".join(unusable)
+            + " as measurements here — see the notes above for why each fails. "
+            "What survives is still `VALUE` class and still gameable "
+            "(CRITERIA.md section 5.2); surviving the regime test is not the "
+            "same as being right."
         )
     return notes
 

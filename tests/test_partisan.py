@@ -11,7 +11,14 @@ mentions PACKED is derived in the test that asserts it.
 
 ``SYMMETRIC`` — four districts of 1,000 votes each, shares 0.4, 0.4, 0.6, 0.6.
 A plan that treats the two parties alike, so every asymmetry metric must be
-exactly zero.
+exactly zero — at *every* hypothetical vote share, not only at 50-50, which is
+what the partisan-bias tests below turn on.
+
+``TIED`` — three districts, shares 0.5, 0.4, 0.7. The only regime in which the
+module's two seat-share conventions can disagree about the observed election.
+
+``COMPETITIVE_EIGHT`` — eight districts, statewide exactly 50-50, four seats
+each, median share 0.5. The case where no reliability caveat fires at all.
 
 The transposition tests (swap the two parties' vote columns and nothing else)
 are the ones that catch a wrong denominator or a transposed party, because a
@@ -30,6 +37,9 @@ from evaluate.partisan import (
     DEFAULT_SWINGS,
     FAVOURS,
     METRICS,
+    MINORITY_DISTRICT_SHARE,
+    PREDOMINANCE_BAND,
+    SEAT_TIE_RULES,
     TRUSTED_WHERE_ONE_PARTY_PREDOMINATES,
     all_metrics,
     caveats,
@@ -39,10 +49,12 @@ from evaluate.partisan import (
     efficiency_gap,
     mean_median,
     partisan_bias,
+    one_party_predominates,
     seat_count,
     seat_counts,
     seats_votes_curve,
     statewide_dem_share,
+    trusted_metrics,
     wasted_votes,
 )
 
@@ -78,6 +90,17 @@ PACKED = _toy([(400, 600), (400, 600), (400, 600), (900, 100)])
 
 #: Shares 0.4, 0.4, 0.6, 0.6 — symmetric under swapping the two parties.
 SYMMETRIC = _toy([(400, 600), (400, 600), (600, 400), (600, 400)])
+
+#: Three districts, one of them exactly tied: shares 0.5, 0.4, 0.7. The only
+#: regime in which the module's two seat-share conventions disagree.
+TIED = _toy([(500, 500), (400, 600), (700, 300)])
+
+#: Eight districts, statewide exactly 50-50, four seats each, median share 0.5.
+#: No arm of the predominance test fires and every metric survives.
+COMPETITIVE_EIGHT = _toy(
+    [(400, 600), (450, 550), (480, 520), (520, 480), (550, 450),
+     (600, 400), (470, 530), (530, 470)]
+)
 
 
 def swap(case):
@@ -563,3 +586,336 @@ def test_iowa_seats_votes_curve_crosses_where_the_close_districts_flip(iowa):
     assert curve[0.70] == 1.0
     seats = [s for _, s in seats_votes_curve(*iowa)]
     assert seats == sorted(seats)
+
+
+# --------------------------------------------------------------------------- #
+# the predominance regime — the gate that has to fire on Iowa
+# --------------------------------------------------------------------------- #
+
+def test_the_statewide_margin_alone_does_not_fire_on_iowa(iowa):
+    # The finding that forced the rewrite, stated as an assertion. Iowa 2020 is
+    # 0.041833 from a tied statewide vote, INSIDE the +/-0.05 band, so a
+    # predominance test keyed to the margin alone calls it competitive.
+    share = statewide_dem_share(iowa[1], iowa[2])
+    assert share == pytest.approx(0.4581673691536295)
+    assert abs(share - 0.5) == pytest.approx(0.0418326308, abs=1e-9)
+    assert abs(share - 0.5) < PREDOMINANCE_BAND
+    reasons = one_party_predominates(*iowa)
+    assert not [r for r in reasons if r.startswith("statewide margin")]
+    # ... and yet the Republicans hold four seats of four on 45.8% of the vote,
+    # which is the regime CRITERIA.md section 5.1 says to distrust.
+    assert reasons, "Iowa 2020 must be in the one-party-predominates regime"
+    assert any(r.startswith("district sweep") for r in reasons)
+    assert seat_counts(*iowa) == (0, 4, 0)
+
+
+def test_iowa_mean_median_is_reported_untrusted_not_bare(iowa):
+    # -0.024256 has a sign that reads as a DEMOCRATIC advantage on a plan where
+    # the Republicans won every seat. The number is not wrong arithmetic; it is
+    # the interpretation that fails, so the module must say so.
+    out = all_metrics(*iowa)
+    assert out["mean_median"] == pytest.approx(-0.024256, abs=5e-7)
+    assert out["mean_median"] < 0  # i.e. reads as favouring D
+    assert FAVOURS["mean_median"] == "R"
+    assert "mean_median" not in trusted_metrics(*iowa)
+    notes = " ".join(caveats(*iowa))
+    assert "One party predominates" in notes
+    assert "district sweep" in notes
+    assert "treat mean_median, partisan_bias as unreliable here" in notes
+
+
+def test_iowa_trusted_set_collapses_to_the_efficiency_gap_alone(iowa):
+    # Predominance leaves {efficiency_gap, declination} per CRITERIA.md 5.1,
+    # and declination is undefined here because one party won every seat, so
+    # one metric of four survives. That is the honest size of the claim.
+    assert trusted_metrics(*iowa) == ("efficiency_gap",)
+    assert declination(*iowa) is None
+
+
+def test_caveats_say_positively_what_remains_usable(iowa):
+    # A list of what is broken is not the same statement as a list of what is
+    # usable; a reader given only the first assumes the rest are fine.
+    positive = [n for n in caveats(*iowa) if n.startswith("Still usable")]
+    assert len(positive) == 1
+    note = positive[0]
+    assert "efficiency_gap (1 of 4)" in note
+    assert "Do not report mean_median, declination, partisan_bias" in note
+    assert "still gameable" in note  # surviving the regime test is not a verdict
+
+
+@pytest.mark.parametrize(
+    "case, arm",
+    [
+        # Statewide margin only: shares 0.30/0.48/0.52/0.56 with the first
+        # district carrying 100x the turnout, so the state is 0.3064 overall
+        # while the districts split 2-2 and their median is exactly 0.5.
+        (_toy([(30000, 70000), (480, 520), (520, 480), (560, 440)]),
+         "statewide margin"),
+        # District sweep only: an Iowa-shaped case. Statewide 0.4823 and median
+        # 0.4815 are both inside the band; all four districts are below 0.5.
+        (_toy([(485, 515), (478, 522), (498, 502), (468, 532)]),
+         "district sweep"),
+        # Median district only: five districts split 3-2, statewide 0.5040,
+        # but the median district sits at 0.44 and decides nothing.
+        (_toy([(200, 800), (420, 580), (440, 560), (560, 440), (900, 100)]),
+         "median district"),
+    ],
+    ids=["statewide-margin", "district-sweep", "median-district"],
+)
+def test_each_arm_of_the_predominance_test_fires_on_its_own(case, arm):
+    reasons = one_party_predominates(*case)
+    assert [r.split(" — ")[0] for r in reasons] == [arm]
+
+
+def test_no_arm_fires_on_a_competitive_plan():
+    assert one_party_predominates(*COMPETITIVE_EIGHT) == []
+    assert one_party_predominates(*SYMMETRIC) == []
+    assert one_party_predominates(*swap(SYMMETRIC)) == []
+    assert caveats(*COMPETITIVE_EIGHT) == []
+
+
+def test_the_predominance_test_is_symmetric_between_the_parties():
+    # Whichever party sweeps, the regime is the same regime.
+    for case in (PACKED, COMPETITIVE_EIGHT, SYMMETRIC):
+        assert bool(one_party_predominates(*case)) == bool(
+            one_party_predominates(*swap(case))
+        )
+        assert trusted_metrics(*case) == trusted_metrics(*swap(case))
+
+
+def test_the_predominance_thresholds_are_arguable_parameters():
+    # Both bands are VALUE choices, so both must move the answer. PACKED fires
+    # two arms at the defaults (sweep: one district of four above 0.5; median:
+    # 0.4). Narrowing the sweep threshold below one district in four and
+    # widening the band past 0.1 silences both, and the plan is then called
+    # competitive — which is the point: the judgement is visible and arguable,
+    # not buried in the metric.
+    assert [r.split(" — ")[0] for r in one_party_predominates(*PACKED)] == [
+        "district sweep",
+        "median district",
+    ]
+    assert one_party_predominates(*PACKED, minority_district_share=0.2) == [
+        r for r in one_party_predominates(*PACKED) if r.startswith("median")
+    ]
+    assert one_party_predominates(
+        *PACKED, minority_district_share=0.2, predominance_band=0.15
+    ) == []
+    assert MINORITY_DISTRICT_SHARE == 0.25 and PREDOMINANCE_BAND == 0.05
+
+
+def test_no_setting_of_the_statewide_band_alone_silences_iowa(iowa):
+    # The gate must not be recoverable by tuning the margin: with the band at
+    # its widest the statewide arm can never fire, and Iowa is still flagged,
+    # because it is flagged on the seats and shares rather than on the margin.
+    assert one_party_predominates(*iowa, predominance_band=0.5)
+    assert trusted_metrics(*iowa, predominance_band=0.5) == ("efficiency_gap",)
+    # Narrowing it below 0.041833 brings the statewide arm in as well.
+    reasons = one_party_predominates(*iowa, predominance_band=0.04)
+    assert [r.split(" — ")[0] for r in reasons] == [
+        "statewide margin",
+        "district sweep",
+    ]
+
+
+# --------------------------------------------------------------------------- #
+# which metrics survive the regime
+# --------------------------------------------------------------------------- #
+
+def test_trusted_metrics_is_all_four_only_on_a_competitive_plan_with_enough_districts():
+    assert trusted_metrics(*COMPETITIVE_EIGHT) == METRICS
+
+
+def test_trusted_metrics_drops_declination_where_it_is_undefined():
+    # Eight districts, statewide 0.5025, median 0.51, split 4-3 with one tie:
+    # no arm of the predominance test fires, but a tied district makes
+    # declination None, and an undefined metric is not a trusted one.
+    tied_eight = _toy([(400, 600), (450, 550), (470, 530), (500, 500),
+                       (530, 470), (550, 450), (600, 400), (520, 480)])
+    assert one_party_predominates(*tied_eight) == []
+    assert declination(*tied_eight) is None
+    assert trusted_metrics(*tied_eight) == (
+        "efficiency_gap",
+        "mean_median",
+        "partisan_bias",
+    )
+
+
+def test_trusted_metrics_drops_declination_on_a_four_district_state():
+    # SYMMETRIC is competitive and declination is defined (0.0), but four
+    # districts put each of its two fitted lines on two points.
+    assert one_party_predominates(*SYMMETRIC) == []
+    assert declination(*SYMMETRIC) == pytest.approx(0.0, abs=1e-15)
+    assert trusted_metrics(*SYMMETRIC) == (
+        "efficiency_gap",
+        "mean_median",
+        "partisan_bias",
+    )
+    # ... and it is a parameter, so the judgement can be overturned.
+    assert trusted_metrics(*SYMMETRIC, min_districts_for_declination=4) == METRICS
+
+
+def test_trusted_metrics_returns_names_and_cannot_be_reduced_to_a_number():
+    # prompt.md: no function collapses fairness to one number. This one returns
+    # a subset of the metric NAMES in METRICS order and no values at all.
+    for case in (PACKED, SYMMETRIC, COMPETITIVE_EIGHT, TIED):
+        usable = trusted_metrics(*case)
+        assert all(isinstance(m, str) for m in usable)
+        assert set(usable) <= set(METRICS)
+        assert list(usable) == [m for m in METRICS if m in usable]
+        assert "efficiency_gap" in usable  # never disqualified by the regime
+
+
+# --------------------------------------------------------------------------- #
+# partisan bias away from 50-50 — an asymmetry, not a level
+# --------------------------------------------------------------------------- #
+
+def test_partisan_bias_is_zero_at_every_at_on_a_plan_symmetric_by_construction():
+    # SYMMETRIC has shares 0.4, 0.4, 0.6, 0.6: whatever the Democrats get with
+    # v of the vote, the Republicans get with v of the vote. Its asymmetry is
+    # zero at EVERY hypothetical vote share, not only at 50-50.
+    for at in (0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7):
+        assert partisan_bias(*SYMMETRIC, at=at) == pytest.approx(0.0, abs=1e-15)
+
+
+def test_the_democratic_seat_share_at_a_vote_share_is_not_the_asymmetry():
+    # The defect this replaced: `S_D(at) - 0.5` returned +0.25 at at=0.6 and
+    # -0.25 at at=0.4 for the symmetric plan above, reporting a quarter-seat
+    # bias for a plan with none. It was measuring the level of Democratic seats,
+    # which mixes the plan's asymmetry with the ordinary fact that a party with
+    # 60% of the vote wins more than half the seats under any districting.
+    (_, seats_at_60), = seats_votes_curve(*SYMMETRIC, swings=[0.6])
+    (_, seats_at_40), = seats_votes_curve(*SYMMETRIC, swings=[0.4])
+    assert seats_at_60 - 0.5 == pytest.approx(0.25)   # the old return value
+    assert seats_at_40 - 0.5 == pytest.approx(-0.25)  # and its mirror
+    assert partisan_bias(*SYMMETRIC, at=0.6) == pytest.approx(0.0, abs=1e-15)
+    assert partisan_bias(*SYMMETRIC, at=0.4) == pytest.approx(0.0, abs=1e-15)
+
+
+def test_partisan_bias_is_the_two_party_difference_at_the_same_vote_share():
+    # bias(v) = (S_D(v) - S_R(v)) / 2 with S_R(v) = 1 - S_D(1 - v), recomputed
+    # here from the seats-votes curve rather than from the implementation.
+    for case in (PACKED, SYMMETRIC, TIED, swap(PACKED)):
+        for at in (0.35, 0.45, 0.5, 0.55, 0.65):
+            (_, s_dem), = seats_votes_curve(*case, swings=[at])
+            (_, s_mirror), = seats_votes_curve(*case, swings=[1 - at])
+            expected = (s_dem - (1 - s_mirror)) / 2
+            assert partisan_bias(*case, at=at) == pytest.approx(expected)
+
+
+def test_partisan_bias_reads_the_same_whichever_party_holds_the_larger_share():
+    # bias(v) == bias(1 - v): the asymmetry at 60-40 is one number, and which
+    # party is named as holding the 60 is not part of it.
+    for case in (PACKED, SYMMETRIC, TIED):
+        for at in (0.3, 0.42, 0.5):
+            assert partisan_bias(*case, at=at) == pytest.approx(
+                partisan_bias(*case, at=1 - at)
+            )
+
+
+def test_partisan_bias_is_antisymmetric_under_swapping_the_parties_at_any_at():
+    for at in (0.3, 0.45, 0.5, 0.55, 0.7):
+        assert partisan_bias(*swap(PACKED), at=at) == pytest.approx(
+            -partisan_bias(*PACKED, at=at), abs=1e-12
+        )
+
+
+def test_no_published_partisan_bias_number_moved(iowa):
+    # The default at=0.5 reduces to S_D(0.5) - 0.5 exactly, so the generalised
+    # formula changes nothing this module has ever reported. Pinned.
+    assert partisan_bias(*PACKED) == -0.25
+    assert partisan_bias(*SYMMETRIC) == 0.0
+    assert partisan_bias(*iowa) == 0.25
+    assert all_metrics(*iowa)["partisan_bias"] == 0.25
+
+
+def test_iowa_partisan_bias_away_from_fifty_fifty(iowa):
+    # At 60-40 the Iowa map gives whichever party holds the 60 all four seats,
+    # so its asymmetry there is zero — a fact the old `S_D(0.6) - 0.5` hid
+    # behind a +0.5, the largest bias the metric can express.
+    (_, s_dem_at_60), = seats_votes_curve(*iowa, swings=[0.6])
+    assert s_dem_at_60 == 1.0
+    assert partisan_bias(*iowa, at=0.6) == 0.0
+    assert partisan_bias(*iowa, at=0.4) == 0.0
+
+
+# --------------------------------------------------------------------------- #
+# the two seat-share conventions, named rather than silent
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.parametrize(
+    "case",
+    [PACKED, SYMMETRIC, TIED, COMPETITIVE_EIGHT, swap(PACKED)],
+    ids=["packed", "symmetric", "tied", "eight", "swapped"],
+)
+def test_the_curve_at_the_observed_share_equals_the_reported_seat_share(case):
+    # The identity swing, delta = 0, under the observed-election tie rule.
+    out = all_metrics(*case)
+    (v, seat_share), = seats_votes_curve(
+        *case, swings=[out["dem_vote_share"]], tie="neither"
+    )
+    assert v == out["dem_vote_share"]
+    assert seat_share == out["dem_seat_share"]
+
+
+def test_the_curve_at_the_observed_share_equals_the_reported_seat_share_on_iowa(iowa):
+    out = all_metrics(*iowa)
+    (_, seat_share), = seats_votes_curve(
+        *iowa, swings=[out["dem_vote_share"]], tie="neither"
+    )
+    assert seat_share == out["dem_seat_share"] == 0.0
+    # Iowa has no tied district, so the default rule agrees to the last bit and
+    # nothing published from the real data depends on the choice.
+    (_, default_rule), = seats_votes_curve(*iowa, swings=[out["dem_vote_share"]])
+    assert default_rule == seat_share
+
+
+def test_the_two_tie_conventions_differ_only_on_a_tied_district():
+    # TIED: shares 0.5, 0.4, 0.7. The observed seat share is 1/3 (the tie is a
+    # seat for nobody); the counterfactual rule splits it, giving 1/2. The gap
+    # is exactly tied / (2n), and caveats() announces it.
+    out = all_metrics(*TIED)
+    observed = out["dem_vote_share"]
+    (_, neither), = seats_votes_curve(*TIED, swings=[observed], tie="neither")
+    (_, half), = seats_votes_curve(*TIED, swings=[observed], tie="half")
+    assert out["tied_districts"] == 1
+    assert neither == pytest.approx(1 / 3)
+    assert half == pytest.approx(1 / 2)
+    assert half - neither == pytest.approx(1 / (2 * out["n_districts"]))
+    assert "seat-share conventions can disagree" in " ".join(caveats(*TIED))
+
+    # ... and on a plan with no tied district the two rules agree about the
+    # election that happened. They still differ away from it, wherever a swing
+    # puts a district exactly on 0.5 — PACKED's 0.9 district does that at
+    # v = 0.125 — which is a property of the counterfactual, not a
+    # disagreement about the observed result.
+    observed_packed = all_metrics(*PACKED)["dem_vote_share"]
+    (_, packed_neither), = seats_votes_curve(
+        *PACKED, swings=[observed_packed], tie="neither"
+    )
+    (_, packed_half), = seats_votes_curve(*PACKED, swings=[observed_packed])
+    assert packed_neither == packed_half == 0.25
+    assert all_metrics(*PACKED)["tied_districts"] == 0
+    (_, edge_neither), = seats_votes_curve(*PACKED, swings=[0.125], tie="neither")
+    (_, edge_half), = seats_votes_curve(*PACKED, swings=[0.125], tie="half")
+    assert edge_neither == 0.0 and edge_half == 0.125
+
+
+def test_only_the_half_rule_keeps_the_curve_antisymmetric():
+    # Why "half" is the default for the counterfactual: SYMMETRIC lands two
+    # districts exactly on 0.5 at v = 0.6, and the observed-election rule
+    # awards them to nobody, so curve(0.6) != 1 - curve(0.4) and the property
+    # partisan bias is defined from fails.
+    (_, up_half), = seats_votes_curve(*SYMMETRIC, swings=[0.6], tie="half")
+    (_, down_half), = seats_votes_curve(*SYMMETRIC, swings=[0.4], tie="half")
+    assert up_half == pytest.approx(1 - down_half)
+    (_, up_neither), = seats_votes_curve(*SYMMETRIC, swings=[0.6], tie="neither")
+    (_, down_neither), = seats_votes_curve(*SYMMETRIC, swings=[0.4], tie="neither")
+    assert up_neither == pytest.approx(0.5)
+    assert down_neither == pytest.approx(0.0)
+    assert up_neither != pytest.approx(1 - down_neither)
+
+
+def test_an_unknown_tie_rule_is_rejected():
+    assert SEAT_TIE_RULES == ("neither", "half")
+    with pytest.raises(ValueError, match="tie must be one of"):
+        seats_votes_curve(*PACKED, swings=[0.5], tie="coin-flip")

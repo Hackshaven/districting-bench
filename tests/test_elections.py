@@ -79,18 +79,29 @@ def test_defaults_name_the_2020_presidential_contest():
     assert DEFAULT_REP == "G20PRERTRU"
 
 
-def test_two_party_is_not_transposed(ia):
-    """Swapping the arguments must swap the result.
+def test_two_party_rejects_a_transposed_pair(ia):
+    """Handing the R column as dem_col must raise, not silently transpose.
 
-    This is the test that catches a transposed party: with the columns given in
-    the other order, the 'Democratic' total becomes Trump's 897,672 — larger
-    than the 'Republican' total, which is the opposite of the true ordering.
+    two_party returns ``(dem, rep)`` in that order, so a caller passing them the
+    other way round gets a 'Democratic' total of Trump's 897,672 — the exact
+    complement of the truth, 0.5418 instead of 0.4582. The party letters are in
+    the column names; there is no reason to accept the pair and every reason not
+    to. The override still allows it, and then the totals do swap, which is what
+    proves the function reads its arguments rather than the defaults.
     """
     dem, rep = two_party(ia, dem_col=DEFAULT_DEM, rep_col=DEFAULT_REP)
-    swapped_dem, swapped_rep = two_party(ia, dem_col=DEFAULT_REP, rep_col=DEFAULT_DEM)
     assert sum(dem.values()) < sum(rep.values())          # Iowa 2020 went R
+
+    with pytest.raises(ValueError, match="Republican column"):
+        two_party(ia, dem_col=DEFAULT_REP, rep_col=DEFAULT_DEM)
+
+    swapped_dem, swapped_rep = two_party(
+        ia, dem_col=DEFAULT_REP, rep_col=DEFAULT_DEM, allow_mismatched_pair=True
+    )
     assert swapped_dem == rep and swapped_rep == dem
     assert sum(swapped_dem.values()) == IA_TRUMP
+    d, r = sum(swapped_dem.values()), sum(swapped_rep.values())
+    assert round(d / (d + r), 4) == 0.5418
 
 
 def test_a_single_county_matches_the_file(ia):
@@ -240,6 +251,75 @@ def test_two_party_rejects_an_unknown_column(ia):
 def test_two_party_rejects_the_same_column_twice(ia):
     with pytest.raises(ValueError, match="same column"):
         two_party(ia, dem_col=DEFAULT_DEM, rep_col=DEFAULT_DEM)
+
+
+# --------------------------------------------------------------------------- #
+# the pairing gate: a mispaired call is a plausible wrong number
+# --------------------------------------------------------------------------- #
+
+def test_two_party_rejects_a_cross_contest_pair(ia):
+    """Presidential D over presidential-D-plus-senate-R.
+
+    Both columns exist, both differ, and the result is 0.4674 — between the true
+    presidential share (0.4582) and the true senate share (0.4660), so nothing
+    downstream can tell it is wrong. It is the one input to this module that
+    used to produce a wrong number instead of an exception.
+    """
+    with pytest.raises(ValueError, match="contest 'G20PRE'.*contest 'G20USS'"):
+        two_party(ia, dem_col="G20PREDBID", rep_col="G20USSRERN")
+
+
+def test_the_cross_contest_number_the_gate_exists_to_stop(ia):
+    """What the rejected call would have returned, pinned so the harm is visible."""
+    dem, rep = two_party(
+        ia, dem_col="G20PREDBID", rep_col="G20USSRERN", allow_mismatched_pair=True
+    )
+    d, r = sum(dem.values()), sum(rep.values())
+    assert (d, r) == (IA_BIDEN, 864_997)          # Biden over Ernst
+    assert round(d / (d + r), 4) == 0.4674
+
+    pres_d, pres_r = two_party(ia)
+    pres = sum(pres_d.values()) / (sum(pres_d.values()) + sum(pres_r.values()))
+    uss_d, uss_r = two_party(ia, dem_col="G20USSDGRE", rep_col="G20USSRERN")
+    uss = sum(uss_d.values()) / (sum(uss_d.values()) + sum(uss_r.values()))
+    assert round(pres, 4) == 0.4582 and round(uss, 4) == 0.4660
+    # It lands between the two real shares, which is why it looks right.
+    assert pres < d / (d + r)
+    assert abs(d / (d + r) - uss) < 0.002
+
+
+def test_two_party_rejects_a_third_party_column(ia):
+    """A non-D/non-R party letter is a mispair even within one contest."""
+    with pytest.raises(ValueError, match="Libertarian column"):
+        two_party(ia, dem_col="G20PRELJOR", rep_col=DEFAULT_REP)
+    with pytest.raises(ValueError, match="Green column"):
+        two_party(ia, dem_col=DEFAULT_DEM, rep_col="G20PREGHAW")
+
+
+def test_two_party_rejects_a_non_vest_column_name(tmp_path):
+    """An unparseable name cannot be checked, so it is not silently trusted."""
+    path = _write(tmp_path, "GEOID,dem,rep\n001,3,7\n")
+    data = load_elections(path)
+    with pytest.raises(ValueError, match="not VEST-style names"):
+        two_party(data, dem_col="dem", rep_col="rep")
+    dem, rep = two_party(
+        data, dem_col="dem", rep_col="rep", allow_mismatched_pair=True
+    )
+    assert (dem, rep) == ({"001": 3}, {"001": 7})
+
+
+def test_two_party_accepts_every_verified_pair_in_the_file(ia):
+    """Whatever two_party_columns hands back, two_party must accept unchecked."""
+    for contest in available_contests(ia):
+        dem_col, rep_col = two_party_columns(ia, contest)
+        dem, rep = two_party(ia, dem_col=dem_col, rep_col=rep_col)
+        assert sum(dem.values()) > 0 and sum(rep.values()) > 0
+
+
+def test_the_pairing_error_names_the_override(ia):
+    with pytest.raises(ValueError) as caught:
+        two_party(ia, dem_col="G20PREDBID", rep_col="G20USSRERN")
+    assert "allow_mismatched_pair=True" in str(caught.value)
 
 
 def test_ragged_table_raises():

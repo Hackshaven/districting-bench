@@ -29,6 +29,16 @@ PROCESSED = Path("data/processed")
 _MAX_LISTED = 8
 
 
+class AdjacencyError(ValueError):
+    """The adjacency graph itself is malformed — not the plan drawn on it.
+
+    A subclass of ValueError so existing callers catching ValueError still see
+    it, but :func:`is_valid` re-raises it instead of folding it into ``False``.
+    A filter that quietly rejected every plan because the *graph* was broken
+    would look exactly like a filter that found no valid plan.
+    """
+
+
 # --------------------------------------------------------------------------- #
 # loading and saving
 # --------------------------------------------------------------------------- #
@@ -96,7 +106,12 @@ def load_adjacency(path: str | Path | None = None) -> dict[str, list[str]]:
     """
     path = Path(path) if path is not None else PROCESSED / "ia_adjacency.json"
     raw = json.loads(path.read_text(encoding="utf-8"))
-    return {str(k): [str(x) for x in v] for k, v in raw.items()}
+    adjacency = {str(k): [str(x) for x in v] for k, v in raw.items()}
+    try:
+        check_adjacency(adjacency)
+    except AdjacencyError as exc:
+        raise AdjacencyError(f"{path}: {exc}") from None
+    return adjacency
 
 
 def load_units(path: str | Path | None = None):
@@ -121,6 +136,64 @@ def populations(path: str | Path | None = None) -> dict[str, int]:
 # --------------------------------------------------------------------------- #
 # structure
 # --------------------------------------------------------------------------- #
+
+def check_adjacency(adjacency: Mapping[str, Iterable[str]]) -> None:
+    """Raise :class:`AdjacencyError` unless the graph is a well-formed undirected
+    rook graph: non-empty, every neighbour is itself a node, and every edge is
+    recorded from both ends.
+
+    **Decision: validate, do not symmetrize.** Contiguity is the one FEDERAL
+    pass/fail constraint in CRITERIA.md section 1, and connectivity is read from
+    this mapping by following ``adjacency[node]`` outward. On an asymmetric
+    mapping that read is directed, and the answer then depends on which node the
+    traversal happens to start from — i.e. on the alphabetical order of unit ids::
+
+        {'a': ['b'], 'b': []}   -> 'a' reaches 'b', district looks connected
+        {'a': [], 'b': ['a']}   -> 'a' reaches nothing, district looks split
+
+    Identical edge set, opposite verdicts. Symmetrizing (taking the union of both
+    directions) would also remove the order dependence, and it was rejected: an
+    asymmetric map is not a formatting quirk to repair, it is evidence that
+    whoever built or filtered it dropped a unit from one side only — exactly what
+    happens when adversarial or detect subsets the graph. Repairing it silently
+    would hand that caller a contiguity verdict on an edge set they never wrote,
+    which is the failure mode this package refuses everywhere else. Raising puts
+    the defect where it was introduced.
+
+    Self-loops are not an error here; they cannot change a connectivity verdict.
+
+    O(E), so it is re-run on every :func:`validate` call rather than cached —
+    the same order as the connectivity BFS it precedes, and 222 edges on the
+    Iowa county graph.
+    """
+    if not adjacency:
+        raise AdjacencyError("adjacency graph is empty")
+    nodes = set(adjacency)
+    dangling: list[str] = []
+    one_sided: list[str] = []
+    for node, neighbours in adjacency.items():
+        for neighbour in neighbours:
+            if neighbour not in nodes:
+                dangling.append(f"{node}->{neighbour}")
+            elif node not in set(adjacency[neighbour]):
+                one_sided.append(f"{node}->{neighbour}")
+    if dangling or one_sided:
+        parts = []
+        if dangling:
+            parts.append(
+                f"{len(dangling)} edge(s) name a unit that is not a node: "
+                f"{_sample(sorted(dangling))}"
+            )
+        if one_sided:
+            parts.append(
+                f"{len(one_sided)} edge(s) are recorded from one end only: "
+                f"{_sample(sorted(one_sided))}"
+            )
+        raise AdjacencyError(
+            "adjacency graph is not symmetric, so contiguity would depend on "
+            "unit id order: " + "; ".join(parts)
+        )
+
 
 def districts(plan: Plan) -> dict[int, list[str]]:
     """``{district id: [GEOID, ...]}``, ids ascending and members sorted."""
@@ -173,14 +246,18 @@ def validate(plan: Plan, adjacency: Mapping[str, Iterable[str]], k: int) -> None
 
     ``adjacency`` defines the universe of units: a plan that omits one of its
     nodes, or names a unit it does not contain, is invalid.
+
+    Before any of that, the graph is checked by :func:`check_adjacency` and an
+    :class:`AdjacencyError` is raised if it is malformed — see that function for
+    why an asymmetric mapping is rejected rather than symmetrized. That error
+    describes the graph, not the plan, and :func:`is_valid` propagates it.
     """
     if int(k) != k or k < 1:
         raise ValueError(f"validate: k must be a positive integer; got {k!r}")
     k = int(k)
 
+    check_adjacency(adjacency)
     nodes = set(adjacency)
-    if not nodes:
-        raise ValueError("validate: adjacency graph is empty")
 
     non_integer = sorted(
         str(g) for g, d in plan.items() if not isinstance(d, int) or isinstance(d, bool)
@@ -232,9 +309,17 @@ def validate(plan: Plan, adjacency: Mapping[str, Iterable[str]], k: int) -> None
 
 
 def is_valid(plan: Plan, adjacency: Mapping[str, Iterable[str]], k: int) -> bool:
-    """:func:`validate` as a predicate, for callers filtering many plans."""
+    """:func:`validate` as a predicate, for callers filtering many plans.
+
+    False means *this plan* is invalid. A malformed graph raises
+    :class:`AdjacencyError` through this function rather than returning False,
+    because every plan on a broken graph would be "invalid" and the filter would
+    report an empty result instead of a defect.
+    """
     try:
         validate(plan, adjacency, k)
+    except AdjacencyError:
+        raise
     except ValueError:
         return False
     return True
@@ -243,7 +328,13 @@ def is_valid(plan: Plan, adjacency: Mapping[str, Iterable[str]], k: int) -> bool
 def _components(
     unit_ids: Iterable[str], adjacency: Mapping[str, Iterable[str]]
 ) -> list[list[str]]:
-    """Connected components of the induced subgraph, largest first."""
+    """Connected components of the induced subgraph, largest first.
+
+    Reads the mapping in one direction only, which is correct exactly because
+    :func:`check_adjacency` has already established that both directions are
+    present. Called on an unchecked mapping it would inherit that mapping's
+    directedness; every entry point here checks first.
+    """
     members = set(unit_ids)
     seen: set[str] = set()
     found: list[list[str]] = []

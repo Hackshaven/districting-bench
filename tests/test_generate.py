@@ -8,7 +8,16 @@ analytically or by hand, not against a second run of the same code:
   AR(1) process, whose integrated autocorrelation time is known in closed form;
 * cut edges and population spread against graphs small enough to count by hand;
 * the rank-normalized statistic against its defining invariance property (any
-  strictly increasing transform must leave it unchanged).
+  strictly increasing transform must leave it unchanged);
+* failure accounting against a stand-in sampler whose failures are scripted, and
+  then once more against real GerryChain at the epsilon the bench is configured
+  with (docs/ARCHITECTURE.md section 5), where failures are not scripted.
+
+An assertion that restates the code it is testing is not a test: it passes for a
+wrong implementation as readily as a right one. Where the natural expected value
+is "what the function returns", the expected value is derived some other way
+here -- by hand, from a golden run, or from a second implementation written in
+different terms.
 
 Run: PYTHONPATH=src .venv/bin/python -m pytest tests/ -q
 """
@@ -129,9 +138,28 @@ def test_derive_rejects_wrong_types():
         sd.derive(1, "chain", "0")
 
 
-def test_stream_matches_derive():
-    assert sd.stream(7, "chain", 4) == [sd.derive(7, "chain", i) for i in range(4)]
+def test_stream_is_the_first_n_seeds_of_a_purpose():
+    """Golden values, not a restatement of stream()'s body.
+
+    ``stream(...) == [derive(...) for i in range(n)]`` cannot fail for any
+    implementation that loops over derive, including one that starts at index 1
+    or reverses the order. These are the numbers on disk, plus the two structural
+    properties a caller depends on.
+    """
+    assert sd.stream(7, "chain", 4) == [
+        3566427239939341142,
+        6510946294532200226,
+        4868045547405297778,
+        3628114716198446039,
+    ]
     assert sd.stream(7, "chain", 0) == []
+
+    # Prefix property: asking for more chains extends the list, it does not
+    # redraw it, so adding a chain to a run leaves the earlier chains alone.
+    assert sd.stream(7, "chain", 2) == sd.stream(7, "chain", 4)[:2]
+    # Purposes are separate streams at the same index.
+    assert sd.stream(7, "scenario", 4)[0] != sd.stream(7, "chain", 4)[0]
+
     with pytest.raises(ValueError):
         sd.stream(7, "chain", -1)
 
@@ -243,9 +271,24 @@ def test_degenerate_regimes_are_explicit():
 
 def test_truncate_is_explicit_rather_than_silent():
     ragged = [[1, 2, 3, 4, 5], [1, 2, 3, 4], [1, 2, 3, 4, 5, 6]]
+    with pytest.raises(ValueError, match="unequal lengths"):
+        cv.split_rhat(ragged)
+
     trimmed = cv.truncate(ragged)
-    assert [len(chain) for chain in trimmed] == [4, 4, 4]
-    assert cv.split_rhat(trimmed) == cv.split_rhat(trimmed)
+    assert trimmed == [[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]]
+    assert ragged == [[1, 2, 3, 4, 5], [1, 2, 3, 4], [1, 2, 3, 4, 5, 6]]  # not mutated
+
+    # And the trimmed input has an answer of its own, computed here rather than
+    # by calling split_rhat a second time. Three identical chains [1,2,3,4] split
+    # into six half-chains, [1,2] three times and [3,4] three times:
+    #     W       = mean within-half variance (ddof=1)        = 0.5
+    #     means   = [1.5]*3 + [3.5]*3, var(ddof=1)            = 1.2
+    #     B       = n * 1.2 = 2 * 1.2                         = 2.4
+    #     var_hat = (n-1)/n * W + B/n = 0.25 + 1.2            = 1.45
+    #     R-hat   = sqrt(1.45 / 0.5)                          = sqrt(2.9)
+    assert cv.split_rhat(trimmed, rank_normalize=False, folded=False) == pytest.approx(
+        math.sqrt(2.9), rel=1e-12
+    )
 
 
 # ==========================================================================
@@ -292,6 +335,38 @@ def test_ess_collapses_when_the_chain_barely_moves():
     chains = [_ar1(1000, 0.99, start=start, seed=200 + i) for i, start in enumerate((-20, -7, 7, 20))]
     draws = 4 * 1000
     assert cv.ess(chains) < 0.02 * draws
+
+
+def test_ess_separates_nothing_varied_from_never_moved():
+    """The two degenerate regimes are opposite findings and must read that way.
+
+    A chain stuck at a constant is live here, not hypothetical:
+    docs/FEASIBILITY.md section 5.1 records 7 distinct plans per 300 steps at
+    epsilon=1e-4, so a short chain at the operating point can genuinely never
+    move. R-hat already separated the two; ESS returned nan for both, so a bench
+    reading nan as "degenerate, nothing varied" would have reported the opposite
+    of the truth for the most badly unmixed sample there is.
+    """
+    nothing_varies = [[3.0] * 100, [3.0] * 100, [3.0] * 100]
+    never_moved = [[1.0] * 100, [2.0] * 100, [3.0] * 100]
+
+    assert math.isnan(cv.split_rhat(nothing_varies))
+    assert math.isnan(cv.ess(nothing_varies))
+
+    assert cv.split_rhat(never_moved) == float("inf")
+    assert cv.ess(never_moved) == 0.0
+    assert not math.isnan(cv.ess(never_moved))
+
+    # The point of the distinction: a gate reads R-hat from above and ESS from
+    # below, and on this sample both must fail rather than one of them being
+    # unreadable.
+    assert not cv.split_rhat(never_moved) <= 1.01
+    assert not cv.ess(never_moved) >= 1.0
+
+    # A chain that moves at all, however little, is not in either regime.
+    barely = [[1.0] * 99 + [1.5], [2.0] * 99 + [2.5], [3.0] * 99 + [3.5]]
+    value = cv.ess(barely)
+    assert 0.0 < value < 0.05 * 300, value
 
 
 def test_ess_and_rhat_disagree_by_design():
@@ -364,29 +439,160 @@ def test_cut_edges_counted_by_hand():
 def test_population_spread_and_totals_by_hand():
     populations = {"a": 10, "b": 20, "c": 30, "d": 5}
     plan = {"a": 1, "b": 1, "c": 2, "d": 2}
-    assert ens.district_totals(plan, populations) == {1: 30, 2: 35}
-    assert ens.population_spread(plan, populations) == 5
+    assert ens.district_totals(plan, populations, 2) == {1: 30, 2: 35}
+    assert ens.population_spread(plan, populations, 2) == 5
+
+
+def test_an_empty_district_is_reported_and_never_folded_away():
+    """The k=4 plan whose fourth district holds nobody.
+
+    Read off its own values it is a 3-district plan, and inferring the district
+    set from ``plan.values()`` answers as though it were: totals {1: 30, 2: 30,
+    3: 40}, a max-min of 10 against the true 40 over 1..4 -- understating by a
+    factor of four -- and a canonical key of three blocks that compares equal to
+    a genuine 3-district plan, which would make distinct_plans conflate the two.
+    docs/ARCHITECTURE.md section 3 makes "district ids exactly 1..K, none empty"
+    an invariant; evaluate.plan.validate is across the firewall and unreachable
+    from here, so these functions enforce the part of it they depend on.
+    """
+    populations = {"a": 10, "b": 20, "c": 30, "d": 40}
+    plan = {"a": 1, "b": 1, "c": 2, "d": 3}
+
+    for call in (
+        lambda: ens.district_totals(plan, populations, 4),
+        lambda: ens.population_spread(plan, populations, 4),
+        lambda: ens.canonical(plan, 4),
+        lambda: ens.districts_of(plan, 4),
+    ):
+        with pytest.raises(ValueError, match=r"no units in district\(s\) \[4\]"):
+            call()
+
+    # The same plan read as what it is: three districts, hand-countable.
+    assert ens.district_totals(plan, populations, 3) == {1: 30, 2: 30, 3: 40}
+    assert ens.population_spread(plan, populations, 3) == 10
+
+    # A genuine 4-district plan over the same units answers normally, and the
+    # empty district it would have had is worth 40 persons of spread.
+    whole = {"a": 1, "b": 2, "c": 3, "d": 4}
+    assert ens.district_totals(whole, populations, 4) == {1: 10, 2: 20, 3: 30, 4: 40}
+    assert ens.population_spread(whole, populations, 4) == 30
+
+
+def test_k_is_required_and_none_is_an_explicit_opt_out():
+    """Omitting k is a TypeError; asking about the observed districts is typed.
+
+    k=None still refuses a gap or a non-1-based label, but it cannot see a
+    trailing empty district -- nothing can, from the plan alone -- so it is
+    reached deliberately rather than by leaving an argument off.
+    """
+    populations = {"a": 10, "b": 20, "c": 30, "d": 40}
+    plan = {"a": 1, "b": 1, "c": 2, "d": 3}
+
+    with pytest.raises(TypeError):
+        ens.population_spread(plan, populations)
+    with pytest.raises(TypeError):
+        ens.district_totals(plan, populations)
+    with pytest.raises(TypeError):
+        ens.canonical(plan)
+
+    assert ens.population_spread(plan, populations, None) == 10
+    assert ens.districts_of(plan, None) == [1, 2, 3]
+
+    with pytest.raises(ValueError, match="outside 1..3"):
+        ens.districts_of({"a": 1, "b": 2, "c": 3, "d": 7}, 3)
+    with pytest.raises(ValueError, match="1..K with no gaps"):
+        ens.districts_of({"a": 1, "b": 2, "c": 4, "d": 4}, None)
+    with pytest.raises(ValueError, match="1..K with no gaps"):
+        ens.districts_of({"a": 0, "b": 0, "c": 1, "d": 1}, None)
+    with pytest.raises(ValueError, match="assigns no units"):
+        ens.districts_of({}, 4)
 
 
 def test_canonical_ignores_district_labels_only():
     plan = {"a": 1, "b": 1, "c": 2}
     relabelled = {"a": 2, "b": 2, "c": 1}
     different = {"a": 1, "b": 2, "c": 2}
-    assert ens.canonical(plan) == ens.canonical(relabelled)
-    assert ens.canonical(plan) != ens.canonical(different)
+    assert ens.canonical(plan, 2) == ens.canonical(relabelled, 2)
+    assert ens.canonical(plan, 2) != ens.canonical(different, 2)
+    # Every district of 1..k is a block, so a k-district key can never equal a
+    # key with a different number of districts.
+    assert len(ens.canonical(plan, 2)) == 2
+    assert len(ens.canonical({"a": 1, "b": 2, "c": 3}, 3)) == 3
 
 
-def test_distinct_plans_counts_labellings_once():
+def test_distinct_plans_counts_relabellings_once(monkeypatch):
+    """Against a hand-counted answer rather than against canonical() itself.
+
+    Five draws over the 4-unit path, k=2. Draw 2 relabels draw 0 and draw 3
+    relabels draw 1, so the partitions are {ab|cd}, {a|bcd}, {ab|cd}, {a|bcd},
+    {abc|d}: three distinct plans, counted by eye. Comparing distinct_plans to
+    ``len({canonical(p) for p in plans})`` instead would restate run_chains'
+    implementation and pass for any definition of canonical, right or wrong.
+    """
+    adjacency, populations = _path_graph(4)
+    units = sorted(populations)
+    labellings = [
+        [1, 1, 2, 2],
+        [1, 2, 2, 2],
+        [2, 2, 1, 1],
+        [2, 1, 1, 1],
+        [1, 1, 1, 2],
+    ]
+
+    def fixed(_adjacency, _populations, _k, _epsilon, _steps, seed, node_repeats=0):
+        return iter([dict(zip(units, labels)) for labels in labellings])
+
+    monkeypatch.setattr(ens, "sample", fixed)
+    result = ens.run_chains(adjacency, populations, 2, 0.5, len(labellings), [1])
+    assert result.n_completed == 5
+    assert result.distinct_plans == 3
+
+
+def test_distinct_plans_on_a_real_run_matches_an_independent_key():
+    """Cross-check on ReCom output, with the equivalence written out here.
+
+    The key below is built from sorted tuples rather than frozensets and walks
+    1..k explicitly, so it agrees with canonical() only if canonical() means what
+    it says.
+    """
     adjacency, populations = _grid(4)
     result = ens.run_chains(adjacency, populations, 4, 0.05, 12, [11, 12])
-    keys = {ens.canonical(plan) for plan in result.plans}
-    assert result.distinct_plans == len(keys)
-    assert result.distinct_plans <= result.n_completed
+
+    def relabelling_free_key(plan):
+        blocks = []
+        for district in range(1, 5):
+            members = tuple(sorted(u for u, d in plan.items() if d == district))
+            assert members, f"district {district} is empty"
+            blocks.append(members)
+        return tuple(sorted(blocks))
+
+    assert result.n_completed == 24
+    assert result.distinct_plans == len({relabelling_free_key(p) for p in result.plans})
+    assert result.distinct_plans == 10  # golden: 24 draws, 10 partitions
 
 
 # ==========================================================================
 # ensemble: input validation
 # ==========================================================================
+
+
+def test_duplicate_neighbours_are_refused_and_never_double_count_an_edge():
+    """cut_edges counts each unordered pair once, and now check_inputs says so.
+
+    The docstring used to claim check_inputs established "symmetric adjacency
+    without duplicates"; it checked symmetry only, so a repeated neighbour
+    contributed the same edge twice.
+    """
+    adjacency, populations = _path_graph(4)
+    plan = {"u00": 1, "u01": 1, "u02": 2, "u03": 2}
+    assert ens.cut_edges(plan, adjacency) == 1
+
+    adjacency["u01"].append("u02")
+    adjacency["u02"].append("u01")
+    with pytest.raises(ValueError, match="duplicate neighbour"):
+        ens.check_inputs(adjacency, populations, 2, 0.05, 10)
+    # Still one edge, not two, on the graph check_inputs rejects.
+    assert ens.cut_edges(plan, adjacency) == 1
 
 
 def test_asymmetric_adjacency_is_refused():
@@ -453,7 +659,7 @@ def test_sampled_plans_satisfy_the_ordered_ch42_criteria():
     for plan in plans:
         assert set(plan) == set(populations)                    # every unit once
         assert sorted(set(plan.values())) == [1, 2, 3, 4]       # labels are 1..k
-        totals = ens.district_totals(plan, populations)
+        totals = ens.district_totals(plan, populations, k)
         for total in totals.values():
             assert abs(total - ideal) <= epsilon * ideal + 1e-9  # equality
         for district in totals:
@@ -525,6 +731,84 @@ def test_failure_accounting_keeps_partial_chains_and_counts_by_chain(monkeypatch
     # Only the chains that finished make a rectangular block for the diagnostics.
     assert {len(chain) for chain in result.cut_edges_chains()} == {10}
     assert [len(chain) for chain in result.cut_edges_chains(only_completed=False)] == [10, 4, 0, 10]
+
+
+def test_an_invariant_violating_plan_raises_instead_of_counting_as_a_failure(
+    monkeypatch,
+):
+    """A sampler bug must not be filed as an unlucky seed.
+
+    failure_rate is a reported sampling-bias quantity (docs/ARCHITECTURE.md
+    section 7), so anything that is not a dead chain has to stay out of it. The
+    plan-level quantities are therefore computed outside run_chains' except
+    block: they are pure functions of a plan already produced, and the only way
+    they raise is a violated 1..k invariant.
+    """
+    adjacency, populations = _path_graph(4)
+    units = sorted(populations)
+
+    def three_of_four(_adjacency, _populations, _k, _epsilon, _steps, seed, node_repeats=0):
+        return iter([dict(zip(units, [1, 2, 3, 3]))] * 3)  # district 4 empty
+
+    monkeypatch.setattr(ens, "sample", three_of_four)
+    with pytest.raises(ValueError, match=r"no units in district\(s\) \[4\]"):
+        ens.run_chains(adjacency, populations, 4, 0.5, 3, [1])
+
+
+def test_the_spread_summary_covers_the_same_sample_as_the_diagnostics(monkeypatch):
+    """One 'ensemble' object, one sample, and the sample named in the result.
+
+    population_spread_summary used to pool every trace while cut_edges_chains
+    defaulted to completed chains only, so two numbers describing two different
+    subsets landed side by side in bench-results.json with nothing recording
+    which was which. Both now default to the completed chains, and the summary
+    reports the subset it covers.
+
+    Six units of 10..15 persons, k=2: assigning the first j units to district 1
+    gives spreads of 55, 33, 9 and 17 for j = 1, 2, 3, 4. The surviving chain
+    cycles j = 2, 3, 4 for ten draws; the chain that dies sits at j = 1 for
+    three draws and then fails, so the 55s exist only in the partial trace.
+    """
+    adjacency, populations = _path_graph(6, uneven=True)
+    units = sorted(populations)
+
+    def by_seed(_adjacency, _populations, _k, _epsilon, _steps, seed, node_repeats=0):
+        def run():
+            for step in range(_steps):
+                if seed == 2:
+                    if step == 3:
+                        raise RuntimeError("Could not find a possible cut")
+                    first = 1
+                else:
+                    first = 2 + step % 3
+                yield {u: (1 if i < first else 2) for i, u in enumerate(units)}
+        return run()
+
+    monkeypatch.setattr(ens, "sample", by_seed)
+    result = ens.run_chains(adjacency, populations, 2, 0.5, 10, [1, 2])
+
+    assert [t.steps_completed for t in result.traces] == [10, 3]
+    assert result.traces[1].population_spread == (55, 55, 55)
+
+    default = result.population_spread_summary()
+    assert default["sample"] == "completed_chains"
+    assert (default["n_chains"], default["n_draws"]) == (1, 10)
+    # ten draws: 9, 9, 9, 17, 17, 17, 33, 33, 33, 33 -- median (17+17)/2.
+    assert (default["min"], default["median"], default["max"]) == (9.0, 17.0, 33.0)
+
+    # thirteen draws: the ten above plus 55, 55, 55 -- median the 7th, 33.
+    everything = result.population_spread_summary(only_completed=False)
+    assert everything["sample"] == "all_draws"
+    assert (everything["n_chains"], everything["n_draws"]) == (2, 13)
+    assert (everything["min"], everything["median"], everything["max"]) == (
+        9.0,
+        33.0,
+        55.0,
+    )
+
+    # The default is exactly the sample the convergence numbers are computed on.
+    assert default["n_chains"] == len(result.cut_edges_chains())
+    assert default["n_draws"] == sum(len(c) for c in result.population_spread_chains())
 
 
 def test_a_real_infeasible_epsilon_is_recorded_rather_than_raised():
@@ -617,7 +901,7 @@ def test_a_short_iowa_chain_produces_legal_whole_county_plans():
 
     for plan in result.plans:
         assert set(plan) == set(populations)
-        totals = ens.district_totals(plan, populations)
+        totals = ens.district_totals(plan, populations, k)
         assert sorted(totals) == [1, 2, 3, 4]
         assert sum(totals.values()) == 3190369
         for total in totals.values():
@@ -630,6 +914,77 @@ def test_a_short_iowa_chain_produces_legal_whole_county_plans():
         # point mass at 0 on Iowa and carries no detection signal
         # (docs/FEASIBILITY.md section 5.3).
         assert len(plan) == 99
+
+
+@needs_data
+def test_iowa_at_the_configured_epsilon_counts_failures_rather_than_raising():
+    """The operating point: Iowa, k=4, epsilon=2e-4 (docs/ARCHITECTURE.md section 5).
+
+    The rest of the Iowa tests run at 2e-3 and 5e-3, 10x and 25x looser than the
+    configured epsilon, and the only other real-GerryChain failure is a synthetic
+    4-unit path at epsilon=1e-9. But the whole failure-accounting design exists
+    for the 1e-4..2e-4 regime -- docs/FEASIBILITY.md section 5.1 measures a 13%
+    per-seed failure rate at 2e-4 and 63% at 1e-4 -- so it is tested where it
+    lives, on the real 99-county graph at the epsilon the bench is configured
+    with.
+
+    Cost: about two minutes, nearly all of it the one seed that dies. A seed
+    fails by exhausting GerryChain's 100,000-attempt budget, and that is the
+    price of observing a real failure rather than a stand-in; the accounting
+    around it is tested cheaply and deterministically above. Only the epsilon and
+    the graph match section 5's configuration -- 3 steps and 4 chains, not 2000
+    and 8 -- because chain length is what costs time and the quantity under test
+    does not depend on it.
+
+    The four seeds are the first four of one purpose string, not a hand-picked
+    set: the purpose is part of the run's identity (docs/ARCHITECTURE.md section
+    7), so renaming it here would silently draw four different chains and the
+    seed that dies would no longer be the one that dies.
+    """
+    adjacency, populations = ens.load_inputs()
+    k, epsilon, steps = 4, 2e-4, 3
+    ideal = sum(populations.values()) / k
+    seeds = sd.stream(20260818, "tight-a", 4)
+
+    result = ens.run_chains(adjacency, populations, k, epsilon, steps, seeds)
+
+    # Counted, not raised: getting here at all is half the assertion.
+    assert result.chain_failures == 1
+    assert result.failure_rate == 0.25              # chains, not draws
+    assert result.n_requested == 12
+    assert result.n_completed == 9                  # 3 surviving chains x 3 steps
+    assert [t.steps_completed for t in result.traces] == [3, 0, 3, 3]
+
+    dead = result.traces[1]
+    assert dead.completed is False
+    assert "Could not find a possible cut" in dead.failure
+    assert dead.plans == ()
+    assert dead.seconds > 0
+
+    # The surviving draws are legal plans at the configured tolerance. epsilon
+    # bounds each district's deviation, so the permitted max-min spread is about
+    # 2 * epsilon * ideal = 319 persons (docs/FEASIBILITY.md section 5.2).
+    graph = nx.Graph()
+    graph.add_nodes_from(adjacency)
+    for unit, neighbours in adjacency.items():
+        for other in neighbours:
+            graph.add_edge(unit, other)
+    for plan in result.plans:
+        assert len(plan) == 99 and set(plan) == set(populations)
+        totals = ens.district_totals(plan, populations, k)
+        assert sorted(totals) == [1, 2, 3, 4]
+        assert sum(totals.values()) == 3190369
+        for total in totals.values():
+            assert abs(total - ideal) <= epsilon * ideal + 1e-9
+        for district in totals:
+            members = [u for u, d in plan.items() if d == district]
+            assert nx.is_connected(graph.subgraph(members))
+        assert ens.population_spread(plan, populations, k) <= 2 * epsilon * ideal + 1
+
+    # The reported summary says which of the four chains it describes.
+    summary = result.population_spread_summary()
+    assert summary["sample"] == "completed_chains"
+    assert (summary["n_chains"], summary["n_draws"]) == (3, 9)
 
 
 @needs_data

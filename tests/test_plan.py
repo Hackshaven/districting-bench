@@ -11,7 +11,9 @@ from pathlib import Path
 import pytest
 
 from evaluate.plan import (
+    AdjacencyError,
     aggregate,
+    check_adjacency,
     districts,
     is_valid,
     load_adjacency,
@@ -110,6 +112,84 @@ def test_validate_rejects_a_non_integer_district_id():
 def test_validate_rejects_an_empty_graph():
     with pytest.raises(ValueError, match="adjacency graph is empty"):
         validate({"a": 1}, {}, 1)
+
+
+# --------------------------------------------------------------------------- #
+# the adjacency graph itself: contiguity must not depend on unit id order
+# --------------------------------------------------------------------------- #
+
+# The same single edge a-b, recorded from one end only, each way round.
+FORWARD = {"a": ["b"], "b": []}
+BACKWARD = {"a": [], "b": ["a"]}
+
+
+def test_an_asymmetric_graph_raises_in_both_directions():
+    """The bug this replaces: a directed read of the mapping made the contiguity
+    verdict depend on the alphabetical order of unit ids.
+
+    BFS starts at the alphabetically first member, so on FORWARD it walked a->b
+    and called the district connected, while on BACKWARD it never left 'a' and
+    called the identical edge set disconnected. Both mappings are malformed and
+    both must now raise, with the same message.
+    """
+    plan = {"a": 1, "b": 1}
+    for graph in (FORWARD, BACKWARD):
+        with pytest.raises(AdjacencyError, match="not symmetric"):
+            validate(plan, graph, 1)
+        with pytest.raises(AdjacencyError, match="one end only"):
+            check_adjacency(graph)
+
+
+def test_the_asymmetric_verdict_is_no_longer_order_dependent():
+    """Stated as the property, not as two cases: on one edge set, reversing which
+    end records it must not change the answer."""
+    plan = {"a": 1, "b": 1}
+    outcomes = []
+    for graph in (FORWARD, BACKWARD):
+        try:
+            validate(plan, graph, 1)
+            outcomes.append("valid")
+        except AdjacencyError:
+            outcomes.append("graph rejected")
+        except ValueError:
+            outcomes.append("plan invalid")
+    assert outcomes == ["graph rejected", "graph rejected"]
+
+
+def test_is_valid_does_not_swallow_a_malformed_graph():
+    """False must mean 'this plan is invalid', never 'the graph was broken'.
+
+    A filter over an ensemble that returned False here would report zero valid
+    plans and look like a sampling result rather than a defect.
+    """
+    with pytest.raises(AdjacencyError):
+        is_valid({"a": 1, "b": 1}, FORWARD, 1)
+    assert issubclass(AdjacencyError, ValueError)
+
+
+def test_a_dropped_unit_makes_the_graph_asymmetric():
+    """The realistic way this arises: a caller subsets the graph and removes a
+    unit from the node set but not from its neighbours' lists."""
+    filtered = {g: ns for g, ns in PATH4.items() if g != "d"}
+    with pytest.raises(AdjacencyError, match="not a node") as caught:
+        check_adjacency(filtered)
+    assert "c->d" in str(caught.value)
+
+
+def test_check_adjacency_accepts_the_toy_graphs_and_reports_both_defect_kinds():
+    check_adjacency(PATH4)
+    check_adjacency(STAR)
+    check_adjacency({"a": ["a"]})            # a self-loop cannot change reachability
+    with pytest.raises(AdjacencyError, match="adjacency graph is empty"):
+        check_adjacency({})
+
+
+def test_load_adjacency_rejects_an_asymmetric_file(tmp_path):
+    path = tmp_path / "adj.json"
+    path.write_text(json.dumps(FORWARD))
+    with pytest.raises(AdjacencyError, match="not symmetric") as caught:
+        load_adjacency(path)
+    assert str(path) in str(caught.value)
 
 
 def test_is_valid_mirrors_validate():

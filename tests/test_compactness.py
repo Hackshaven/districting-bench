@@ -33,11 +33,31 @@ iowa = pytest.mark.skipif(not HAVE_IOWA, reason="data/processed not built")
 # helpers: one shape per unit, one unit per district unless stated
 # --------------------------------------------------------------------------- #
 
-def frame(**shapes):
-    """GeoDataFrame of named shapes, no CRS (the figures are abstract)."""
+#: CRS for the abstract figures below: Lambert azimuthal equal-area centred on
+#: (0, 0) in metres. The figures sit at the origin, which is that projection's
+#: point of *zero* distortion — both scale factors are exactly 1.0 and the
+#: anisotropy is exactly 0.0 — so the analytic answers written out below are
+#: the answers, and the numbers are not perturbed by the choice of tag.
+#:
+#: These frames used to be built with ``crs=None``, which meant roughly 40 of
+#: the tests in this file never entered the CRS guard at all: the guard read
+#: ``if crs is not None and crs.is_geographic``, so a table with no CRS went
+#: straight through, and the one input most likely to be wrong (degrees, with
+#: nobody having said so) was the one input never covered. Every synthetic
+#: frame now carries a real projected CRS and takes the same guarded path
+#: Iowa's EPSG:5070 data takes; ``crs=None`` is tested where it belongs, as a
+#: refusal.
+TEST_CRS = "+proj=laea +lat_0=0 +lon_0=0 +datum=WGS84 +units=m +no_defs"
+
+#: Where to put a synthetic figure so it lands inside Iowa in EPSG:5070.
+IOWA_5070 = (200_000.0, 2_100_000.0)
+
+
+def frame(crs=TEST_CRS, **shapes):
+    """GeoDataFrame of named shapes in a projected, undistorted CRS."""
     names = list(shapes)
     return gpd.GeoDataFrame(
-        {"GEOID": names}, geometry=[shapes[n] for n in names], crs=None
+        {"GEOID": names}, geometry=[shapes[n] for n in names], crs=crs
     )
 
 
@@ -364,10 +384,148 @@ def test_cut_edges_rejects_a_plan_that_does_not_cover_the_graph():
 # regimes CRITERIA.md flags: undefined, degenerate, or wrong-projection
 # --------------------------------------------------------------------------- #
 
+def lonlat_box_in(crs, minlon=-96.6, minlat=40.4, maxlon=-90.1, maxlat=43.5):
+    """A frame covering Iowa's lon/lat extent, expressed in ``crs``.
+
+    Used to probe the projection guard without needing data/processed: the
+    guard's verdict depends on the projection *and* on the extent the data
+    occupies, so the extent has to be a real one.
+    """
+    box = shapely.box(minlon, minlat, maxlon, maxlat)
+    half = shapely.box(minlon, minlat, (minlon + maxlon) / 2, maxlat)
+    rest = shapely.box((minlon + maxlon) / 2, minlat, maxlon, maxlat)
+    return gpd.GeoDataFrame(
+        {"GEOID": ["a", "b"]}, geometry=[half, rest], crs="EPSG:4326"
+    ).to_crs(crs)
+
+
 def test_geographic_crs_is_refused():
     geom = gpd.GeoDataFrame({"GEOID": ["A"]}, geometry=[SQUARE], crs="EPSG:4326")
     with pytest.raises(ValueError, match="geographic"):
         C.polsby_popper({"A": 1}, geom)
+
+
+def test_a_missing_crs_is_refused():
+    """crs=None is not "planar units"; it is "nobody said", and it used to pass.
+
+    The old guard read ``if crs is not None and crs.is_geographic``, so the
+    single most dangerous input — degrees, unlabelled — was the one input that
+    went straight through and returned a plausible wrong number.
+    """
+    geom = gpd.GeoDataFrame({"GEOID": ["A"]}, geometry=[SQUARE], crs=None)
+    with pytest.raises(ValueError, match="geom.crs is None"):
+        C.polsby_popper({"A": 1}, geom)
+    with pytest.raises(ValueError, match="geom.crs is None"):
+        C.reock({"A": 1}, geom)
+    with pytest.raises(ValueError, match="geom.crs is None"):
+        C.all_metrics({"A": 1}, geom, {"A": []})
+
+
+def test_a_crs_given_as_a_plain_string_is_normalised_not_crashed_on():
+    """geopandas hands back a pyproj CRS; a hand-built table may not."""
+
+    class Loose:
+        columns = ("GEOID",)
+        geometry = [SQUARE]
+        crs = "EPSG:4326"
+
+    with pytest.raises(ValueError, match="geographic"):
+        C.polsby_popper({"A": 1}, Loose())
+
+
+def test_an_object_with_no_crs_attribute_at_all_is_refused():
+    class NotAGeoDataFrame:
+        columns = ("GEOID",)
+        index = ["A"]
+        geometry = [SQUARE]
+
+    with pytest.raises(ValueError, match="geom.crs is None"):
+        C.polsby_popper({"A": 1}, NotAGeoDataFrame())
+
+
+def test_an_equal_area_crs_can_still_be_refused():
+    """EPSG:6933 is equal-area and is rejected anyway — the whole decision.
+
+    A cylindrical equal-area projection buys exact area by shearing: at Iowa's
+    latitude it stretches north-south and squashes east-west by ~16%, which
+    lands directly on perimeter and on the minimum bounding circle (measured:
+    8.5% on Polsby-Popper, 22.6% on Reock). "Equal-area" is not the property
+    these measures need, so it is not the property the guard tests.
+    """
+    geom = lonlat_box_in("EPSG:6933")
+    assert geom.crs.coordinate_operation.method_name == "Lambert Cylindrical Equal Area"
+    with pytest.raises(ValueError, match="anisotropic"):
+        C.polsby_popper({"a": 1, "b": 2}, geom)
+
+
+def test_a_non_equal_area_crs_can_be_accepted():
+    """EPSG:26975 is conformal, not equal-area, and is accepted — the converse.
+
+    On Iowa it agrees to within 0.004% on Reock with a Lambert azimuthal
+    equal-area projection centred on the state, which is the least-distorted
+    projection available. Rejecting it for not being equal-area would reject a
+    better answer than the one the project standardises on.
+    """
+    geom = lonlat_box_in("EPSG:26975")
+    assert "Equal Area" not in geom.crs.coordinate_operation.method_name
+    values = C.polsby_popper({"a": 1, "b": 2}, geom)
+    assert all(0.0 < v <= 1.0 for v in values.values())
+
+
+def test_web_mercator_is_refused_for_non_uniform_scale():
+    """EPSG:3857 is near-conformal but its scale varies 5% across Iowa.
+
+    A *constant* scale factor cancels out of every measure here, which is why
+    scale is checked as a spread rather than as an offset from 1.0.
+    """
+    geom = lonlat_box_in("EPSG:3857")
+    with pytest.raises(ValueError, match="scale is uniform"):
+        C.polsby_popper({"a": 1, "b": 2}, geom)
+
+
+def test_the_guard_reads_the_extent_not_the_epsg_code():
+    """EPSG:5070 passes over Iowa and fails over its own origin.
+
+    Albers CONUS is anisotropic by 1.78% over Iowa and by 3.71% at 23N/96W,
+    where its false origin sits. A guard keyed on the EPSG code could not tell
+    those apart; this one measures the projection where the data actually is.
+    """
+    ok = frame(crs="EPSG:5070", a=cell(0, 0), b=cell(1, 0))
+    ok["geometry"] = ok.geometry.translate(*IOWA_5070)
+    assert C.polsby_popper({"a": 1, "b": 1}, ok)[1] == pytest.approx(
+        2 * math.pi / 9, rel=1e-9
+    )
+
+    at_origin = frame(crs="EPSG:5070", a=cell(0, 0), b=cell(1, 0))
+    with pytest.raises(ValueError, match="anisotropic"):
+        C.polsby_popper({"a": 1, "b": 1}, at_origin)
+
+
+def test_crs_distortion_is_zero_for_an_undistorted_projection():
+    report = C.crs_distortion(TEST_CRS, (-1.0, -1.0, 1.0, 1.0))
+    assert report["anisotropy"] == pytest.approx(0.0, abs=1e-9)
+    assert report["scale_spread"] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_crs_distortion_ranks_the_projections_the_docstring_ranks():
+    """The table in the module docstring, as an assertion.
+
+    Ordering, not exact values: the point is that EPSG:5070 is the most
+    distorted CRS the guard accepts, and that the equal-area EPSG:6933 is an
+    order of magnitude worse than the non-equal-area EPSG:26975.
+    """
+    iowa_bounds = {
+        code: tuple(lonlat_box_in(code).total_bounds)
+        for code in ("EPSG:5070", "EPSG:26975", "EPSG:6933", "EPSG:3857")
+    }
+    aniso = {
+        code: C.crs_distortion(code, bounds)["anisotropy"]
+        for code, bounds in iowa_bounds.items()
+    }
+    assert aniso["EPSG:26975"] < aniso["EPSG:5070"] < C.MAX_ANISOTROPY
+    assert aniso["EPSG:6933"] > 8 * C.MAX_ANISOTROPY
+    spread = C.crs_distortion("EPSG:3857", iowa_bounds["EPSG:3857"])["scale_spread"]
+    assert spread > C.MAX_SCALE_SPREAD
 
 
 def test_zero_area_district_is_refused_not_returned_as_zero():
@@ -390,7 +548,7 @@ def test_missing_and_extra_geometry_are_refused():
 
 def test_duplicate_geoids_are_refused():
     geom = gpd.GeoDataFrame(
-        {"GEOID": ["a", "a"]}, geometry=[cell(0, 0), cell(1, 0)], crs=None
+        {"GEOID": ["a", "a"]}, geometry=[cell(0, 0), cell(1, 0)], crs=TEST_CRS
     )
     with pytest.raises(ValueError, match="repeated GEOID"):
         C.polsby_popper({"a": 1}, geom)
@@ -618,6 +776,150 @@ def test_disagreements_flags_weak_pairs_and_nans():
 
 
 # --------------------------------------------------------------------------- #
+# MeasureCache: the ensemble path must be faster and identical
+# --------------------------------------------------------------------------- #
+
+def uncached_series(plans, geom, adjacency):
+    """metric_series with the memoization genuinely switched off.
+
+    ``cache=None`` means "no cache" everywhere in the module; the ensemble entry
+    points default to a sentinel that builds one. That distinction exists
+    because the first version of this test passed ``cache=None`` as its
+    reference and silently benchmarked the fast path against itself.
+    """
+    return C.metric_series(plans, geom, adjacency, cache=None)
+
+
+def six_cell_pair():
+    """A 3x2 grid in three districts, and the plan one unit-move away from it.
+
+    The ReCom pattern in miniature: the move changes districts 1 and 2 and
+    leaves district 3 exactly as it was, so district 3 is the reusable one.
+    """
+    geom = frame(
+        a=cell(0, 0), b=cell(1, 0), c=cell(2, 0),
+        d=cell(0, 1), e=cell(1, 1), f=cell(2, 1),
+    )
+    adjacency = {
+        "a": ["b", "d"], "b": ["a", "c", "e"], "c": ["b", "f"],
+        "d": ["a", "e"], "e": ["b", "d", "f"], "f": ["c", "e"],
+    }
+    before = {"a": 1, "d": 1, "b": 2, "e": 2, "c": 3, "f": 3}
+    after = {"a": 1, "b": 2, "d": 2, "e": 2, "c": 3, "f": 3}  # d moves 1 -> 2
+    return geom, adjacency, [before, after]
+
+
+def test_cache_changes_nothing_about_the_answer():
+    """The only acceptable speedup is one that returns the same numbers."""
+    geom, adjacency, plans = four_by_four()
+    plain = uncached_series(plans, geom, adjacency)
+    cached = C.metric_series(plans, geom, adjacency, cache=C.MeasureCache())
+    assert plain.keys() == cached.keys()
+    for name in plain:
+        assert plain[name] == cached[name]  # exact, not approx
+
+
+def test_metric_series_memoizes_by_default():
+    """The default has to be the fast path, or the bench will not use it."""
+    geom, adjacency, plans = four_by_four()
+    default = C.metric_series(plans, geom, adjacency)
+    assert default == uncached_series(plans, geom, adjacency)
+
+
+def test_no_cache_really_means_no_cache(monkeypatch):
+    """cache=None must not quietly build one, counted at the dissolve.
+
+    A benchmark that passes cache=None to get the slow path has to actually get
+    it; the first version of this module's benchmark did not, and reported a
+    1.02x speedup because it was timing the memoized path against itself.
+    """
+    geom, adjacency, plans = six_cell_pair()
+    calls = []
+    real = C._dissolve
+    monkeypatch.setattr(
+        C, "_dissolve", lambda d, u, l: (calls.append(d), real(d, u, l))[1]
+    )
+
+    C.metric_series(plans, geom, adjacency, cache=None)
+    assert len(calls) == 6            # three districts, both plans, no reuse
+
+    calls.clear()
+    C.metric_series(plans, geom, adjacency)
+    assert len(calls) == 5            # the untouched district is dissolved once
+
+
+def test_cache_reuses_the_districts_a_step_left_alone():
+    """Two plans sharing one district: 4 lookups, 3 dissolves, 1 hit.
+
+    This is the ReCom pattern in miniature — a step changes 2 of K districts
+    and leaves the rest alone — and it is the whole reason the cache exists.
+    """
+    geom, adjacency, plans = six_cell_pair()
+    cache = C.MeasureCache()
+    C.metric_series(plans, geom, adjacency, cache)
+    stats = cache.stats()
+    assert stats["hits"] + stats["misses"] == 6   # three districts, twice
+    assert stats["misses"] == 5                   # district 3 is the only repeat
+    assert stats["hits"] == 1
+    assert stats["hit_rate"] == pytest.approx(1 / 6)
+
+
+def test_cache_is_invariant_to_district_relabelling():
+    """Keying on the frozenset of units, not the district number, is the point.
+
+    The same partition with the labels swapped dissolves to the same two
+    geometries, so the second plan should be all hits.
+    """
+    geom = frame(a=cell(0, 0), b=cell(1, 0))
+    adjacency = {"a": ["b"], "b": ["a"]}
+    cache = C.MeasureCache()
+    C.metric_series(
+        [{"a": 1, "b": 2}, {"a": 2, "b": 1}], geom, adjacency, cache
+    )
+    assert cache.stats() == {
+        "hits": 2, "misses": 2, "evictions": 0, "size": 2, "hit_rate": 0.5
+    }
+
+
+def test_cache_refuses_a_second_geometry_table():
+    """Silently returning the first table's numbers would be the worst outcome."""
+    small = frame(a=cell(0, 0), b=cell(1, 0))
+    big = frame(a=cell(0, 0, size=10.0), b=cell(1, 0, size=10.0))
+    adjacency = {"a": ["b"], "b": ["a"]}
+    cache = C.MeasureCache()
+    C.all_metrics({"a": 1, "b": 2}, small, adjacency, cache)
+    with pytest.raises(ValueError, match="different geometry table"):
+        C.all_metrics({"a": 1, "b": 2}, big, adjacency, cache)
+
+
+def test_cache_evicts_least_recently_used_and_stays_correct():
+    geom, adjacency, plans = four_by_four()
+    tiny = C.MeasureCache(maxsize=1)
+    plain = uncached_series(plans, geom, adjacency)
+    cached = C.metric_series(plans, geom, adjacency, cache=tiny)
+    for name in plain:
+        assert plain[name] == cached[name]
+    assert len(tiny) == 1
+    assert tiny.stats()["evictions"] > 0
+
+
+def test_cache_rejects_a_useless_maxsize():
+    with pytest.raises(ValueError, match="maxsize"):
+        C.MeasureCache(maxsize=0)
+
+
+def test_measure_districts_matches_the_single_measure_functions():
+    """The batched path and the four readable paths must not drift apart."""
+    geom, _, plans = four_by_four()
+    plan = plans[2]
+    batched = C.measure_districts(plan, geom, C.MeasureCache())
+    assert batched["polsby_popper"] == C.polsby_popper(plan, geom)
+    assert batched["reock"] == C.reock(plan, geom)
+    assert batched["schwartzberg"] == C.schwartzberg(plan, geom)
+    assert batched["convex_hull"] == C.convex_hull(plan, geom)
+
+
+# --------------------------------------------------------------------------- #
 # Iowa: cross-checks against numbers measured before this module existed
 # --------------------------------------------------------------------------- #
 
@@ -677,3 +979,116 @@ def test_iowa_district_areas_sum_to_the_state_area(enacted, iowa_geom):
     parts = C.district_geometries(enacted, iowa_geom)
     total = sum(shape.area for shape in parts.values())
     assert total == pytest.approx(iowa_geom.geometry.area.sum(), rel=1e-9)
+
+
+@iowa
+def test_projection_sensitivity_of_the_measures_matches_the_docstring(
+    enacted, iowa_geom
+):
+    """Pin the numbers the module docstring's projection argument rests on.
+
+    The docstring used to attribute "~0.1%" to Polsby-Popper by citing D-005,
+    which measured *area* error and nothing else. Re-measured here on the
+    measures themselves: Polsby-Popper moves ~0.42%, Reock ~1.15%, convex hull
+    ~0.02%. If this test fails, the docstring is stale.
+    """
+    base = {
+        name: getattr(C, name)(enacted, iowa_geom)
+        for name in ("polsby_popper", "reock", "convex_hull")
+    }
+    worst = {name: 0.0 for name in base}
+    for epsg in (26975, 26976, 26915):
+        other = iowa_geom.to_crs(epsg=epsg)
+        for name in base:
+            values = getattr(C, name)(enacted, other)
+            worst[name] = max(
+                worst[name],
+                max(
+                    abs(values[d] - base[name][d]) / base[name][d]
+                    for d in base[name]
+                ),
+            )
+    assert 0.0035 < worst["polsby_popper"] < 0.0050    # ~0.42-0.43%
+    assert 0.0100 < worst["reock"] < 0.0130            # ~1.15-1.16%
+    assert worst["convex_hull"] < 0.0005               # ~0.03%
+    # the ordering is the finding: Reock is the projection-sensitive one, and
+    # it is sensitive by more than an order of magnitude over convex hull.
+    assert worst["reock"] > 2 * worst["polsby_popper"] > 10 * worst["convex_hull"]
+
+
+@iowa
+def test_unlabelled_degrees_would_have_been_wrong_by_percent_not_by_a_rounding(
+    enacted, iowa_geom
+):
+    """What the crs=None hole let through, measured rather than asserted.
+
+    The measures are computed here by hand on lon/lat coordinates, because the
+    module now refuses to compute them at all. District 1's Polsby-Popper comes
+    out 5.2% low and its Reock 22.4% low — the size of a real difference between
+    plans, arriving silently.
+    """
+    reference_pp = C.polsby_popper(enacted, iowa_geom)
+    reference_reock = C.reock(enacted, iowa_geom)
+    degrees = iowa_geom.to_crs(4326)
+    lookup = dict(zip((str(g) for g in degrees["GEOID"]), degrees.geometry))
+    members = {}
+    for unit, district in enacted.items():
+        members.setdefault(district, []).append(lookup[str(unit)])
+
+    errors_pp, errors_reock = {}, {}
+    for district, parts in members.items():
+        shape = shapely.union_all(parts)
+        pp = 4 * math.pi * shape.area / shape.length**2
+        radius = shapely.minimum_bounding_radius(shape)
+        reock = shape.area / (math.pi * radius**2)
+        errors_pp[district] = abs(pp - reference_pp[district]) / reference_pp[district]
+        errors_reock[district] = (
+            abs(reock - reference_reock[district]) / reference_reock[district]
+        )
+
+    assert errors_pp[1] == pytest.approx(0.052, abs=0.005)
+    assert errors_reock[1] == pytest.approx(0.224, abs=0.010)
+    assert min(errors_pp.values()) > 0.05
+
+    # and the module refuses to produce any of it
+    unlabelled = degrees.set_crs(None, allow_override=True)
+    with pytest.raises(ValueError, match="geom.crs is None"):
+        C.polsby_popper(enacted, unlabelled)
+
+
+@iowa
+def test_the_project_crs_passes_the_guard_it_installed(iowa_geom):
+    """EPSG:5070 must be accepted over Iowa, and its margin is worth knowing.
+
+    It is the most distorted projection the guard admits (1.78% of a 3% budget),
+    for the reason the module docstring gives: Iowa sits between Albers CONUS's
+    standard parallels. This test is here so that a future tightening of
+    MAX_ANISOTROPY cannot silently break the project's own data.
+    """
+    assert iowa_geom.crs.to_epsg() == 5070
+    report = C.crs_distortion(iowa_geom.crs, iowa_geom.total_bounds)
+    assert report["anisotropy"] == pytest.approx(0.0178, abs=0.001)
+    assert report["anisotropy"] < C.MAX_ANISOTROPY
+    assert report["scale_spread"] < 0.001
+
+
+@iowa
+def test_cache_matches_uncached_on_real_iowa_plans(enacted, iowa_geom, iowa_adjacency):
+    """Same numbers, exactly, on the geometry that actually matters.
+
+    The synthetic cache tests use squares; a dissolve of real county polygons
+    is where a stale or mis-keyed entry would show up.
+    """
+    counties = sorted(enacted)
+    variants = [dict(enacted)]
+    for geoid in counties[:12]:
+        variant = dict(enacted)
+        variant[geoid] = 1 + (variant[geoid] % 4)
+        variants.append(variant)
+
+    plain = uncached_series(variants, iowa_geom, iowa_adjacency)
+    cache = C.MeasureCache()
+    cached = C.metric_series(variants, iowa_geom, iowa_adjacency, cache)
+    for name in plain:
+        assert plain[name] == cached[name]
+    assert cache.stats()["hits"] > 0
