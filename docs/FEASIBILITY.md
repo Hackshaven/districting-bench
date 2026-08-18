@@ -277,16 +277,26 @@ character.
 **But `node_repeats=0` is not a universal fix, and the tight region is
 seed-fragile.** Eight seeds × 150 steps each:
 
-| ε | seeds that ran | best spread found |
-| --- | --- | --- |
-| 1×10⁻³ | 8/8 | 160 |
-| 5×10⁻⁴ | 8/8 | 103 |
-| 2×10⁻⁴ | **7/8** (seed 1001 fails) | **57** |
+| ε | seeds that ran | failure rate | best spread found |
+| --- | --- | --- | --- |
+| 1×10⁻³ | 8/8 | 0% | 160 |
+| 5×10⁻⁴ | 8/8 | 0% | 103 |
+| 2×10⁻⁴ | 7/8 | 13% | 57 |
+| 1×10⁻⁴ | **3/8** | **63%** | **23** |
 
-At ε=2×10⁻⁴ the sampler both beats the enacted plan's 94-person spread (57, on two
-of eight seeds) *and* fails outright on one seed. Any Phase 1 ensemble at this
-tolerance needs per-seed failure handling and a reported failure rate, not a single
-lucky chain. ε=1×10⁻⁴ is slower still and was not run to completion across seeds. Seeding from the enacted plan rather than `recursive_tree_part` reaches
+This is the real shape of the tradeoff, and it is a clean one: **as ε tightens the
+sampler reaches far better equality, and fails far more often.** At ε=1×10⁻⁴ five of
+eight seeds die — but the three that survive reach a **23-person spread, four times
+more population-equal than the enacted plan's 94.**
+
+So the first draft had the direction exactly backwards. ReCom does not fail to reach
+the legal standard; it beats it comfortably, on the seeds that survive. What it
+does at tight tolerance is *crash*, and crash on the majority of seeds.
+
+Any Phase 1 ensemble at ε ≤ 2×10⁻⁴ needs per-seed failure handling and a reported
+failure rate, not a single lucky chain — and a failure rate that high is itself a
+sampling bias worth measuring, since the seeds that survive are not a random subset
+of the ones that were tried. Seeding from the enacted plan rather than `recursive_tree_part` reaches
 ≈7×10⁻⁵. `pair_selection='cut_edges'` also runs at ε=5×10⁻⁴ but is not required;
 `allow_pair_reselection=True` with `max_attempts=100` is *worse*, failing at step 79
 with `MetagraphError`.
@@ -386,8 +396,9 @@ well as cut edges — the two disagree in both direction and magnitude.
 
 ### 5.5 What the ensemble question actually is
 
-Not feasibility. ReCom reaches the enacted plan's equality standard and beats it,
-once configured correctly. The open question is **mixing**: distinct plans per 300
+Not feasibility. ReCom reaches the enacted plan's equality standard and beats it
+fourfold, once configured correctly. The open question is **reliability and
+mixing**: at ε=1×10⁻⁴ the sampler crashes on 63% of seeds, and distinct plans per 300
 steps collapse from 107 at ε=5×10⁻⁴ to 48 at ε=2×10⁻⁴ to 7 at ε=1×10⁻⁴, and
 seed-to-seed variance in the sub-94 hit rate is enormous (24/500 versus 0/500 at the
 same ε). An ensemble that reaches the legal standard but barely moves is a different
@@ -424,10 +435,12 @@ surprise is now the correction itself.
    story about human map-drawers beating samplers — that I did not go back and
    check it. A more attractive finding needs *more* scrutiny, not less.
 
-2. **The enacted plan is not near-optimal on population equality.** Both ReCom
-   (once fixed) and a simple beam search find whole-county, contiguous plans
-   well below its 94-person spread within seconds. The first draft told the reader
-   Iowa's map sits near the achievable boundary. It does not.
+2. **The enacted plan is not near-optimal on population equality — it is not
+   close.** Both ReCom (once fixed) and a simple beam search find whole-county,
+   contiguous plans well below its 94-person spread within seconds. At ε=1×10⁻⁴
+   ReCom reaches **23 persons, four times more equal than the enacted map.** The
+   first draft told the reader Iowa's map sits near the achievable boundary. It sits
+   nowhere near it.
 
 3. **The tight region is real but less compact.** Sub-94 plans carry 57–67 cut edges
    against an ensemble mean of 42.6 and the enacted plan's 51. ReCom's spanning-tree
