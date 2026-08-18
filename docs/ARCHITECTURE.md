@@ -129,7 +129,8 @@ critics read; they do not read builder reasoning.
       "cut_edges":  {"split_rhat": 1.004, "ess": 812},
       "pop_spread": {"split_rhat": 1.007, "ess": 640}
     },
-    "population_spread": {"min": 23, "median": 310, "max": 1580}
+    "population_spread": {"sample": "completed_chains", "n_chains": 7, "n_draws": 14000,
+                          "min": 23, "median": 310, "max": 1580}
   },
   "scenarios": [
     {"id": "gerry_r_2seat", "kind": "planted", "target_party": "R",
@@ -157,6 +158,11 @@ critics read; they do not read builder reasoning.
 Gates are from `docs/CRITERIA.md` §8. `split_rhat` supersedes the unsplit statistic
 used in the feasibility pass, which FEASIBILITY.md §5.4 showed has no resolution at
 4 chains.
+
+Every field computed over a subset of draws carries a `sample` naming that subset
+(`completed_chains` or `all_draws`). §7 requires the failure rate to be reported
+because surviving seeds are not a random subset of attempted seeds; a summary
+statistic that does not say which draws it covers defeats that.
 
 ---
 
