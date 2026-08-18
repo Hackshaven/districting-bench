@@ -42,7 +42,10 @@ strictly more authoritative, at the cost of parsing a pipe-delimited fixed-schem
 file by field position.
 
 *Verification:* parsed total = 3,190,369 across 99 counties, matching Iowa's
-published 2020 apportionment population exactly.
+published 2020 census **resident** population exactly. (Corrected: this entry
+originally said "apportionment", contradicting FEASIBILITY.md §2. The apportionment
+population is 3,192,406; the 2,037 difference is overseas federal personnel.
+Verified against `apportionment-2020-tableA.xlsx`.)
 
 ---
 
@@ -66,8 +69,10 @@ Polsby-Popper a measure of the simplification algorithm.
 **Date:** 2026-08-18 · **Phase:** feasibility · **VALUE**
 
 Iowa's counties are close to a survey grid, so corner contacts are abundant: the
-queen graph has 294 edges to rook's 222. **32% of queen edges are single-point
-contacts.** Treating a corner as a connection is a substantive choice, not a
+queen graph has 294 edges to rook's 222. **24% of queen edges are single-point
+contacts** (72 of 294; equivalently 32% of the 222 rook edges — this entry
+originally gave 32% against the wrong denominator, contradicting FEASIBILITY.md §3).
+Treating a corner as a connection is a substantive choice, not a
 technicality — it lets a district pass through a point of zero width.
 
 *Chosen:* rook. Two counties are adjacent only if they share a boundary of
@@ -77,9 +82,11 @@ positive length.
 real map does not rely on corner adjacency, so excluding it does not exclude the
 plan under review.
 
-*Note:* the Census County Adjacency File is queen-based — its 294 Iowa–Iowa pairs
-match our queen graph exactly, in both directions. Anyone using that file as an
-adjacency source is silently getting queen.
+*Note:* the Census County Adjacency File includes corner-only contacts — its 294
+Iowa–Iowa pairs match our queen graph exactly, in both directions, so anyone using
+that file as an adjacency source is silently getting corner adjacency. It does not
+follow that the file *is* the queen graph; nationally the two disagree on a few
+dozen pairs. Corrected from "is queen-based" — see FEASIBILITY.md §3.
 
 ---
 
@@ -113,8 +120,43 @@ around `tools/firewall.yaml`, and if the config seems wrong, stop and say so.
 
 *Chosen:* report, do not edit. `tools/firewall.yaml` is untouched.
 
-*Open question for the human:* three of the four gaps are fixable by adding
-denylist patterns, which is a config change and therefore a human decision. The
-fourth (reading a partisan file by filename, with no column reference in the
-source) is not reachable by static analysis of `src/` at all and needs a
-different mechanism.
+*Open question for the human:* **two** of the gaps are fixable by adding denylist
+patterns (`bvap`/`hvap`/`wvap`, which add cleanly), which is a config change and
+therefore a human decision. Corrected from "three": adding `g20` false-positives on
+ordinary strings and misses other VEST vintages, and the allowlist short-circuit
+cannot be closed by *any* denylist addition — that needs word-boundary matching in
+`check_firewall.py` itself. Review also found the gap count is at least six, not
+four. See FEASIBILITY.md §1.
+
+---
+
+## D-007 — Feasibility findings put through adversarial review before acting on them
+
+**Date:** 2026-08-18 · **Phase:** feasibility
+
+The feasibility findings were about to drive an architectural decision (which
+sampler, whether to add an R toolchain, whether to concede that ensemble plans are
+not legal plans). Before spending that, every claim in `docs/FEASIBILITY.md` was
+assigned to an independent agent instructed to **refute** it — six claims, six
+refuters with no visibility into each other, then a synthesizer instructed to
+discard bad refutations rather than propagate them.
+
+*Result:* two invalidating findings and five material ones. The headline finding
+was withdrawn. The full corrections are marked **[C]** in FEASIBILITY.md.
+
+*Alternatives:* review the findings myself — rejected, since I had already missed
+a warning printed on my own terminal, and self-review does not fix that;
+review only the headline claim — rejected, and the decision is vindicated, because
+two self-contradictions between FEASIBILITY.md and this file (D-002 apportionment,
+D-004 32%) were caught by no refuter and only by the synthesizer reading both
+documents side by side.
+
+*What this cost and returned:* 7 agents, ~632k tokens, 72 minutes wall clock. It
+overturned the recommendation the human was about to act on.
+
+*Carry into Phase 1:* the `prompt.md` loop mechanic — builder and critic with
+separate context, critic reads only artifacts — is not ceremony. The bug that
+survived my own review was caught within minutes by an agent whose only instruction
+was to break the claim. **One refuter was itself wrong** (it re-ran the wrong entry
+point and declared results irreproducible that reproduce exactly), which is the
+argument for a synthesis stage that checks refutations rather than trusting them.

@@ -24,3 +24,12 @@ PYTHONPATH=feasibility python feasibility/tight_equality.py
 
 `feasibility/fetch_data.sh` downloads the inputs. Nothing under `data/` is
 committed — see `.gitignore`.
+
+## Known correction
+
+`ensemble.py` originally passed `node_repeats=10`, which is wrong for GerryChain's
+default cut-finder and made every ε ≤ 5×10⁻⁴ appear infeasible. The default is now
+`0`. The numbers in `docs/FEASIBILITY.md` §5.2 and §5.3 were produced with the old
+value and are reproducible with `--node-repeats 10`; §5.1 and §5.4 supersede the
+conclusions drawn from them. `epsilon_sweep.py` no longer suppresses warnings —
+the suppressed `UserWarning` named the parameter and the fix.

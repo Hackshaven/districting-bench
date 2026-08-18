@@ -8,7 +8,9 @@ import time, warnings
 import numpy as np
 from ensemble import build_graph, run, psrf
 
-warnings.filterwarnings("ignore")
+# Deliberately NOT filterwarnings("ignore"): suppressing GerryChain's
+# node_repeats warning here is what hid the bug in the first draft.
+warnings.simplefilter("once")
 
 graph = build_graph()
 print(f"{'epsilon':>9} {'max-min%':>9} {'sec':>7} {'ms/step':>8} {'cut mean':>9} "

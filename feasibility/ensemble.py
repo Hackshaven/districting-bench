@@ -35,15 +35,23 @@ def build_graph():
     return Graph.from_networkx(g)
 
 
-def run(graph, steps, epsilon, seed):
+# GerryChain's default cut-finder (find_balanced_edge_cuts_memoization) already
+# searches each spanning tree exhaustively, so a positive node_repeats re-roots the
+# same exhausted tree instead of drawing a new one. It must be 0. Passing 10 here
+# made every epsilon <= 5e-4 look infeasible; see docs/FEASIBILITY.md section 5.1.
+NODE_REPEATS = 0
+
+
+def run(graph, steps, epsilon, seed, node_repeats=NODE_REPEATS):
     ideal = sum(graph.node_data(n)[POP] for n in graph.nodes) / K
     assign = recursive_tree_part(
-        graph, range(K), ideal, POP, epsilon, node_repeats=10, rng=seed
+        graph, range(K), ideal, POP, epsilon, node_repeats=node_repeats, rng=seed
     )
     init = Partition(graph, assign, {"population": updaters.Tally(POP, alias="population"),
                                      "cut_edges": updaters.cut_edges})
     chain = MarkovChain(
-        proposal_fn=partial(recom, pop_col=POP, pop_target=ideal, epsilon=epsilon, node_repeats=10),
+        proposal_fn=partial(recom, pop_col=POP, pop_target=ideal, epsilon=epsilon,
+                            node_repeats=node_repeats),
         constraints=[constraints.within_percent_of_ideal_population(init, epsilon)],
         acceptance_fn=accept.always_accept,
         initial_partition=init,
@@ -79,6 +87,9 @@ if __name__ == "__main__":
     ap.add_argument("--steps", type=int, default=500)
     ap.add_argument("--chains", type=int, default=4)
     ap.add_argument("--epsilon", type=float, default=0.01)
+    ap.add_argument("--node-repeats", type=int, default=NODE_REPEATS,
+                    help="0 is correct for the default cut-finder; 10 reproduces "
+                         "the original (broken) feasibility numbers")
     a = ap.parse_args()
 
     graph = build_graph()
@@ -88,7 +99,8 @@ if __name__ == "__main__":
     cuts, devs, uniqs, t0 = [], [], [], time.time()
     for s in range(a.chains):
         t = time.time()
-        c, d, u, ideal = run(graph, a.steps, a.epsilon, seed=1000 + s)
+        c, d, u, ideal = run(graph, a.steps, a.epsilon, seed=1000 + s,
+                             node_repeats=a.node_repeats)
         cuts.append(c); devs.append(d); uniqs.append(u)
         print(f"  chain {s}: {time.time()-t:6.2f}s  cut_edges mean {c.mean():6.2f} "
               f"sd {c.std():5.2f}  distinct plans {u:5d}/{a.steps}  maxdev {d.max()*100:.4f}%")
