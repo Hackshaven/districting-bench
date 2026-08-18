@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.Rproj.user/
+.Rhistory
+
+# Data — large, redistributable only under source terms. Fetch, don't commit.
+data/
+*.shp
+*.shx
+*.dbf
+*.gpkg
+*.parquet
+
+# Run artifacts
+runs/
+ensembles/
+bench-results.json
+progress/
+*.log
