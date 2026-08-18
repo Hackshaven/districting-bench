@@ -1,0 +1,29 @@
+name: firewall
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-firewall:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install pyyaml
+
+      # Fail loudly if the firewall itself was touched. Changing it is a human
+      # decision, not something a build should silently accept.
+      - name: Detect modification of firewall config
+        run: |
+          if git diff --name-only origin/main...HEAD 2>/dev/null | grep -qE 'tools/(firewall\.yaml|check_firewall\.py)'; then
+            echo "::warning::The firewall config or checker was modified in this branch."
+            echo "::warning::Every result produced after this change is suspect until a human confirms the change was intended."
+          fi
+
+      - name: Check firewall
+        run: python tools/check_firewall.py
