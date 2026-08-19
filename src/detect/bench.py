@@ -155,7 +155,7 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -175,13 +175,71 @@ from generate import convergence, ensemble, seeds, units as GU
 #: ARCHITECTURE.md 5.
 SCHEMA_VERSION = 1
 
-STATE = "IA"
-UNIT_KIND = "county"
-K = 4
+@dataclass(frozen=True)
+class StateConfig:
+    """Everything that differs between target states.
 
-#: FEASIBILITY.md 5.1, measured: at this epsilon roughly 7 of 8 seeds complete
-#: and the sampler reaches a 57-71 person spread. Tighter fails on most seeds.
-EPSILON = 2e-4
+    Introduced for round 4. Until then the bench was hardcoded to Iowa, which was
+    correct while Iowa was the only target and became a defect the moment it was
+    not: a second state exposes every assumption the first one let pass silently.
+
+    ``gate_magnitude`` is the seat shift the TPR gate is stated at, and it is
+    per-state by DECISIONS D-013: detection magnitude is measured in units of the
+    neutral distribution's own spread, not in absolute seats. ``null_spread`` is
+    the measured width of that distribution, carried here so the artifact can say
+    whether a requested magnitude is *unreachable* rather than merely failed.
+    """
+
+    key: str
+    unit_kind: str
+    k: int
+    epsilon: float
+    gate_magnitude: int
+    null_spread: int
+    prefix: str
+    epsilon_note: str
+
+    @property
+    def units_csv(self): return PROCESSED / f"{self.prefix}_units.csv"
+    @property
+    def units_gpkg(self): return PROCESSED / f"{self.prefix}_units.gpkg"
+    @property
+    def adjacency_json(self): return PROCESSED / f"{self.prefix}_adjacency.json"
+    @property
+    def elections_csv(self): return PROCESSED / f"{self.prefix}_elections.csv"
+    @property
+    def enacted_csv(self): return PROCESSED / f"{self.prefix}_enacted_cd118.csv"
+
+
+IOWA = StateConfig(
+    key="IA", unit_kind="county", k=4, epsilon=2e-4,
+    # Measured: the neutral ensemble spans 0-2 D seats of 4 (docs/progress.md).
+    # A 2-seat gate asks the detector to separate an outcome from its own null,
+    # so the smallest magnitude that is even in principle detectable is 3.
+    gate_magnitude=3, null_spread=2, prefix="ia",
+    epsilon_note="whole counties reach near-zero deviation; FEASIBILITY.md 5.1",
+)
+
+COLORADO = StateConfig(
+    key="CO", unit_kind="vtd", k=8, epsilon=1e-2,
+    # Measured: 4-6 D seats of 8, spread 2 - the SAME absolute null as Iowa.
+    # Eight districts buy headroom above the floor, not a narrower floor.
+    gate_magnitude=3, null_spread=2, prefix="co",
+    epsilon_note=(
+        "whole-VTD units cannot reach Karcher-tight (DECISIONS D-015); this "
+        "epsilon is a modelling choice, not the legal standard"
+    ),
+)
+
+STATES = {"IA": IOWA, "CO": COLORADO}
+
+#: Rebound by :func:`configure`. Module-level so the many read sites stay
+#: readable; every one of them reads at call time, not import time.
+ACTIVE = IOWA
+STATE = ACTIVE.key
+UNIT_KIND = ACTIVE.unit_kind
+K = ACTIVE.k
+EPSILON = ACTIVE.epsilon
 
 #: FEASIBILITY.md 5.1: a positive value re-roots an already-exhausted spanning
 #: tree and the chain dies. Not a tunable; 0 is the only correct value here.
@@ -191,7 +249,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PROCESSED = REPO_ROOT / "data" / "processed"
 FIREWALL_CONFIG = REPO_ROOT / "tools" / "firewall.yaml"
 FIREWALL_SCRIPT = REPO_ROOT / "tools" / "check_firewall.py"
-ENACTED_PLAN = PROCESSED / "ia_enacted_cd118.csv"
 DEFAULT_OUT_ROOT = REPO_ROOT / "docs" / "progress"
 
 #: The metrics located against the ensemble. The partisan four are
@@ -378,6 +435,38 @@ class Size:
     meaningful_gates: bool = True
 
 
+def configure(key: str) -> StateConfig:
+    """Point the bench at a state. Must be called before anything else reads a path.
+
+    Rebinds the module globals rather than threading a config object through
+    forty call sites: every read happens at call time inside a function, so the
+    rebinding is visible everywhere, and the alternative is a diff large enough
+    to hide a mistake in.
+    """
+    global ACTIVE, STATE, UNIT_KIND, K, EPSILON, GATE_EPSILON, FULL, QUICK
+    try:
+        ACTIVE = STATES[key.upper()]
+    except KeyError:
+        raise SystemExit(f"unknown state {key!r}; known: {sorted(STATES)}") from None
+    STATE, UNIT_KIND, K = ACTIVE.key, ACTIVE.unit_kind, ACTIVE.k
+    EPSILON = GATE_EPSILON = ACTIVE.epsilon
+    FULL = replace(FULL, epsilon=EPSILON)
+    QUICK = replace(QUICK, epsilon=max(EPSILON * 5, QUICK_EPSILON_FLOOR))
+    return ACTIVE
+
+
+QUICK_EPSILON_FLOOR = 1e-3
+
+
+def gate_key() -> str:
+    """The TPR gate's name, which carries the magnitude it is stated at.
+
+    Per-state by DECISIONS D-013. Writing the magnitude into the key means an
+    artifact cannot be compared against one measured at a different magnitude by
+    accident -- the field names simply will not line up.
+    """
+    return f"tpr_at_{ACTIVE.gate_magnitude}seat"
+
 FULL = Size(
     label="full",
     epsilon=EPSILON,
@@ -386,8 +475,8 @@ FULL = Size(
     null_chains=8,
     null_steps=250,
     replicates=8,
-    magnitudes=(1, 2),
-    probe_magnitudes=(3,),
+    magnitudes=(1, 2, 3),
+    probe_magnitudes=(4,),
     probe_replicates=2,
     n_hard_nulls=12,
     n_random_nulls=12,
@@ -404,7 +493,7 @@ QUICK = Size(
     null_chains=2,
     null_steps=12,
     replicates=1,
-    magnitudes=(1, 2),
+    magnitudes=(1, 2, 3),
     probe_magnitudes=(),
     probe_replicates=0,
     n_hard_nulls=3,
@@ -462,19 +551,21 @@ def load_inputs() -> Inputs:
     ``pop`` and ``geometry``, so nothing partisan can arrive by this route.
     ``detect`` may import ``generate`` (tools/firewall.yaml).
     """
-    gen_adjacency, gen_populations = ensemble.load_inputs()
+    gen_adjacency, gen_populations = ensemble.load_inputs(
+        ACTIVE.units_csv, ACTIVE.adjacency_json
+    )
     inputs = Inputs(
         gen_adjacency=gen_adjacency,
         gen_populations=gen_populations,
-        adjacency=EP.load_adjacency(),
-        populations=EP.populations(),
-        units=EP.load_units(),
-        geometry=GU.load_geometry(),
+        adjacency=EP.load_adjacency(ACTIVE.adjacency_json),
+        populations=EP.populations(ACTIVE.units_csv),
+        units=EP.load_units(ACTIVE.units_csv),
+        geometry=GU.load_geometry(ACTIVE.units_gpkg),
         dem={},
         rep={},
-        enacted=EP.load_plan(ENACTED_PLAN),
+        enacted=EP.load_plan(ACTIVE.enacted_csv),
     )
-    dem, rep = elections.two_party(elections.load_elections())
+    dem, rep = elections.two_party(elections.load_elections(ACTIVE.elections_csv))
     inputs.dem, inputs.rep = dict(dem), dict(rep)
     inputs.check()
     return inputs
@@ -2006,7 +2097,7 @@ def run(
     decisions = {s.id: d for s, d in C.decide(scenarios, RULE)}
     matrix = C.confusion_matrix(gate_scenarios, RULE)
     curve = C.detection_curve(gate_scenarios, RULE)
-    gate_block = C.gates(gate_scenarios, RULE)
+    gate_block = C.gates(gate_scenarios, RULE, seat_shift=ACTIVE.gate_magnitude)
     matrix_all = C.confusion_matrix(scenarios, RULE)
 
     # 7. the plan under review ----------------------------------------------- #
@@ -2089,7 +2180,7 @@ def assemble(**kw) -> dict[str, Any]:
     field names it gives. Everything else the bench measured lives under
     ``diagnostics``, ``plan_under_review`` and ``timing`` — additive keys, so
     the schema block is readable on its own and a reader looking for
-    ``gates.tpr_at_2seat`` finds it where the contract says it is.
+    ``gates.tpr_at_<magnitude>seat`` finds it where the contract says it is.
     """
     ens: ensemble.EnsembleResult = kw["ens"]
     pool: ensemble.EnsembleResult = kw["pool"]
@@ -2163,7 +2254,7 @@ def assemble(**kw) -> dict[str, Any]:
     qualification = gate_qualification(size, ens, columns, conv, matrix)
 
     gates_out = {
-        "tpr_at_2seat": gate_block["tpr_at_2seat"],
+        gate_key(): gate_block[gate_key()],
         "fpr_on_nulls": gate_block["fpr_on_nulls"],
         "split_rhat": {
             "target": RHAT_GATE,
@@ -2212,7 +2303,7 @@ def assemble(**kw) -> dict[str, Any]:
         "qualification": qualification,
         "rule": RULE.as_dict(),
     }
-    for name in ("tpr_at_2seat", "fpr_on_nulls", "split_rhat", "legal_compliance"):
+    for name in (gate_key(), "fpr_on_nulls", "split_rhat", "legal_compliance"):
         gates_out[name]["meaningful"] = qualification["meaningful"]
         gates_out[name]["meaningful_note"] = qualification["note"]
 
@@ -2300,7 +2391,7 @@ def assemble(**kw) -> dict[str, Any]:
                 "unresolved_null": kw["matrix_all"]["unresolved_null"],
                 "note": "every null stratum pooled, including the excluded one",
             },
-            "tpr_at_2seat": C.tpr_at(curve, 2),
+            gate_key(): C.tpr_at(curve, ACTIVE.gate_magnitude),
             "fpr_on_nulls": matrix["fpr"],
             "min_detectable_seat_shift": C.min_detectable_seat_shift(curve),
             "by_magnitude": [
@@ -2329,8 +2420,8 @@ def assemble(**kw) -> dict[str, Any]:
         "gates": gates_out,
         "firewall": firewall_block(),
         "plan_under_review": {
-            "id": "ia_enacted_cd118",
-            "source": str(ENACTED_PLAN.relative_to(REPO_ROOT)),
+            "id": f"{ACTIVE.prefix}_enacted_cd118",
+            "source": str(ACTIVE.enacted_csv.relative_to(REPO_ROOT)),
             "plan_digest": O.plan_digest(inputs.enacted),
             "plan_file": f"{PLANS_DIRNAME}/baseline_enacted.csv",
             "metrics": {n: kw["review_metrics"].get(n) for n in LOCATED_METRICS},
@@ -2539,7 +2630,7 @@ def _alternative(rule: C.Rule, scenarios) -> dict[str, Any]:
         "rule": rule.as_dict(),
         "tpr": matrix["tpr"],
         "fpr": matrix["fpr"],
-        "tpr_at_2seat": C.tpr_at(curve, 2),
+        gate_key(): C.tpr_at(curve, ACTIVE.gate_magnitude),
         "min_detectable_seat_shift": C.min_detectable_seat_shift(curve),
         "nominal_fpr_bound": rule.nominal_fpr(
             len(rule.metrics) if rule.metrics else len(LOCATED_METRICS)
@@ -2606,7 +2697,7 @@ def _plot_rounds(report, columns, plt):
     nan = float("nan")
     pick = lambda key: [nan if h[key] is None else h[key] for h in history]
     ax.plot(rounds, pick("tpr"), "o-", label="TPR (all planted)")
-    ax.plot(rounds, pick("tpr_at_2seat"), "s-", label="TPR at 2-seat shift")
+    ax.plot(rounds, pick(gate_key()), "s-", label=f"TPR at {ACTIVE.gate_magnitude}-seat shift")
     ax.plot(rounds, pick("fpr"), "^-", label="FPR on nulls")
     ax.axhline(C.TPR_GATE, color="green", ls=":", lw=1, label=f"TPR gate {C.TPR_GATE}")
     ax.axhline(C.FPR_GATE, color="red", ls=":", lw=1, label=f"FPR gate {C.FPR_GATE}")
@@ -2631,7 +2722,7 @@ def _history(report) -> list[dict[str, Any]]:
                 rows[int(other["round"])] = {
                     "round": int(other["round"]),
                     "tpr": other["confusion"]["matrix"]["tpr"],
-                    "tpr_at_2seat": other["confusion"]["tpr_at_2seat"],
+                    gate_key(): other["confusion"].get(gate_key()),
                     "fpr": other["confusion"]["fpr_on_nulls"],
                 }
             except Exception:
@@ -2639,7 +2730,7 @@ def _history(report) -> list[dict[str, Any]]:
     rows[int(report["round"])] = {
         "round": int(report["round"]),
         "tpr": report["confusion"]["matrix"]["tpr"],
-        "tpr_at_2seat": report["confusion"]["tpr_at_2seat"],
+        gate_key(): report["confusion"].get(gate_key()),
         "fpr": report["confusion"]["fpr_on_nulls"],
     }
     return [rows[r] for r in sorted(rows)]
@@ -2816,7 +2907,7 @@ def summary_lines(report: Mapping[str, Any]) -> list[str]:
         )
     lines.append("")
     lines.append("gates:")
-    for key in ("tpr_at_2seat", "fpr_on_nulls", "split_rhat", "legal_compliance"):
+    for key in (gate_key(), "fpr_on_nulls", "split_rhat", "legal_compliance"):
         gate = report["gates"][key]
         verdict = {True: "PASS", False: "FAIL", None: "NOT MEASURED"}[gate["pass"]]
         extra = ""
@@ -2855,6 +2946,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--round", type=int, required=False, default=None,
                         help="round number; part of every derived seed, so scenarios "
                              "regenerate rather than being re-scored")
+    parser.add_argument("--state", default="IA",
+                        help="target state key: IA or CO (default IA)")
     parser.add_argument("--quick", action="store_true",
                         help="much smaller ensemble at a looser epsilon, for tests")
     parser.add_argument("--out-dir", type=Path, default=None,
@@ -2873,6 +2966,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    configure(args.state)
     if args.verify is None and (args.master_seed is None or args.round is None):
         parser.error("--master-seed and --round are required unless --verify is given")
     if args.verify is not None:
@@ -2903,7 +2997,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     for name in report.get("plots", []):
         print(f"wrote {out_dir / name}")
     failed = [
-        key for key in ("tpr_at_2seat", "fpr_on_nulls", "split_rhat", "legal_compliance")
+        key for key in (gate_key(), "fpr_on_nulls", "split_rhat", "legal_compliance")
         if report["gates"][key]["pass"] is not True
     ]
     if failed:
