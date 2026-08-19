@@ -1092,3 +1092,253 @@ def test_cache_matches_uncached_on_real_iowa_plans(enacted, iowa_geom, iowa_adja
     for name in plain:
         assert plain[name] == cached[name]
     assert cache.stats()["hits"] > 0
+
+
+# --------------------------------------------------------------------------- #
+# MeasureCache: the fingerprint must cover the geometry, not just the labels
+# --------------------------------------------------------------------------- #
+
+def test_cache_refuses_a_table_with_the_same_labels_and_different_shapes():
+    """The defect this test was written for, stated as the failure it caused.
+
+    The fingerprint used to be ``(crs wkt, unit count, hash of the GEOID
+    frozenset, total_bounds to 3dp)`` — nothing about the geometry. Two tables
+    can agree on every one of those and still hold different shapes, and the
+    cache then served the *first* table's measurements for the second, silently,
+    with no exception and a plausible number. Across a 14,000-plan bench round
+    that is the worst failure available to this module.
+
+    ``b`` is shrunk and ``c`` is grown to keep the overall extent identical, so
+    the old fingerprint is bit-for-bit unchanged between the two tables.
+    """
+    original = frame(
+        a=cell(0, 0), b=shapely.box(1, 0, 2, 1), c=shapely.box(2, 0, 3, 1)
+    )
+    reshaped = frame(
+        a=cell(0, 0), b=shapely.box(1, 0.2, 2, 0.8), c=shapely.box(2, 0, 3, 1)
+    )
+    assert list(original["GEOID"]) == list(reshaped["GEOID"])
+    assert str(original.crs) == str(reshaped.crs)
+    assert tuple(original.total_bounds) == tuple(reshaped.total_bounds)
+
+    plan = {"a": 1, "b": 2, "c": 3}
+    truth = C.measure_districts(plan, reshaped)
+    cache = C.MeasureCache()
+    C.measure_districts(plan, original, cache)
+    with pytest.raises(ValueError, match="different geometry table"):
+        C.measure_districts(plan, reshaped, cache)
+    # and the value the old fingerprint would have served was genuinely wrong
+    assert truth["polsby_popper"][2] != pytest.approx(
+        C.measure_districts(plan, original)["polsby_popper"][2]
+    )
+
+
+def test_fingerprint_separates_shape_from_label():
+    geom = frame(a=cell(0, 0), b=shapely.box(1, 0, 2, 1))
+    same = frame(a=cell(0, 0), b=shapely.box(1, 0, 2, 1))
+    moved = frame(a=cell(0, 0), b=shapely.box(1, 0.2, 2, 0.8))
+
+    assert C._fingerprint(geom, C._unit_lookup(geom)) == C._fingerprint(
+        same, C._unit_lookup(same)
+    )
+    assert C._fingerprint(geom, C._unit_lookup(geom)) != C._fingerprint(
+        moved, C._unit_lookup(moved)
+    )
+    # the cheap half is exactly what could not tell them apart
+    assert C._table_identity(geom, C._unit_lookup(geom)) == C._table_identity(
+        moved, C._unit_lookup(moved)
+    )
+
+
+def test_geometry_digest_is_stable_and_order_independent():
+    """Same shapes, same digest; a vertex moved, a different digest."""
+    a, b = cell(0, 0), shapely.box(1, 0, 2, 1)
+    assert C._geometry_digest({"x": a, "y": b}) == C._geometry_digest(
+        {"y": b, "x": a}
+    )
+    assert C._geometry_digest({"x": a, "y": b}) != C._geometry_digest(
+        {"x": b, "y": a}
+    )
+    assert C._geometry_digest({"x": a}) != C._geometry_digest({"x": a, "y": b})
+    # length-prefixing: ("A", wkb) and ("AX", wkb) must not collide
+    assert C._geometry_digest({"A": a}) != C._geometry_digest({"AX": a})
+
+
+def test_the_geometry_digest_is_taken_once_per_table_not_once_per_plan(monkeypatch):
+    """The honesty check on the fix: it must not eat the speedup it protects.
+
+    The digest is ~10 ms on Iowa's 99 counties against a ~0.7 ms fully-cached
+    ``measure_districts`` call, so paying it per plan would make the cache
+    slower than no cache at all. It is memoised per table object; this asserts
+    the memoisation rather than the wall clock, which is what a test can hold.
+    """
+    calls = []
+    real = C._geometry_digest
+    monkeypatch.setattr(
+        C, "_geometry_digest", lambda lookup: calls.append(1) or real(lookup)
+    )
+    geom, adjacency, plans = four_by_four()
+    cache = C.MeasureCache()
+    C.metric_series(plans, geom, adjacency, cache)
+    assert len(plans) > 1
+    assert len(calls) == 1
+
+
+def test_two_caches_over_one_table_each_take_their_own_digest(monkeypatch):
+    """The memo lives on the cache, so it cannot leak between caches."""
+    calls = []
+    real = C._geometry_digest
+    monkeypatch.setattr(
+        C, "_geometry_digest", lambda lookup: calls.append(1) or real(lookup)
+    )
+    geom, adjacency, plans = four_by_four()
+    for _ in range(2):
+        C.metric_series(plans, geom, adjacency, C.MeasureCache())
+    assert len(calls) == 2
+
+
+def test_cache_accepts_an_equal_copy_of_its_own_table():
+    """Binding is on content, not on identity: an equal table must not raise."""
+    geom = frame(a=cell(0, 0), b=shapely.box(1, 0, 2, 1))
+    plan = {"a": 1, "b": 2}
+    cache = C.MeasureCache()
+    C.measure_districts(plan, geom, cache)
+    C.measure_districts(plan, geom.copy(), cache)
+    assert cache.stats()["hits"] == 2
+
+
+# --------------------------------------------------------------------------- #
+# the projection guard: the numbers the docstring rests on
+# --------------------------------------------------------------------------- #
+
+def _albers_anisotropy_at(lon, lat):
+    """EPSG:5070 anisotropy at one point, via the module's own measurement."""
+    from pyproj import CRS, Transformer
+
+    x, y = Transformer.from_crs(
+        CRS.from_epsg(4326), CRS.from_epsg(5070), always_xy=True
+    ).transform(lon, lat)
+    return C.crs_distortion(5070, (x, y, x, y))["anisotropy"]
+
+
+def test_albers_anisotropy_is_zero_on_its_standard_parallels():
+    """It is a conic: distortion is a function of latitude alone."""
+    for lat in (29.5, 45.5):
+        assert _albers_anisotropy_at(-95.0, lat) == pytest.approx(0.0, abs=1e-4)
+    for lon in (-120.0, -95.0, -70.0):
+        assert _albers_anisotropy_at(lon, 37.5) == pytest.approx(
+            _albers_anisotropy_at(-95.0, 37.5), abs=1e-5
+        )
+
+
+@pytest.mark.parametrize(
+    "name, lon, lat, expected",
+    [
+        ("25N (the figure the docstring used to quote)", -95.0, 25.0, 0.0240),
+        ("49N (the other one)", -95.0, 49.0, 0.0246),
+        ("Ballast Key FL, CONUS southernmost", -81.9634, 24.5210, 0.0270),
+        ("Northwest Angle MN, CONUS northernmost", -95.1536, 49.3844, 0.0280),
+    ],
+)
+def test_conus_extremes_are_not_the_round_latitudes(name, lon, lat, expected):
+    """The two quoted point figures are right; they are not CONUS's extremes.
+
+    2.40% at 25N and 2.46% at 49N reproduce exactly. CONUS reaches 24.52N and
+    49.38N, where the same measurement gives 2.70% and 2.80% — still under
+    :data:`MAX_ANISOTROPY`, but by two tenths of a point.
+    """
+    assert _albers_anisotropy_at(lon, lat) == pytest.approx(expected, abs=5e-5)
+
+
+@pytest.mark.parametrize(
+    "state, bbox, expected",
+    [
+        ("Iowa", (-96.6397, 40.3754, -90.1401, 43.5012), 0.0180),
+        ("Minnesota", (-97.2394, 43.4994, -89.4919, 49.3844), 0.0293),
+        ("Florida", (-87.6349, 24.5210, -79.9743, 31.0009), 0.0329),
+        ("Montana", (-116.0500, 44.3582, -104.0396, 49.0011), 0.0355),
+        ("Washington", (-124.8489, 45.5435, -116.9160, 49.0024), 0.0372),
+    ],
+)
+def test_epsg_5070_does_not_pass_the_guard_across_all_of_conus(state, bbox, expected):
+    """The docstring's old justification for 3%, tested and refused.
+
+    It claimed 3% was "the smallest round number that admits EPSG:5070
+    everywhere in CONUS". The guard probes the corners of the data's *projected*
+    bounding box, which on a conic reach beyond the data's own latitudes, and
+    three states come in over 3%. The threshold is kept at 3% deliberately —
+    what it bounds is the artifact — so this is an assertion about EPSG:5070,
+    not about the guard, and it must not be silently "fixed" by widening the
+    tolerance.
+    """
+    from pyproj import CRS, Transformer
+
+    to_5070 = Transformer.from_crs(
+        CRS.from_epsg(4326), CRS.from_epsg(5070), always_xy=True
+    )
+    west, south, east, north = bbox
+    corners = [
+        to_5070.transform(lon, lat)
+        for lon in (west, (west + east) / 2, east)
+        for lat in (south, (south + north) / 2, north)
+    ]
+    xs = [p[0] for p in corners]
+    ys = [p[1] for p in corners]
+    measured = C.crs_distortion(5070, (min(xs), min(ys), max(xs), max(ys)))
+    assert measured["anisotropy"] == pytest.approx(expected, abs=5e-4)
+    assert (measured["anisotropy"] > C.MAX_ANISOTROPY) is (expected > 0.03)
+
+
+def test_the_max_anisotropy_constant_is_where_the_docstring_says_it_is():
+    assert C.MAX_ANISOTROPY == 0.03
+    assert C.MAX_SCALE_SPREAD == 0.02
+
+
+@iowa
+def test_the_laea_agreement_figure_is_the_worst_district_not_the_mean(
+    iowa_geom, enacted
+):
+    """Item 5 of the round-1 recheck, pinned to the number it is now quoted at.
+
+    The docstring used to say EPSG:26975 "agrees to within 0.004% on Reock"
+    with a Lambert azimuthal equal-area projection centred on Iowa. Re-measured
+    per district, the worst disagreement is 0.016% and the *mean* is 0.008%;
+    0.004% is of mean magnitude, not a bound. "To within X" has to be the worst
+    district or it is not a bound at all.
+    """
+    from pyproj import CRS
+
+    lonlat = iowa_geom.to_crs(4326)
+    centre = lonlat.geometry.union_all().centroid
+    laea = CRS.from_proj4(
+        f"+proj=laea +lat_0={centre.y:.6f} +lon_0={centre.x:.6f} "
+        f"+datum=WGS84 +units=m +no_defs"
+    )
+    reference = C.measure_districts(enacted, iowa_geom.to_crs(laea))
+    lambert = C.measure_districts(enacted, iowa_geom.to_crs(26975))
+
+    errors = {
+        name: [
+            abs(lambert[name][d] - reference[name][d]) / abs(reference[name][d]) * 100
+            for d in reference[name]
+        ]
+        for name in ("reock", "polsby_popper")
+    }
+    worst = {name: max(values) for name, values in errors.items()}
+    mean = {name: sum(v) / len(v) for name, v in errors.items()}
+
+    assert worst["reock"] == pytest.approx(0.016, abs=5e-4)
+    assert mean["reock"] == pytest.approx(0.008, abs=5e-4)
+    assert worst["polsby_popper"] == pytest.approx(0.010, abs=5e-4)
+    assert mean["polsby_popper"] == pytest.approx(0.006, abs=5e-4)
+    # the sentence the docstring now makes: the worst district is ~4x the
+    # figure that used to stand in for it
+    assert worst["reock"] > 3 * 0.004
+
+
+@iowa
+def test_iowa_is_the_measured_1_78_percent_the_docstring_quotes(iowa_geom):
+    report = C.crs_distortion(iowa_geom.crs, iowa_geom.total_bounds)
+    assert report["anisotropy"] == pytest.approx(0.0178, abs=5e-5)
+    assert report["scale_spread"] == pytest.approx(0.0, abs=1e-4)
+    assert report["anisotropy"] < C.MAX_ANISOTROPY

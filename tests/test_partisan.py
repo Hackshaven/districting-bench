@@ -919,3 +919,143 @@ def test_an_unknown_tie_rule_is_rejected():
     assert SEAT_TIE_RULES == ("neither", "half")
     with pytest.raises(ValueError, match="tie must be one of"):
         seats_votes_curve(*PACKED, swings=[0.5], tie="coin-flip")
+
+
+# --------------------------------------------------------------------------- #
+# exact ties: the sweep arm must not fire on a plan where nothing sweeps
+# --------------------------------------------------------------------------- #
+
+#: Eight districts at shares 0.40, 0.45, 0.50, 0.50, 0.50, 0.50, 0.55, 0.60,
+#: statewide exactly 4,000 of 8,000. Two districts below 0.5, two above, four
+#: exactly on it. Nothing sweeps by any reading, and src/adversarial builds
+#: plans of this shape on purpose.
+BALANCED_WITH_TIES = _toy(
+    [(400, 600), (450, 550), (500, 500), (500, 500),
+     (500, 500), (500, 500), (550, 450), (600, 400)]
+)
+
+
+def test_exact_ties_do_not_manufacture_a_sweep():
+    """The bug: ties were counted out of *both* tallies, deflating both.
+
+    ``below`` and ``above`` were each 2 of 8, so ``min(below, above) = 2`` met
+    the ``0.25 * 8 = 2`` threshold and the arm fired — on a plan that is 2-2-4,
+    statewide 50-50, with a median of exactly 0.5. A district a party has not
+    won is not a district it has swept, so a tie now counts in the minority.
+    """
+    plan, dem, rep = BALANCED_WITH_TIES
+    shares = sorted(district_shares(plan, dem, rep).values())
+    assert shares == [0.40, 0.45, 0.50, 0.50, 0.50, 0.50, 0.55, 0.60]
+    assert statewide_dem_share(dem, rep) == pytest.approx(0.5)
+    assert seat_counts(plan, dem, rep) == (2, 2, 4)
+    assert one_party_predominates(plan, dem, rep) == []
+    assert trusted_metrics(plan, dem, rep) == ("efficiency_gap", "mean_median",
+                                               "partisan_bias")
+    assert not [n for n in caveats(plan, dem, rep) if "predominates" in n]
+
+
+def test_the_sweep_arm_never_reports_neither_party():
+    """The other half of the same defect: the message assumed two sides.
+
+    With ``above == below`` the old code set ``leader = "neither party"`` into a
+    sentence written for a party name, and produced "2 of 8 district vote shares
+    fall on the neither party side of 0.5". That branch is now unreachable —
+    the arm requires a strict leader — and this asserts it stays that way.
+    """
+    for case in (BALANCED_WITH_TIES, SYMMETRIC, COMPETITIVE_EIGHT, TIED,
+                 PACKED, swap(PACKED)):
+        for reason in one_party_predominates(*case):
+            assert "neither party side" not in reason
+            assert "the neither" not in reason
+
+
+def test_a_real_sweep_counts_its_ties_in_the_minority():
+    """Seven districts Democratic, one exactly tied, none Republican.
+
+    This *is* a sweep, so the arm must still fire — but the tied district is on
+    nobody's side, so the minority share is 1/8, not 0, and the sentence has to
+    say where that district went.
+    """
+    case = _toy([(600, 400), (610, 390), (620, 380), (630, 370),
+                 (640, 360), (650, 350), (660, 340), (500, 500)])
+    (sweep,) = [r for r in one_party_predominates(*case)
+                if r.startswith("district sweep")]
+    assert "7 of 8 district vote shares fall on the Democratic side of 0.5" in sweep
+    assert "0 on the other and 1 exactly tied, on neither side" in sweep
+    assert "a minority share of 0.125" in sweep
+    # tightening the threshold below 1/8 silences it, which is the arm's own
+    # parameter doing the work rather than the tie being quietly discarded
+    assert not [r for r in one_party_predominates(*case, minority_district_share=0.1)
+                if r.startswith("district sweep")]
+
+
+def test_a_tie_can_be_the_difference_between_sweeping_and_not():
+    """Four districts, three Republican and one tied: a 1/4 minority, not 0."""
+    case = _toy([(400, 600), (420, 580), (440, 560), (500, 500)])
+    reasons = [r for r in one_party_predominates(*case)
+               if r.startswith("district sweep")]
+    assert reasons and "a minority share of 0.25" in reasons[0]
+    # the same plan with the tied district pushed to the Republican side sweeps
+    # outright, and the minority share falls to 0
+    outright = _toy([(400, 600), (420, 580), (440, 560), (490, 510)])
+    (sweep,) = [r for r in one_party_predominates(*outright)
+                if r.startswith("district sweep")]
+    assert "a minority share of 0" in sweep
+
+
+# --------------------------------------------------------------------------- #
+# the sweep caveat: what the seats-votes curve does and does not do
+# --------------------------------------------------------------------------- #
+
+def test_iowa_sweep_caveat_gives_the_margin_instead_of_claiming_a_flat_curve(iowa):
+    """The claim that was false on the repository's only real dataset.
+
+    The caveat said "the seats-votes curve is flat through the observed
+    election". Iowa's district 3 sits at 0.498241, so a uniform swing of
+    0.001759 — 0.18 points — takes the Democratic seat share from 0 to 0.25.
+    The curve is flat on the Republican side of the observed election and steps
+    almost immediately on the other, which is the opposite of what a reader
+    would take from "flat".
+    """
+    shares = district_shares(*iowa)
+    assert shares[3] == pytest.approx(0.498241, abs=5e-7)
+    assert max(shares.values()) == shares[3]
+
+    (note,) = [n for n in caveats(*iowa) if n.startswith("One party wins every seat")]
+    assert "flat through the observed election" not in note
+    assert "flat on the Republican side of the observed election" in note
+    assert "district 3 sits at 0.498241" in note
+    assert "uniform swing of 0.001759" in note
+    assert "0.18 points" in note
+    assert "moves the Democratic seat share from 0 to 0.25" in note
+
+
+def test_the_sweep_caveat_names_the_district_that_nearly_flipped():
+    """Generic, not an Iowa constant: the note tracks the real nearest margin."""
+    case = _toy([(100, 900), (200, 800), (499, 501), (300, 700)])
+    (note,) = [n for n in caveats(*case) if n.startswith("One party wins every seat")]
+    assert "district 3 sits at 0.499000" in note
+    assert "uniform swing of 0.001000" in note
+    # a plan with no near miss reports its own, much larger, margin
+    safe = _toy([(100, 900), (200, 800), (250, 750), (300, 700)])
+    (note,) = [n for n in caveats(*safe) if n.startswith("One party wins every seat")]
+    assert "uniform swing of 0.200000" in note
+
+
+def test_caveats_are_plain_prose_with_no_markup(iowa):
+    """caveats() is documented as plain-language warnings, so it must be plain.
+
+    A caveat used to end "...differ by 0.125 here (:data:`SEAT_TIE_RULES`)", and
+    the positive note called the survivors "still `VALUE` class". Backticks and
+    reST roles are for the docstrings, not for the reader of a warning.
+    """
+    cases = [iowa, PACKED, TIED, BALANCED_WITH_TIES, COMPETITIVE_EIGHT,
+             swap(PACKED), swap(TIED)]
+    for case in cases:
+        for note in caveats(*case):
+            assert "`" not in note, note
+            assert ":data:" not in note and ":func:" not in note, note
+            assert note.endswith(".") or note.endswith(")"), note
+    # the tie note still tells the reader what the two conventions disagree by
+    (tie_note,) = [n for n in caveats(*TIED) if "exactly tied" in n]
+    assert tie_note.endswith("so the two differ by 0.166667 here.")

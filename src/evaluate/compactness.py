@@ -90,9 +90,15 @@ evidence, because it is wrong in both directions:
   (measured at Iowa's centroid: 0.858 vs 1.166), and both of those land directly
   on perimeter and on the minimum bounding circle.
 * EPSG:26975 (Iowa North, Lambert *conformal* conic) is **not** equal-area, and
-  it agrees to within 0.004% on Reock with a Lambert azimuthal equal-area
-  projection centred on Iowa, which is the least-distorted projection available
-  for this state.
+  it agrees closely with a Lambert azimuthal equal-area projection centred on
+  Iowa, which is the least-distorted projection available for this state.
+  Re-measured on the enacted plan, the disagreement on Reock is **0.016% at
+  worst** over the four districts and 0.008% on average (Polsby-Popper: 0.010%
+  worst, 0.006% average; the figures move by <0.002 points if the LAEA centre
+  is moved from the state's centroid to its bounding-box centre). An earlier
+  version of this line said "agrees to within 0.004% on Reock" without saying
+  that it was an average of any kind. The number a reader needs is the worst
+  district, and it is four times that.
 
 Equal area constrains the numerator of three of the four measures and says
 nothing about the denominators, which is where the error actually is. The
@@ -108,8 +114,8 @@ CRS           max |h/k - 1|    scale spread  verdict
 ============  ===============  ============  ==============================
 LAEA @ Iowa   0.03%            0.00%         reference; least distorted
 EPSG:26975    0.00%            0.07%         accepted
-EPSG:26915    0.00%            0.12%         accepted
-EPSG:2163     0.70%            0.04%         accepted
+EPSG:26915    0.00%            0.11%         accepted
+EPSG:2163     0.71%            0.04%         accepted
 **EPSG:5070** **1.78%**        0.00%         accepted (see below)
 EPSG:3857     0.40%            **4.99%**     rejected: scale varies with lat
 EPSG:6933     **29.75%**       0.00%         rejected: equal-area but sheared
@@ -118,14 +124,56 @@ EPSG:6933     **29.75%**       0.00%         rejected: equal-area but sheared
 Across those, anisotropy predicts the error well: measured deviation from a
 locally fitted projection is ~0.32x the anisotropy for Polsby-Popper and ~0.85x
 for Reock, holding over two decades (EPSG:5070 at 1.4% anisotropy at Iowa's
-centroid -> 0.43% / 1.15%; EPSG:6933 at 26.4% -> 8.5% / 22.6%). The tolerances
-are set from that, and from where EPSG:5070 itself lands: Albers CONUS is
+centroid -> 0.43% / 1.15%; EPSG:6933 at 26.4% -> 8.5% / 22.6%).
+:data:`MAX_ANISOTROPY` is set from that at 3%, which bounds the artifact at
+~1.0% on Polsby-Popper and ~2.6% on Reock. EPSG:5070 over Iowa measures 1.78%
+and clears the limit with 1.2 points to spare; EPSG:6933 misses it by nearly a
+factor of ten (29.75%).
+
+**A previous version of this paragraph justified the 3% differently, and that
+justification does not survive measurement.** It said 3% was "the smallest round
+number that admits EPSG:5070 everywhere in CONUS", because "Albers CONUS is
 anisotropic by 2.40% at 25N and 2.46% at 49N, so a 2% limit would reject the
-project's own standard for Florida and for Minnesota. :data:`MAX_ANISOTROPY` is
-therefore 3%, bounding the artifact at ~1.0% on Polsby-Popper and ~2.6% on Reock;
-EPSG:6933 misses it by nearly a factor of ten (29.7%). The guard measures the
-property, not the CRS's reputation — Web Mercator over a small enough extent is
-very nearly conformal and uniform in scale, and would legitimately pass.
+project's own standard for Florida and for Minnesota". Those two point figures
+are right — :func:`crs_distortion` reproduces 2.398% and 2.457% — but they do
+not support the conclusion. Re-measured with this module's own
+:func:`crs_distortion`:
+
+* **25N and 49N are not CONUS's extremes.** CONUS reaches 24.52N (Ballast Key,
+  Florida) and 49.38N (Northwest Angle, Minnesota), where EPSG:5070 is
+  anisotropic by **2.70%** and **2.80%**. Albers is a conic, so its anisotropy
+  is a function of latitude alone — exactly 0 on its standard parallels (29.5N,
+  45.5N) and rising away from them — and those two are therefore the pointwise
+  CONUS maxima. Under 3%, but by two tenths of a point, not by a margin.
+* **The guard does not probe points inside the data.** It probes the four
+  corners and the centre of the data's *projected* bounding box, and on a conic
+  the corners of that rectangle fall outside the data's own latitude range — for
+  Washington, at 44.17N and 50.36N, against data spanning 45.54N to 49.00N.
+  Projecting each state's lon/lat extent into EPSG:5070 and running
+  :func:`crs_distortion` on the resulting bounding box gives Iowa 1.80%,
+  Texas 2.22%, Michigan 2.36%, North Dakota 2.66%, Minnesota 2.93% — and
+  **Florida 3.29%, Montana 3.55%, Washington 3.72%**. (Iowa reads 1.80% here
+  against 1.78% in the table above because a state's lon/lat rectangle is a
+  little wider than its real extent; the method is an upper bound per state,
+  and on Iowa, where both can be measured, a tight one.)
+
+So the honest statement is the opposite of the one that stood here: **3% does
+not admit EPSG:5070 everywhere in CONUS.** A CONUS-wide bench on this projection
+would need 4%. The threshold stays at 3% anyway, deliberately:
+
+* what the number bounds is the artifact, and 3.7% anisotropy really does put
+  ~3.2% on Reock. That EPSG:5070 fails the guard over Washington is a true
+  statement about EPSG:5070 over Washington, not a defect of the guard.
+* the failure is loud and quotes the measured anisotropy, so a future
+  multi-state bench gets an error naming its own number rather than a silent
+  1-3% shift in every Reock percentile.
+* this repository's data is Iowa (D-005), and raising a live tolerance to
+  accommodate states that are not in the repository buys nothing and costs the
+  bound.
+
+The guard measures the property, not the CRS's reputation — Web Mercator over a
+small enough extent is very nearly conformal and uniform in scale, and would
+legitimately pass.
 
 **The uncomfortable corollary, stated rather than buried: EPSG:5070 is the most
 distorted CRS that passes.** Iowa sits between Albers CONUS's standard parallels
@@ -154,7 +202,9 @@ cheaper than an import edge, and the plan loader lives there, not here.
 """
 from __future__ import annotations
 
+import hashlib
 import math
+import weakref
 from typing import Iterable, Mapping, Sequence
 
 import shapely
@@ -189,12 +239,18 @@ DIRECTION: dict[str, int] = {
 _MAX_LISTED = 8
 
 #: Largest permitted ``|h/k - 1|`` — local anisotropy — anywhere over the data's
-#: bounding box. See "The projection guard" in the module docstring. 3% is the
-#: smallest round number that admits EPSG:5070 everywhere in CONUS: Albers CONUS
-#: is anisotropic by 1.78% over Iowa but by 2.40% at 25N and 2.46% at 49N, so a
-#: 2% limit would reject the project's own standard for Florida and Minnesota.
-#: At 3% the projection artifact is bounded at ~1.0% on Polsby-Popper and ~2.6%
-#: on Reock; EPSG:6933 exceeds it nearly tenfold, at 29.7% over Iowa.
+#: bounding box. See "The projection guard" in the module docstring. At 3% the
+#: projection artifact is bounded at ~1.0% on Polsby-Popper and ~2.6% on Reock;
+#: EPSG:5070 over Iowa measures 1.78% and clears it with 1.2 points to spare;
+#: EPSG:6933 exceeds it nearly tenfold, at 29.75% over Iowa.
+#:
+#: **This does not admit EPSG:5070 across the whole of CONUS**, and an earlier
+#: version of this comment claimed that it did. Re-measured with
+#: :func:`crs_distortion` on each state's projected extent: Florida 3.29%,
+#: Montana 3.55%, Washington 3.72%. A CONUS-wide bench on EPSG:5070 would have
+#: to raise this to 4% and accept ~3.4% on Reock, or project per state. It is
+#: kept at 3% because the resulting failure is loud and quotes the measured
+#: anisotropy, which is what a guard is for.
 MAX_ANISOTROPY = 0.03
 
 #: Largest permitted spread in the local scale factor ``sqrt(h*k)`` across the
@@ -649,20 +705,43 @@ class MeasureCache:
 
     **A cache belongs to exactly one geometry table.** Reusing one across two
     different tables would silently return the first table's numbers, so the
-    cache fingerprints the table on first use and raises on a mismatch.
+    cache fingerprints the table on first use and raises on a mismatch. The
+    fingerprint covers the unit *geometry*, not just its labels: see
+    :func:`_fingerprint`, and read the paragraph there about the one edit it
+    cannot see. It did not always: until the round-1 recheck the fingerprint was
+    labels, CRS and extent only, and two tables agreeing on those but holding
+    different shapes shared a cache and quietly swapped measurements. Covering
+    the geometry costs 9.7 ms per table (a ``blake2b`` over 1.93 MB of WKB on
+    Iowa) and nothing per plan: over the enacted plan, a fully-cached call is
+    0.68 ms with the digest against 0.73 ms without it — the digest is not on
+    the per-plan path at all, and there is a test that asserts it is taken once
+    rather than once per plan.
 
     ``maxsize`` bounds the entries; eviction is least-recently-used, which suits
     a chain walking through plan space. ``hits``, ``misses`` and ``evictions``
     are readable, and are what a bench should log to show the reuse was real.
     """
 
-    __slots__ = ("_entries", "_fingerprint", "maxsize", "hits", "misses", "evictions")
+    __slots__ = (
+        "_entries",
+        "_fingerprint",
+        "_digest",
+        "_digest_key",
+        "_digest_ref",
+        "maxsize",
+        "hits",
+        "misses",
+        "evictions",
+    )
 
     def __init__(self, maxsize: int = 1 << 16) -> None:
         if maxsize < 1:
             raise ValueError(f"MeasureCache: maxsize must be >= 1, got {maxsize}")
         self._entries: dict[frozenset, dict[str, float]] = {}
         self._fingerprint: tuple | None = None
+        self._digest: str | None = None
+        self._digest_key: tuple | None = None
+        self._digest_ref: "weakref.ref | None" = None
         self.maxsize = int(maxsize)
         self.hits = 0
         self.misses = 0
@@ -671,15 +750,44 @@ class MeasureCache:
     def __len__(self) -> int:
         return len(self._entries)
 
-    def _bind(self, fingerprint: tuple) -> None:
+    def _bind(self, geom, lookup: Mapping[str, object]) -> None:
+        """Tie this cache to one geometry table; raise if it is a different one."""
+        fingerprint = self._fingerprint_of(geom, lookup)
         if self._fingerprint is None:
             self._fingerprint = fingerprint
         elif self._fingerprint != fingerprint:
             raise ValueError(
                 "MeasureCache is bound to a different geometry table (a "
-                "different CRS, unit set or extent). Reusing it here would "
-                "return the other table's numbers. Use one cache per table."
+                "different CRS, unit set, extent, or unit geometry). Reusing "
+                "it here would return the other table's numbers. Use one cache "
+                "per table."
             )
+
+    def _fingerprint_of(self, geom, lookup: Mapping[str, object]) -> tuple:
+        """:func:`_fingerprint`, reusing the geometry digest where it is sound.
+
+        The digest costs 9.7 ms on Iowa's 99 counties (1.93 MB of WKB) against
+        a 0.68 ms fully-cached :func:`measure_districts` call, so recomputing it
+        per plan would cost more than the cache saves — 14,000 plans would pay
+        two and a quarter minutes for it. It is therefore taken once per table:
+        reused only while the *same live object* is passed and its CRS, unit
+        ids and extent are unchanged, and recomputed otherwise. The weak
+        reference is what makes ``is`` safe here — a dead table's id can be
+        reissued to a new object, and a dead ``weakref`` compares equal to
+        nothing.
+        """
+        identity = _table_identity(geom, lookup)
+        ref = self._digest_ref
+        if ref is not None and ref() is geom and self._digest_key == identity:
+            return identity + (self._digest,)
+        digest = _geometry_digest(lookup)
+        try:
+            self._digest_ref = weakref.ref(geom)
+        except TypeError:  # a table that cannot be weakly referenced
+            self._digest_ref = None
+        self._digest_key = identity
+        self._digest = digest
+        return identity + (digest,)
 
     def _get(self, units: frozenset) -> dict[str, float] | None:
         entry = self._entries.get(units)
@@ -708,7 +816,13 @@ class MeasureCache:
         }
 
 
-def _fingerprint(geom, lookup: Mapping[str, object]) -> tuple:
+def _table_identity(geom, lookup: Mapping[str, object]) -> tuple:
+    """The cheap half of :func:`_fingerprint`: CRS, unit ids, extent.
+
+    ~0.3 ms on Iowa, so it is affordable on every call. It is not sufficient on
+    its own — two tables can agree on all of it and still hold different shapes,
+    which is what :func:`_geometry_digest` is for.
+    """
     crs = getattr(geom, "crs", None)
     return (
         crs.to_wkt() if crs is not None else None,
@@ -716,6 +830,57 @@ def _fingerprint(geom, lookup: Mapping[str, object]) -> tuple:
         hash(frozenset(lookup)),
         tuple(round(float(v), 3) for v in geom.total_bounds),
     )
+
+
+def _geometry_digest(lookup: Mapping[str, object]) -> str:
+    """A stable 128-bit digest of every unit id *and the shape it maps to*.
+
+    ``blake2b`` over ``(GEOID, len(WKB), WKB)`` for each unit in sorted GEOID
+    order. WKB is shapely's own serialisation, so the digest changes with any
+    change of coordinates, ring order, vertex count or geometry type, and does
+    not change with dictionary ordering or with district renumbering.
+
+    Length-prefixing each blob matters: without it, ``("A", b"XY")`` and
+    ``("AX", b"Y")`` would hash the same, and GEOIDs are not fixed-width by
+    contract.
+
+    Cost, measured on ``data/processed/ia_units.gpkg`` (99 counties, 1.93 MB of
+    WKB): 9.7 ms. See :meth:`MeasureCache._fingerprint_of` for why that is paid
+    once per table rather than once per plan.
+    """
+    keys = sorted(lookup)
+    blobs = shapely.to_wkb([lookup[k] for k in keys]) if keys else ()
+    h = hashlib.blake2b(digest_size=16)
+    for key, blob in zip(keys, blobs):
+        h.update(key.encode("utf-8"))
+        h.update(b"\x00")
+        if blob is None:  # a null geometry in the table
+            h.update(b"\xff")
+            continue
+        h.update(len(blob).to_bytes(8, "little"))
+        h.update(blob)
+    return h.hexdigest()
+
+
+def _fingerprint(geom, lookup: Mapping[str, object]) -> tuple:
+    """What identifies a geometry table for cache-binding purposes.
+
+    CRS, unit count, the set of unit ids, the extent, **and a digest of the
+    geometry**. The last element is the load-bearing one. Without it, two tables
+    with the same units, the same CRS and the same overall bounds but different
+    district shapes share a cache and one of them silently receives the other's
+    measurements — the worst failure available to this module, because it is a
+    plausible wrong number across an entire 14,000-plan bench round rather than
+    an exception.
+
+    **The one edit this cannot see** is a shape mutated in place, in the same
+    table object, without moving the table's bounding box past the third decimal
+    of a metre. The digest is memoised per table object (see
+    :meth:`MeasureCache._fingerprint_of`) because recomputing it per plan costs
+    more than the cache saves. Build a new table rather than editing one that a
+    live cache has already measured.
+    """
+    return _table_identity(geom, lookup) + (_geometry_digest(lookup),)
 
 
 def measure_districts(
@@ -735,7 +900,7 @@ def measure_districts(
     lookup = _unit_lookup(geom)
     members = _members(plan, lookup)
     if cache is not None:
-        cache._bind(_fingerprint(geom, lookup))
+        cache._bind(geom, lookup)
 
     per_district: dict[int, dict[str, float]] = {}
     for district in sorted(members):

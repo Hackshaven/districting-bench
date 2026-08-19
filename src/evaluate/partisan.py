@@ -781,11 +781,18 @@ def one_party_predominates(
     1. **Statewide margin** — the two-party Democratic share lies outside
        ``0.5 +/- predominance_band``. Iowa 2020: 0.458167, inside the band, so
        this arm does **not** fire there.
-    2. **District sweep** — the weaker side of 0.5 holds at most
+    2. **District sweep** — the leading side of 0.5 holds all but at most
        ``minority_district_share`` of the districts. This is the seat sweep,
-       read off the district shares rather than the seat tally so that a tied
-       district counts towards neither side. Iowa 2020: zero districts of four
-       above 0.5, so this arm fires, which is the whole point of the rewrite.
+       read off the district shares rather than the seat tally. A district
+       exactly at 0.5 is on **neither** side, and therefore counts against the
+       sweep, in the minority: a plan cannot be said to sweep the districts it
+       has not won. Counting ties out of both tallies instead — which is what
+       this arm did until it was caught — deflates both and fires the arm on
+       plans where nothing sweeps at all. Eight districts at 0.40, 0.45, 0.50,
+       0.50, 0.50, 0.50, 0.55, 0.60 with a statewide tie is the case: 2 below,
+       2 above, and no sweep by any reading. Iowa 2020: zero districts of four
+       above 0.5 and none tied, so this arm fires, which is the whole point of
+       the rewrite.
     3. **Median district** — the median district share itself lies outside
        ``0.5 +/- predominance_band``, so the middle of the distribution is not
        competitive. Mean-median compares the mean against that median; when the
@@ -811,6 +818,7 @@ def one_party_predominates(
     statewide = statewide_dem_share(dem, rep)
     below = sum(1 for s in shares if s < 0.5)
     above = sum(1 for s in shares if s > 0.5)
+    tied = n - below - above
     median = statistics.median(shares)
     reasons: list[str] = []
 
@@ -821,18 +829,18 @@ def one_party_predominates(
             f"{statewide:.6f}, {abs(statewide - 0.5):.6f} from 0.5 and outside "
             f"the +/-{predominance_band:g} band, a {leader} lead"
         )
-    if min(below, above) <= minority_district_share * n:
-        if above > below:
-            leader, majority, minority = "Democratic", above, below
-        elif below > above:
-            leader, majority, minority = "Republican", below, above
-        else:
-            leader, majority, minority = "neither party", above, below
+    majority = max(below, above)
+    minority = n - majority  # everything not on the leading side, ties included
+    if majority > minority and minority <= minority_district_share * n:
+        leader = "Democratic" if above > below else "Republican"
+        detail = f"{minority - tied} on the other"
+        if tied:
+            detail += f" and {tied} exactly tied, on neither side"
         reasons.append(
             f"district sweep — {majority} of {n} district vote shares fall on "
-            f"the {leader} side of 0.5 and {minority} on the other, a minority "
-            f"share of {min(below, above) / n:g} at or below the "
-            f"{minority_district_share:g} threshold"
+            f"the {leader} side of 0.5, {detail}, a minority share of "
+            f"{minority / n:g} at or below the {minority_district_share:g} "
+            f"threshold"
         )
     if abs(median - 0.5) > predominance_band:
         side = "Democratic" if median > 0.5 else "Republican"
@@ -967,10 +975,21 @@ def caveats(
         )
     if d_seats == n or r_seats == n:
         winner = "Democratic" if d_seats == n else "Republican"
+        shares = district_shares(plan, dem, rep)
+        loser = "Republican" if d_seats == n else "Democratic"
+        closest = min(shares, key=lambda d: abs(shares[d] - 0.5))
+        swing = abs(shares[closest] - 0.5)
         notes.append(
             f"One party wins every seat ({winner}, {n} of {n}), so declination "
-            "is undefined and returns None (CRITERIA.md section 5.1), and the "
-            "seats-votes curve is flat through the observed election."
+            f"is undefined and returns None (CRITERIA.md section 5.1). The "
+            f"sweep cannot get any wider, so the seats-votes curve is flat on "
+            f"the {winner} side of the observed election — but it is not flat "
+            f"through it, and how far it runs before it steps is a fact about "
+            f"this plan and not a general one. Here district {closest} sits at "
+            f"{shares[closest]:.6f}, so a uniform swing of {swing:.6f} — "
+            f"{swing * 100:.2f} points of two-party vote share — moves the "
+            f"{loser} seat share from 0 to {1 / n:g}. Read the sweep as that "
+            f"margin, not as a structural fact."
         )
     if tied:
         notes.append(
@@ -981,8 +1000,7 @@ def caveats(
             "disagree about the election that happened: the observed seat share "
             "counts a tie for "
             "neither party, the seats-votes curve's default counts it as half a "
-            f"seat each, so the two differ by {tied / (2 * n):g} here "
-            "(:data:`SEAT_TIE_RULES`)."
+            f"seat each, so the two differ by {tied / (2 * n):g} here."
         )
     if n < min_districts_for_declination:
         notes.append(
@@ -1012,7 +1030,7 @@ def caveats(
             + f" ({len(usable)} of {len(METRICS)}). Do not report "
             + ", ".join(unusable)
             + " as measurements here — see the notes above for why each fails. "
-            "What survives is still `VALUE` class and still gameable "
+            "What survives is still VALUE class and still gameable "
             "(CRITERIA.md section 5.2); surviving the regime test is not the "
             "same as being right."
         )
