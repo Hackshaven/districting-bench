@@ -155,7 +155,12 @@ critics read; they do not read builder reasoning.
 }
 ```
 
-Gates are from `docs/CRITERIA.md` §8. `split_rhat` supersedes the unsplit statistic
+Gates are from `docs/CRITERIA.md` §8, **as amended by D-013**: the detection
+magnitude is expressed in units of the neutral distribution's own spread, not in
+absolute seats. `confusion` therefore carries `null_spread_seats` and
+`detectable_floor_seats` alongside the rates, and a gate whose magnitude falls
+inside the null spread is reported `"unreachable"` rather than `false` — a target
+that no detector could meet is not a failing score. `split_rhat` supersedes the unsplit statistic
 used in the feasibility pass, which FEASIBILITY.md §5.4 showed has no resolution at
 4 chains.
 

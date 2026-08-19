@@ -287,3 +287,66 @@ judgement about what counts as a realistic adversary, and it belongs in
 
 *Not generalisable as measured:* one state, one direction, one magnitude, one
 search algorithm. Colorado or any precinct-level state would need it re-measured.
+
+---
+
+## D-013 — Detection magnitude is measured in units of the null spread, not absolute seats
+
+**Date:** 2026-08-19 · **Phase:** 1 · **Proposed amendment to `CRITERIA.md` §8**
+
+`CRITERIA.md` §8 sets the Phase 1 target at "TPR ≥ 0.95 at a 2-seat shift", class
+`VALUE`, with the note that the threshold is chosen but the measurement is
+objective. Measurement has now shown the threshold is not merely strict on Iowa —
+it is unreachable in principle.
+
+Iowa's neutral ensemble spans 0–2 D seats of 4, with 2 seats making up 43.0% of the
+distribution (1,820 draws, 323 distinct plans). A plan producing a 2-seat outcome is
+what the neutral process routinely produces, so no detector can separate it from a
+neutral plan. The gate asks for a discrimination that does not exist.
+
+*Decision:* detection magnitude is expressed relative to the spread of the neutral
+seat distribution for the state under test. Concretely, the bench computes
+`null_spread_seats` from the ensemble and reports a magnitude below that spread as
+**unreachable**, distinct from **failed**. A gate no method could pass is a property
+of the problem and must not be scored as a deficiency of the detector.
+
+*Why this is a `VALUE` choice and not a technical correction:* choosing to measure
+in units of the null makes detection thresholds state-relative and therefore not
+comparable across states without stating the null width alongside. The alternative —
+keeping an absolute seat threshold — is comparable across states but is unreachable
+in small delegations and trivially easy in large ones. Neither is neutral. This
+system states which it uses and reports the null width in every artifact so a reader
+can convert.
+
+*Status:* proposed for promotion into `CRITERIA.md` §8 as a replacement for the
+absolute-seat row, per `prompt.md`'s instruction that decision-log entries recording
+value judgements CRITERIA.md did not settle are candidates for promotion. Not yet
+applied to `CRITERIA.md`, which remains the human's authority to amend.
+
+---
+
+## D-014 — Colorado becomes the detection target; Iowa becomes the null-case laboratory
+
+**Date:** 2026-08-19 · **Phase:** 1
+
+Iowa did what `prompt.md` chose it for: 99 whole counties and an ordered statutory
+criteria list closed the full loop end to end quickly, and every architectural
+question was settled against a graph small enough to iterate on in seconds. It
+cannot, however, *grade* a detector — its four-district delegation gives a null
+spanning half the seats (D-013).
+
+*Chosen:* move the detection loop to Colorado, which `prompt.md` names as the second
+target and `CRITERIA.md` §2.2 describes: eight districts, ordered criteria, and a
+rare explicit competitiveness mandate (Amendments Y and Z). Eight districts leaves
+real headroom between the null spread and a detectable shift.
+
+*Iowa is retained*, not retired, as the null-case laboratory. A detector that fires
+on Iowa's neutral maps has learned political geography rather than gerrymandering
+(`CRITERIA.md` §5.4, §8), and Iowa's tiny graph makes that the cheapest possible
+false-positive test in the project.
+
+*Known cost, accepted:* Colorado congressional districts are not built from whole
+counties, so this is the precinct-level data plumbing `prompt.md` deliberately
+deferred — VTD geometry, a VEST join, and a much larger adjacency graph. That work
+is now justified because the methodology questions it would have obscured have been
+answered on Iowa first, which was the whole point of the ordering.

@@ -9,6 +9,27 @@ map adoption.**
 
 ---
 
+## First result
+
+![Iowa's neutral seat distribution](docs/figures/ia-neutral-seat-distribution.png)
+
+Over 1,820 plans drawn with no access to election data, **Iowa's neutral process
+spans 0–2 Democratic seats of 4, and a 2-seat outcome is 43% of the distribution.**
+
+The consequence is a limit, not a score. Detectability is bounded below by the
+width of the neutral distribution, and that width is a property of the state rather
+than of the method. A detection target stated in absolute seats — such as
+`docs/CRITERIA.md` §8's "≥0.95 true-positive rate at a 2-seat shift" — asks a
+detector to separate an outcome from its own null, and is unreachable on a
+four-district state whose null already spans two seats.
+
+Iowa's enacted plan returns 0 D seats, which occurs in 1.0% of this ensemble. That
+comparison is **not yet a finding**: the reference is not held to the 94-person
+population equality the enacted plan meets, so it is not like-for-like. See
+`docs/progress.md`.
+
+---
+
 ## What this is not
 
 This is not a tool that produces fair maps, and it does not claim to be
