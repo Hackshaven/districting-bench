@@ -350,3 +350,37 @@ counties, so this is the precinct-level data plumbing `prompt.md` deliberately
 deferred — VTD geometry, a VEST join, and a much larger adjacency graph. That work
 is now justified because the methodology questions it would have obscured have been
 answered on Iowa first, which was the whole point of the ordering.
+
+---
+
+## D-015 — Colorado units are whole VTDs, so the enacted plan is an approximation
+
+**Date:** 2026-08-19 · **Phase:** 1
+
+Colorado's neutral layer is built: 3,108 VTDs, 5,773,714 persons (matching the
+state's certified 2020 resident population), 8,754 rook edges in a **single
+connected component** — no topology repair needed, contrary to `CRITERIA.md`'s
+warning that naive shapefile adjacency disconnects in nearly every state. Both
+target states have now come out connected on the first attempt.
+
+**The enacted plan cannot be represented exactly at this unit level.** Assigning
+whole VTDs by representative point gives a max−min spread of **9,995 persons
+(1.385% of ideal)**, where the real enacted plan is near-zero because it is built
+from census blocks and splits VTDs. The 1.385% is an artifact of the unit choice,
+not a property of Colorado's map.
+
+*Consequences, stated rather than absorbed:*
+
+- The population-equality constraint for a Colorado ensemble cannot be Karcher-tight.
+  Whole-VTD plans cannot reach single-digit deviation, so ε must be set at the
+  VTD-feasible scale and **reported as a modelling choice**, not presented as the
+  legal standard. This is the same like-for-like problem that contaminated the Iowa
+  comparison (`FEASIBILITY.md` §5.3), arriving from the opposite direction.
+- Any statement locating Colorado's enacted plan in an ensemble is a statement about
+  a **VTD approximation** of that plan, and must say so.
+- Iowa remains the only target where the enacted plan is exactly representable,
+  because whole counties are what the statute requires there. That is a further
+  reason to keep Iowa as the null-case laboratory (D-014).
+
+*Deferred:* block-level assignment would represent the enacted plan exactly, at the
+cost of a ~140,000-node graph. Not justified until the VTD-level loop works.
