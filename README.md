@@ -79,6 +79,9 @@ them is not.
 
 ## Start here
 
+New to this? `docs/SUMMARY.md` is a plain-language account of what the project is
+and what it has produced so far, with no background assumed.
+
 1. `docs/CRITERIA.md` — every criterion, threshold, and metric, with a provenance
    class saying who decided it and whether it can be argued with. Read this
    before any code.
