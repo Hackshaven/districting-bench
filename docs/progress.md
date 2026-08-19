@@ -324,3 +324,64 @@ anyone repeats the number. Iowa Code ch. 42 forbids considering political data, 
 if the effect survives matching, the interesting question is whether optimizing
 population equality to 94 persons has a partisan direction in this geography —
 which is a measurable question and a genuinely novel one.
+
+---
+
+## Colorado — the second state, and what it does and does not fix
+
+Colorado's layer is built: 3,108 VTDs, 5,773,714 persons, 8,754 rook edges in one
+component, 8 districts, VEST 2020 joined with 100.0000% of votes conserved (D-016).
+
+Neutral seat distribution, 720 draws at ε=0.01, **0 chain failures, 704 distinct
+plans**:
+
+| D seats | plans | share |
+| --- | --- | --- |
+| 4 | 83 | 11.5% |
+| 5 | 480 | 66.7% |
+| 6 | 157 | 21.8% |
+
+### The comparison
+
+| | Iowa | Colorado |
+| --- | --- | --- |
+| Districts | 4 | 8 |
+| Neutral range | 0–2 D | 4–6 D |
+| **Null spread** | **2 seats** | **2 seats** |
+| As a share of the delegation | 50% | 25% |
+| Smallest shift outside the null | 3 of 4 (75%) | 3 of 8 (37.5%) |
+| Enacted plan sits at | 0 D — the 1.0% tail | 5 D — the 66.7% mode |
+| Ensemble health | 806/1040 draws, 2 failures, **177 distinct** | 720/720, **0 failures, 704 distinct** |
+
+**The absolute null spread is identical: 2 seats in both states.** Eight districts
+did not narrow the null — it spread the same 2-seat uncertainty over twice the
+delegation. So the `CRITERIA.md` §8 gate at a 2-seat shift **is unreachable on
+Colorado too**, for exactly the reason it is unreachable on Iowa: a 2-seat outcome
+is inside what neutral process produces.
+
+This is the strongest evidence yet for D-013. The fix is not a bigger state; it is
+measuring detection magnitude in units of the null spread. Two states, two very
+different geographies and district counts, and the same 2-seat null.
+
+What Colorado *does* buy is headroom above that floor. A 3-seat shift sits outside
+its null while remaining 37.5% of the delegation — a magnitude a real gerrymander
+could plausibly have. On Iowa the equivalent is 3 of 4 seats, which is close to
+saying "the whole delegation" and is not a meaningful detection target.
+
+**Colorado's ensemble is also far healthier**, and this matters more than it looks:
+704 distinct plans from 720 draws (97.8%) against Iowa's 177 from 806 (22%), with no
+chain failures at all. Iowa's percentile floor problem — the reference being too
+coarse to express its own threshold (§1) — largely dissolves on a graph this size.
+
+### Two caveats that keep this from being a clean comparison
+
+1. **The tolerances differ.** Colorado runs at ε=0.01 because whole-VTD units cannot
+   reach Karcher-tight (D-015); Iowa runs at ε=2×10⁻⁴. A looser tolerance admits
+   more diverse plans, so Colorado's spread may be inflated relative to Iowa's — or,
+   put the other way, Iowa's tight ε may be *narrowing* its null. The comparison
+   likely understates Iowa's true spread, which would strengthen the conclusion
+   rather than weaken it, but it has not been measured.
+2. **Colorado's enacted plan is a VTD approximation** (D-015), so "5 D seats, the
+   mode" is a statement about the approximation, not the in-force map.
+
+Neither caveat is resolved here, and both are stated rather than absorbed.
