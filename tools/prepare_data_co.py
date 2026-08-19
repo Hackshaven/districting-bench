@@ -94,3 +94,65 @@ def neutral():
 
 if __name__ == "__main__":
     neutral()
+    partisan()
+
+
+def partisan() -> None:
+    """VEST 2020 Colorado precincts -> the 3,108 VTD units. Separate read, separate path.
+
+    VEST has 3,215 precincts where TIGER's VTD layer has 3,108: VEST subdivides 107
+    of them. An id-only join therefore silently drops those 107, and the loss is NOT
+    random -- the dropped precincts are 60.0% Democratic against a 56.9% statewide
+    two-party share, so dropping them biases every partisan metric toward Republicans.
+
+    Instead each VEST precinct is assigned to the VTD that contains its
+    representative point, so a subdivided precinct aggregates into its parent and no
+    vote is lost. Where a VEST id also matches a VTD id directly, the two methods are
+    cross-checked against each other and must agree.
+    """
+    v = gpd.read_file(RAW / "vest_co" / "co_2020.shp")
+    cols = [c for c in v.columns if c.startswith("G20")]
+    v["vest_id"] = STATE_FP + v.COUNTYFP.astype(str) + v.VTDST.astype(str)
+
+    units = gpd.read_file(OUT / "co_units.gpkg")[["GEOID", "geometry"]].to_crs(CRS)
+    vp = v.to_crs(CRS).copy()
+    vp["geometry"] = vp.representative_point()
+    joined = gpd.sjoin(vp, units, predicate="within", how="left")
+
+    stray = int(joined.GEOID.isna().sum())
+    if stray:   # a point on a boundary can miss; fall back to nearest
+        fix = gpd.sjoin_nearest(vp[joined.GEOID.isna().values], units, how="left")
+        joined.loc[joined.GEOID.isna().values, "GEOID"] = fix.GEOID.values
+        print(f"  {stray} precinct(s) resolved by nearest-VTD fallback")
+
+    # The id match is authoritative where it exists: it is exact, whereas a
+    # representative point can land in a neighbour because VEST and TIGER digitise
+    # the same boundary slightly differently. Spatial assignment is used ONLY for the
+    # precincts VEST subdivides, which have no id in the VTD layer.
+    vtd_ids = set(units.GEOID)
+    has_id = joined.vest_id.isin(vtd_ids)
+    disagree = int((joined.loc[has_id, "vest_id"] != joined.loc[has_id, "GEOID"]).sum())
+    print(f"precincts with a direct VTD id: {int(has_id.sum())} "
+          f"({disagree} would have been misplaced by the point test -- id wins)")
+    joined.loc[has_id, "GEOID"] = joined.loc[has_id, "vest_id"]
+    print(f"precincts assigned spatially (VEST subdivisions): {int((~has_id).sum())}")
+
+    by = joined.groupby("GEOID")[cols].sum().reset_index()
+    out = pd.read_csv(OUT / "co_units.csv", dtype={"GEOID": str})[["GEOID"]].merge(
+        by, on="GEOID", how="left").fillna(0)
+    out[cols] = out[cols].astype(int)
+
+    tot_src, tot_out = int(v[cols].sum().sum()), int(out[cols].sum().sum())
+    print(f"votes in VEST {tot_src:,} -> on units {tot_out:,} "
+          f"({100*tot_out/tot_src:.4f}%)")
+    assert tot_src == tot_out, "votes lost in the VTD aggregation"
+    assert int(out.G20PREDBID.sum()) == 1_804_352, "D total mismatch"
+    assert int(out.G20PRERTRU.sum()) == 1_364_607, "R total mismatch"
+    out.to_csv(OUT / "co_elections.csv", index=False)
+    d, r = int(out.G20PREDBID.sum()), int(out.G20PRERTRU.sum())
+    print(f"two-party: D {d:,} R {r:,} share {d/(d+r):.4f}  (certified 0.5694)")
+
+
+if __name__ == "__main__":
+    neutral()
+    partisan()

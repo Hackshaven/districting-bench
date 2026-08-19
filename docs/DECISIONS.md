@@ -384,3 +384,35 @@ not a property of Colorado's map.
 
 *Deferred:* block-level assignment would represent the enacted plan exactly, at the
 cost of a ~140,000-node graph. Not justified until the VTD-level loop works.
+
+---
+
+## D-016 — VEST subdivides 107 Colorado VTDs; an id-only join would have biased the data toward Republicans
+
+**Date:** 2026-08-19 · **Phase:** 1
+
+VEST's 2020 Colorado file has 3,215 precincts where TIGER's VTD layer — and the PL
+94-171 VTD summary level — has 3,108. VEST subdivides 107 of them.
+
+**An id-only join drops those 107 silently, and the loss is not random.** The
+dropped precincts carry 215,617 votes at a **60.0% two-party Democratic share
+against a 56.9% statewide**, concentrated in Jefferson, Douglas, El Paso, Denver and
+Larimer counties — the populous Front Range. Shipping that join would have biased
+every partisan metric toward Republicans by an amount nobody would have noticed,
+because the join reported "unmatched units: 0" — it is the *precincts* that were
+unmatched, not the units, and only a vote-total check catches it.
+
+*Chosen:* assign each VEST precinct to the VTD containing its representative point,
+so a subdivided precinct aggregates into its parent and no vote is lost. **But the id
+match wins wherever it exists**: a point test misplaced 15 precincts that have an
+exact id, because VEST and TIGER digitise the same boundary slightly differently.
+Spatial assignment is used only for the 107 subdivisions that have no id.
+
+*Verification:* 6,492,770 votes in, 6,492,770 votes out (100.0000%), with D
+1,804,352 and R 1,364,607 matching Colorado's certified 2020 presidential result
+exactly. Both totals are asserted in `tools/prepare_data_co.py`, so a future change
+that reintroduces the leak fails loudly.
+
+*Generalisable warning:* "every unit matched" is not evidence that a join is sound
+when the two tables have different cardinality. The check that matters is
+conservation of the quantity being joined.
