@@ -266,6 +266,19 @@ a gerrymander that is shape-typical of the neutral ensemble may not exist at a
 4-whole-county congressional problem, and there is little room for a gerrymander to
 hide inside the traditional criteria.
 
+> **RETRACTED 2026-08-19.** The interpretation above is false. Measuring the
+> neutral ensemble's seat distribution directly (1,820 draws, 323 distinct plans)
+> gives 0 D seats 1.0%, 1 D seat 56.0%, **2 D seats 43.0%** — shape-typical plans at
+> a 2-seat shift are not rare, they are nearly half of what the neutral sampler
+> produces unprompted. The collapsing yield measured the adversarial search failing
+> under a constraint, not an empty feasible set. The frontier table itself stands as
+> a measurement of that search; the conclusion drawn from it does not. See
+> `docs/progress.md`, "The neutral seat distribution — and a retraction".
+>
+> The error was inferring impossibility from a search returning nothing, without
+> checking whether an independent method produced counterexamples. It did, in the
+> same artifact, all along.
+
 *Why this is logged as a decision:* the frontier could have been treated as a knob
 to turn until the acceptance test passed. Treating it instead as a measurement —
 and reporting that the tight end is empty — is the choice. It is also a `VALUE`-adjacent

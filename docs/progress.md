@@ -255,3 +255,72 @@ as the file critics read, records nothing about the missing plot.
    stratum that contains the failures.
 4. **A plot that fails must fail the run**, or at minimum be recorded in the
    artifact.
+
+---
+
+## The neutral seat distribution — and a retraction
+
+Measured on 1,820 completed draws (8 chains × 260 at ε=2×10⁻⁴, 1 chain failure,
+323 distinct plans). Every plan here is drawn by ReCom with no access to election
+data, so all of them are shape-typical by construction.
+
+| D seats | plans | share of the neutral ensemble |
+| --- | --- | --- |
+| 0 | 18 | **1.0%** |
+| 1 | 1020 | 56.0% |
+| 2 | 782 | **43.0%** |
+
+**The neutral process spans 0–2 Democratic seats out of 4, and a 2-seat outcome is
+43% of it.**
+
+### Retraction: round 3's frontier claim was wrong
+
+Round 3 recorded that on Iowa, at a 2-seat shift, "a gerrymander that is
+shape-typical of the neutral ensemble appears not to exist", inferred from planted
+yield collapsing to 0/24 as the compactness constraint tightened.
+
+**That inference does not hold, and the claim is withdrawn.** Shape-typical plans
+at a 2-seat shift are not rare — they are 43% of what the neutral sampler produces
+without trying. The collapsing yield measured the *adversarial search failing under
+a constraint*, not an empty feasible set. `docs/DECISIONS.md` D-012 is corrected
+accordingly.
+
+The lesson is the one round 2 already taught in a different costume: a number that
+goes to zero is not evidence of impossibility until you have shown the search would
+have found the thing if it were there. The neutral sampler was producing counter-
+examples the whole time, in the same artifact, and nothing looked.
+
+### The gate is malformed for Iowa
+
+`CRITERIA.md` §8 asks for TPR ≥ 0.95 at a 2-seat shift. On a 4-district state whose
+neutral distribution already spans 2 seats, that asks the detector to separate an
+outcome from its own null. No detector can do it, and no amount of ensemble or
+tuning changes that: a plan producing 2 D seats is, by measurement, what neutral
+process routinely produces.
+
+This is `CRITERIA.md` §5.4 (Chen & Rodden) arriving as a hard limit rather than a
+caveat. With four districts and the Democratic vote concentrated in Polk, Linn,
+Johnson and Scott, where the lines fall moves two seats with no intent involved.
+
+**Detectability is bounded below by the width of the null distribution, and that
+width is a property of the state, not of the method.** A detection gate stated in
+absolute seats is not portable between states and is unreachable in Iowa.
+
+### The enacted plan sits at the 1st percentile — stated carefully
+
+Iowa's enacted plan returns 0 D seats. That outcome occurs in **1.0%** of the
+neutral ensemble; 99% of neutrally drawn maps give Democrats at least one seat.
+
+**This is not a finding yet, and must not be reported as one.** The reference
+ensemble is not held to the standard the enacted plan meets: the enacted plan has a
+94-person population spread, while the ensemble runs at ε=2×10⁻⁴ and spans far
+wider deviations (`FEASIBILITY.md` §5.3 — the same contamination that round 2 was
+built on). A comparison against a reference that would fail the plan's own legal
+standard is not like-for-like, and the direction of that bias is unmeasured.
+
+What can be said: the outcome is unusual against *this* reference, in the
+R-favouring direction, and it is worth a matched-tolerance comparison before
+anyone repeats the number. Iowa Code ch. 42 forbids considering political data, so
+if the effect survives matching, the interesting question is whether optimizing
+population equality to 94 persons has a partisan direction in this geography —
+which is a measurable question and a genuinely novel one.
