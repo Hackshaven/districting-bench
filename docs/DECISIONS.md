@@ -160,3 +160,68 @@ survived my own review was caught within minutes by an agent whose only instruct
 was to break the claim. **One refuter was itself wrong** (it re-ran the wrong entry
 point and declared results irreproducible that reproduce exactly), which is the
 argument for a synthesis stage that checks refutations rather than trusting them.
+
+---
+
+## D-008 — Bench artifacts stay gitignored; the numbers go in `docs/progress.md`
+
+**Date:** 2026-08-19 · **Phase:** 1
+
+The scaffold's `.gitignore` excludes `progress/` and `bench-results.json` as run
+artifacts. That is the original author's decision and it is a reasonable one — the
+PNGs and the full scenario dump are regenerable from one master seed.
+
+*Chosen:* leave the ignore rule alone and write every reported number into
+`docs/progress.md`, which is committed. A reviewer reading the repository on GitHub
+sees the gate results, the confusion matrix and the findings without needing the
+working tree; anyone who wants the raw artifact regenerates it deterministically.
+
+*Rejected:* committing the artifacts anyway (silently overriding a human's
+`.gitignore`), and reporting the numbers only in chat (they would not survive the
+session).
+
+---
+
+## D-009 — Round 2 is reported as a failure rather than repaired before publication
+
+**Date:** 2026-08-19 · **Phase:** 1 · **VALUE**
+
+The first full bench run fails three of four gates, and the audit found the ground
+truth itself is confounded: planted gerrymanders are separable from neutral maps by
+`cut_edges > 60` alone, with TPR 1.0 and FPR 0.0, knowing nothing about
+partisanship.
+
+The tempting move is to fix the adversarial generator first and publish only the
+repaired round. *Rejected.* `prompt.md` makes detection the loop precisely because
+its ground truth is manufacturable and its failures are therefore visible; a loop
+whose failing rounds are never written down is not a loop, it is a filter. The
+round-1 → round-2 delta is also the most informative result so far — it is what
+shows that the round-1 PASSes were artifacts of a 14-plan reference rather than
+evidence of detection.
+
+*Consequence:* `docs/progress.md` records AUC 0.25 (the rule ranks neutral maps as
+more gerrymandered than planted ones), an always-flag detector tying both round-1
+PASSes, and `min_detectable_seat_shift = null`. These are unflattering and they are
+the honest state of the system.
+
+---
+
+## D-010 — A planted gerrymander must be indistinguishable from a neutral map on non-partisan metrics
+
+**Date:** 2026-08-19 · **Phase:** 1 · **VALUE**
+
+Measured in round 2: every planted plan has ~2x the cut edges and ~1/3 the
+Polsby-Popper of every neutral map, with no overlap. The seat-maximizing search
+wanders into ragged corners of the space that ReCom's spanning-tree proposal never
+visits, and a compactness screen alone separates the classes perfectly.
+
+*Decision:* the adversarial generator will be constrained to stay inside the
+neutral ensemble's compactness distribution. A gerrymander that a compactness
+screen catches is not the adversary this system exists to detect, and ground truth
+that leaks its own provenance makes every downstream detection number meaningless.
+
+*This is a `VALUE` choice, not a technical one.* It encodes a claim about what
+counts as a realistic adversary: one that would survive the traditional-criteria
+review a real map receives. A less capable adversary would make the detector look
+better. That is the reason to state the choice here rather than bury it in the
+search's acceptance rule.
