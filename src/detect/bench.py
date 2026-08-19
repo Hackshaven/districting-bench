@@ -76,6 +76,61 @@ would report an FPR that is too easy. So the null set is half of each —
 CRITERIA.md 8 requires, and ``diagnostics.null_strata`` gives the two rates
 separately so a reader can see which stratum the FPR came from.
 
+Five more, added in round 3 because the round-2 artifact could not be checked
+----------------------------------------------------------------------------
+
+**Every scenario carries its plan.** Round 2 published a legality claim, a
+realized seat shift and a seat count per scenario and shipped nothing anyone
+could recompute them from. Round 3 writes each scenario's assignment to
+``plans/<scenario id>.csv`` in the round directory, in the exact
+``GEOID,district`` form ARCHITECTURE.md 3 defines, and records in the report a
+``plan.digest`` (``outlier.plan_digest``) plus the seed and purpose string the
+plan was derived from. ``python -m detect.bench --verify <round dir>`` re-reads
+the pair and re-derives every ground-truth claim in it. That checks the report
+against its own plans -- transcription, a stale number, the wrong baseline -- and
+not the code against reality: a bug shared by the bench and the verifier is
+invisible to both, and the sidecar exists so that a critic can use neither.
+
+**Legality is measured at the operating epsilon, whatever epsilon the run used.**
+Round 1 ran the search at 1e-3, reported ``legal_compliance = 1.0``, and 7 of its
+10 plans were illegal at the declared operating point of 2e-4. A gate that moves
+with the size of the run is not a gate. :data:`GATE_EPSILON` is the operating
+value and the gate is always read there; the run's own epsilon is measured too
+and reported beside it, so a quick run now shows the honest failure rather than a
+pass it did not earn.
+
+**Compactness is part of that claim, and the standard is a value choice.** Iowa
+Code ch. 42's fourth criterion is compactness and round 2's ``check_legality``
+did not test it, so plans with a third the Polsby-Popper of every neutral draw
+came back compliant. The statute states no number, so one had to be chosen; see
+:func:`compactness_floor` for what was chosen and what it costs.
+
+**A quick run says so in the gates block.** ``Size``'s docstring has said since
+round 1 that a smoke run's gate values are not meaningful; the artifact said
+nothing, and a reader of round 1's gates saw two PASSes, one of which a constant
+detector ties. ``gates.qualification`` now carries that verdict, its reasons and
+its measured caveats, every gate carries ``meaningful``, the stdout report leads
+with it, and the confusion plot is stamped with it. See :func:`gate_qualification`
+for what makes a run unmeaningful and — as importantly — what does not.
+
+**The ensemble budget is a measured trade, and the R-hat gate is out of reach at
+the operating epsilon.** ``FULL`` is 24 chains x 500 draws, about nine times
+round 2's reference, sized to roughly twenty minutes on four cores with
+:func:`run_chains_parallel`. That budget buys percentile resolution and it does
+not buy convergence, because at ``epsilon=2e-4`` the chains do not mix. Measured
+directly: 8 chains of 1,500 draws leave cut-edge split R-hat at 1.45,
+non-monotone, with bulk ESS 9.8 — against 8.7 at the first checkpoint, so
+nineteen times the draws bought one effective draw. The same sampler at
+``epsilon=1e-3`` loses no chains and reaches R-hat 1.07 with ESS 89 and still
+climbing. **The CRITERIA.md 8 band of 1.00-1.01 is therefore not reachable at the
+operating epsilon at any budget this project could spend, and the binding
+constraint is the population tolerance the legal standard requires rather than
+the number of draws.** That is a finding about the sampler and the gate together.
+The gate is not moved and no threshold is tuned; it fails, and
+``gates.split_rhat.trend`` carries the evidence in the artifact.
+:class:`Size` carries the costs, ``gates.split_rhat.trend`` carries this run's own
+version of the measurement, and nothing here was sized to make the gate pass.
+
 Determinism
 -----------
 
@@ -94,10 +149,12 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import random
 import subprocess
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -192,6 +249,42 @@ ALTERNATIVE_RULES: tuple[C.Rule, ...] = (
 #: CRITERIA.md 8: PSRF target band is 1.00-1.01.
 RHAT_GATE = 1.01
 
+#: The epsilon the ``legal_compliance`` gate is read at, **always**, whatever
+#: epsilon the run itself used. It is :data:`EPSILON`, the declared operating
+#: point, and it is a separate name because the two roles are separate: a run
+#: may legitimately be cheaper than the operating point (``--quick``), and a
+#: legality claim may not be looser than it. Round 1 reported 1.0 at 1e-3 while
+#: 7 of its 10 plans were illegal at 2e-4; measuring the gate here is what stops
+#: that from being expressible.
+GATE_EPSILON = EPSILON
+
+#: **VALUE.** How much of the neutral ensemble's compactness distribution the
+#: planted search is confined to (docs/DECISIONS.md D-010). The number is
+#: ``adversarial.gerrymander.DEFAULT_SHAPE_COVERAGE`` and the argument for it is
+#: that constant's; the bench does not get a second opinion. It is written here
+#: rather than imported because the bounds are built from ``outlier.summarize``'s
+#: ``p05``/``p95`` over reference columns that have already been measured --
+#: ``calibrate_shape_envelope`` re-measures every plan it is given, at 166 ms
+#: each, which is 11 minutes on a 4,000-draw reference and would be the single
+#: largest line in the budget. ``diagnostics.plant_envelope.matches_module_default``
+#: reports whether the two are still the same number.
+PLANT_SHAPE_COVERAGE = 0.90
+
+#: The null strata drawn, in report order, and the subset the FPR gate pools.
+#: See :func:`null_cases` for the argument; ``seat_outcome`` is drawn, scored
+#: and published, and is excluded from the gate because it is selected by very
+#: nearly the statistic the detector thresholds.
+NULL_STRATA: tuple[str, ...] = ("concentration", "seat_outcome", "random")
+GATE_NULL_STRATA: tuple[str, ...] = ("concentration", "random")
+
+#: Sidecar directory, inside the round directory, holding one CSV per scenario
+#: plan in the ``GEOID,district`` form of ARCHITECTURE.md 3.
+PLANS_DIRNAME = "plans"
+
+#: Default worker processes. Chains and plants are independent and the box has
+#: four cores; the results do not depend on this number and there is a test.
+DEFAULT_JOBS = min(4, os.cpu_count() or 1)
+
 
 @dataclass(frozen=True)
 class Size:
@@ -209,7 +302,60 @@ class Size:
     tail. ``config.epsilon`` and ``config.size`` both record what actually ran,
     so a quick run can never be mistaken for a real one — and its gate values
     are not meaningful in any case, since an ensemble that small cannot support
-    a percentile at the rule's threshold.
+    a percentile at the rule's threshold. ``meaningful_gates`` carries that
+    statement into the artifact instead of leaving it in this docstring, which
+    is where round 2 left it while the file itself showed two PASSes.
+
+    **What ``FULL`` costs, measured.** On the four-core box this was built on, at
+    ``epsilon=2e-4`` with ``jobs=4``: 8 chains x 1,500 steps took 506 s of wall
+    clock for 7,500 completed draws, and 8 x 500 took 201 s. Measuring the
+    reference columns costs a further 20 ms per draw. ``FULL`` at 24 x 500 is
+    about 9 minutes of ensemble, 2 of columns, 2 of the null pool, 5 of planting
+    and 2 of everything else — roughly 20 minutes uncontended, which is the
+    budget this was sized to, and about nine times round 2's 806-draw reference.
+
+    **Chain failure at this epsilon is an initialization failure, not a death in
+    flight.** The same 3 of 8 seeds failed at both 500 and 1,500 steps, at 0 and
+    5 draws in, with "could not find a balanced cut"; every seed that got past
+    the start ran to whatever length it was asked for. So the failure rate is a
+    property of the seed and the epsilon rather than of the budget, and longer
+    chains cost nothing in extra failures. It is still not a random subset of
+    seeds and is still reported (ARCHITECTURE.md 7).
+
+    **Why the extra draws went into chains rather than steps.** They buy
+    resolution, not convergence. Measured at ``epsilon=2e-4`` over 8 chains of
+    500 draws, split R-hat on cut edges is 2.32 at 25 draws per chain, 1.73 at
+    125, and 1.67 at 425 — flat from about 200 on — while bulk ESS sits between
+    6.5 and 8.9 and does not grow. One chain of the eight visited 6 distinct
+    plans in 500 draws. The chains are not slow to mix so much as stuck, so
+    lengthening them adds draws to a region a chain has already exhausted, while
+    starting another chain adds a region. More chains also widen the reference,
+    which is what the detector's resolution test reads: ``confusion.Rule`` needs
+    50 distinct plans and an effective sample of 50 before it will evaluate a
+    0.99 threshold at all, and that is a count of plans, not of draws.
+
+    **The measurement that settles whether more draws would ever be enough.** At
+    ``epsilon=2e-4``, 8 chains of 1,500 draws — 7,500 completed draws, nine times
+    round 2's reference — cut-edge split R-hat runs 1.60, 1.71, 1.66, 1.53, 1.50,
+    1.54, 1.45 across the run: non-monotone, and 1.45 at the end against a gate
+    of 1.01. Bulk ESS over those 7,500 draws is 9.8, against 8.7 at the first
+    checkpoint: nineteen times the draws bought one effective draw. One surviving
+    chain visited 12 distinct plans in 1,500 draws while another visited 282, so
+    the chains are sitting in different regions rather than mixing slowly through
+    one.
+
+    **What the same sampler does at a looser tolerance, for contrast.** At
+    ``epsilon=1e-3``, 8 chains of 2,000 draws: no chain dies, cut-edge R-hat
+    falls 1.20 → 1.12 → 1.07 across the run with ESS reaching 89 and still
+    growing, and population spread reaches R-hat 1.042 with ESS 596. So the
+    1.00-1.01 band is approachable at 1e-3 and unreachable at the operating
+    point, and the binding constraint is the population tolerance the legal
+    standard requires rather than the number of draws anyone can afford.
+    ``QUICK`` runs at 1e-3 for cost, not for this reason, and its gate values are
+    marked unmeaningful regardless.
+
+    The R-hat gate is discussed at ``gates.split_rhat``; nothing here is sized to
+    make it pass.
     """
 
     label: str
@@ -227,23 +373,27 @@ class Size:
     max_iterations: int
     restarts: int
     trace_checkpoints: int = 12
+    #: False when this size cannot support the gates it computes. Copied into
+    #: ``gates.qualification`` and read by no arithmetic anywhere.
+    meaningful_gates: bool = True
 
 
 FULL = Size(
     label="full",
     epsilon=EPSILON,
-    chains=8,
-    steps=130,
-    null_chains=4,
-    null_steps=70,
+    chains=24,
+    steps=500,
+    null_chains=8,
+    null_steps=250,
     replicates=8,
     magnitudes=(1, 2),
     probe_magnitudes=(3,),
     probe_replicates=2,
-    n_hard_nulls=15,
-    n_random_nulls=15,
+    n_hard_nulls=12,
+    n_random_nulls=12,
     max_iterations=40_000,
     restarts=4,
+    meaningful_gates=True,
 )
 
 QUICK = Size(
@@ -262,6 +412,7 @@ QUICK = Size(
     max_iterations=4_000,
     restarts=2,
     trace_checkpoints=4,
+    meaningful_gates=False,
 )
 
 
@@ -327,6 +478,346 @@ def load_inputs() -> Inputs:
     inputs.dem, inputs.rep = dict(dem), dict(rep)
     inputs.check()
     return inputs
+
+
+
+# --------------------------------------------------------------------------- #
+# running chains in parallel — the same chains, in less wall clock
+# --------------------------------------------------------------------------- #
+
+def _one_chain(args) -> ensemble.EnsembleResult:
+    """Worker: exactly ``ensemble.run_chains`` on a single seed."""
+    adjacency, populations, k, epsilon, steps, seed, node_repeats = args
+    return ensemble.run_chains(
+        adjacency, populations, k, epsilon, steps, [seed], node_repeats
+    )
+
+
+def run_chains_parallel(
+    adjacency: Mapping[str, Sequence[str]],
+    populations: Mapping[str, int],
+    k: int,
+    epsilon: float,
+    steps: int,
+    chain_seeds: Sequence[int],
+    node_repeats: int,
+    jobs: int,
+) -> ensemble.EnsembleResult:
+    """``ensemble.run_chains``, one process per chain, merged back in seed order.
+
+    Chains are independent by construction — one seed each, no shared state — so
+    this changes wall clock and nothing else. ``jobs <= 1`` calls
+    ``ensemble.run_chains`` directly rather than taking a slower path to the same
+    answer, and ``tests/test_bench.py`` asserts the two agree trace for trace on
+    a real ensemble, because the merge below is the one piece of arithmetic the
+    bench does that ``generate`` also does.
+
+    The merge recomputes exactly four aggregates, all of them counts, and
+    ``distinct_plans`` through ``ensemble.canonical`` — the same function
+    ``run_chains`` uses, so the relabelling-equivalence question is answered in
+    one place. ``seconds`` is wall clock for the whole group, which is what a
+    reader of ``timing`` wants and is not comparable with a serial run's.
+    """
+    chain_seeds = list(chain_seeds)
+    if jobs <= 1 or len(chain_seeds) == 1:
+        return ensemble.run_chains(
+            adjacency, populations, k, epsilon, steps, chain_seeds, node_repeats
+        )
+    payload = [
+        (dict(adjacency), dict(populations), k, epsilon, steps, seed, node_repeats)
+        for seed in chain_seeds
+    ]
+    started = time.perf_counter()
+    with ProcessPoolExecutor(max_workers=min(jobs, len(payload))) as pool:
+        results = list(pool.map(_one_chain, payload))
+    seconds = time.perf_counter() - started
+
+    traces = tuple(trace for result in results for trace in result.traces)
+    plans = tuple(plan for trace in traces for plan in trace.plans)
+    failures = sum(1 for trace in traces if not trace.completed)
+    return ensemble.EnsembleResult(
+        k=k,
+        epsilon=epsilon,
+        steps=steps,
+        seeds=tuple(chain_seeds),
+        plans=plans,
+        n_requested=len(chain_seeds) * steps,
+        n_completed=len(plans),
+        chain_failures=failures,
+        failure_rate=failures / len(chain_seeds),
+        distinct_plans=len({ensemble.canonical(plan, k) for plan in plans}),
+        traces=traces,
+        seconds=seconds,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# shape envelopes — one for the search, one for the legality claim
+# --------------------------------------------------------------------------- #
+
+def _shape_summaries(columns: Mapping[str, Sequence[Any]]) -> dict[str, O.Distribution]:
+    """``outlier.summarize`` of each envelope measure over the reference draws."""
+    out: dict[str, O.Distribution] = {}
+    for name in G.ENVELOPE_MEASURES:
+        values = [float(v) for v in columns[name] if v is not None]
+        if values:
+            out[name] = O.summarize(values)
+    return out
+
+
+def plant_envelope(
+    columns: Mapping[str, Sequence[Any]], *, n_draws: int, n_distinct: int, source: str
+) -> G.ShapeEnvelope | None:
+    """The shape bounds the planted search may not leave (D-010).
+
+    The central ``PLANT_SHAPE_COVERAGE`` of the reference ensemble on each of
+    ``gerrymander.ENVELOPE_MEASURES``, read off ``outlier.summarize``'s ``p05``
+    and ``p95``. Round 2's planted plans had twice the cut edges and a third the
+    Polsby-Popper of every neutral draw, so ``cut_edges > 60`` alone separated
+    the classes at TPR 1.0 and FPR 0.0 without reading a single vote; this is the
+    constraint that stops the bench from measuring the search's fingerprint
+    instead of the gerrymander.
+
+    **This is the module default and not a matched envelope.**
+    ``gerrymander.calibrate_shape_envelope`` documents the stronger construction
+    — a ``centre`` drawn per plant from ``U(0, 1)`` with a narrow coverage, which
+    makes the planted marginal a sample of the neutral one rather than a set
+    piled against the band's ragged edge — and measures a cut-edge classifier
+    still separating a *central* band at AUC 0.91. That construction needs an
+    arbitrary quantile of the reference per plant, and the only quantiles
+    available without re-measuring every draw are ``p05`` and ``p95``. So this is
+    the weaker constraint, it is named as the weaker constraint, and
+    ``diagnostics.plant_envelope`` reports the bounds it actually used.
+
+    ``None`` when the reference has no draws to calibrate from.
+    """
+    summaries = _shape_summaries(columns)
+    if len(summaries) != len(G.ENVELOPE_MEASURES):
+        return None
+    return G.ShapeEnvelope(
+        coverage=PLANT_SHAPE_COVERAGE,
+        bounds={name: (d.p05, d.p95) for name, d in summaries.items()},
+        reference_plans=n_distinct,
+        reference_draws=n_draws,
+        measures=G.ENVELOPE_MEASURES,
+        source=source,
+        centre=0.5,
+    )
+
+
+def compactness_floor(
+    columns: Mapping[str, Sequence[Any]],
+    neutral_metrics: Sequence[Mapping[str, Any]],
+    *,
+    n_draws: int,
+    n_distinct: int,
+    source: str,
+) -> G.ShapeEnvelope | None:
+    """The compactness standard the legality claim is made against. **VALUE.**
+
+    Iowa Code ch. 42 lists compactness fourth and states no number for it, so
+    including it in ``check_legality`` means choosing one, and the choice is
+    normative rather than technical. What is chosen here is a **one-sided floor**
+    per measure: a plan is compact enough if it is no less compact than *both*
+
+    * the least compact plan the neutral process produced anywhere this round —
+      every reference draw and every published null case — and
+    * Iowa's enacted CD118 plan.
+
+    ``neutral_metrics`` is that second set: the already-measured metrics of the
+    null cases and of the enacted plan. Both are fixed before any legality is
+    computed and neither depends on the outcome, which is what keeps this from
+    being a standard widened to admit whatever failed it. The nulls are in it
+    because they are neutral draws from the same process at the same epsilon,
+    drawn from a *different* pool than the reference, and a floor that fails them
+    would be measuring the reference's sampling noise rather than compactness.
+
+    Three properties follow, and each is the reason for a part of the rule.
+
+    *One-sided*, from ``evaluate.compactness.DIRECTION``, because the statute
+    asks for compact districts and a plan more compact than any neutral draw
+    breaks no law. (The search envelope in :func:`plant_envelope` is two-sided
+    for a different reason: conspicuousness in either direction is detectable,
+    and D-010 is about not being separable.)
+
+    *At the neutral extreme rather than at a quantile*, because a floor inside
+    the neutral distribution fails neutral plans by construction — a central 95%
+    band on five correlated measures excludes a few percent of the very draws it
+    was built from — and a legality gate whose target is 1.0 would then be
+    reporting the width of its own band rather than anything about legality. At the extreme, every plan the neutral process drew passes, and
+    the check has bite only against something built by a different process. That
+    is exactly the round-2 failure it exists to catch: those plants sat at 93-99
+    cut edges against a neutral 46-55.
+
+    *Widened to admit the enacted plan*, because a standard that condemns the map
+    actually in force under ch. 42 is not a description of ch. 42. In Iowa this
+    costs nothing and is verified to cost nothing: against round 2's 806-draw
+    ensemble the enacted plan is strictly inside the observed range on all five
+    measures (cut edges 51 in [41, 59], Polsby-Popper 0.333 in [0.248, 0.401],
+    Reock 0.451 in [0.300, 0.488], Schwartzberg 1.751 in [1.633, 2.073], convex
+    hull 0.743 in [0.637, 0.796]). It is in the rule so that the property holds
+    in a state where it does not.
+
+    **What this standard cannot do.** It is calibrated, so it moves with the
+    ensemble: a larger reference finds a more ragged worst draw and the floor
+    loosens. It is a floor at the extreme, so it certifies as legal anything the
+    neutral process could have produced, which is a much weaker claim than "a
+    court would accept this". And every plan in the calibration set passes it by
+    construction, so a passing null is evidence of nothing. The bounds, the size
+    of the set they came from and this note are all in the report;
+    ``check_legality``'s per-plan record names the measure and the margin
+    whenever the floor is what failed.
+
+    ``None`` when there is nothing to calibrate from, in which case
+    ``check_legality`` records that compactness was not tested rather than
+    passing it silently.
+    """
+    summaries = _shape_summaries(columns)
+    if len(summaries) != len(G.ENVELOPE_MEASURES):
+        return None
+    bounds: dict[str, tuple[float, float]] = {}
+    for name, dist in summaries.items():
+        direction = compactness.DIRECTION[name.replace("_mean", "")]
+        others = [
+            float(m[name]) for m in neutral_metrics if m.get(name) is not None
+        ]
+        if direction > 0:  # larger is more compact: bound below
+            bounds[name] = (min([dist.minimum] + others), math.inf)
+        else:  # larger is less compact: bound above
+            bounds[name] = (-math.inf, max([dist.maximum] + others))
+    return G.ShapeEnvelope(
+        coverage=1.0,
+        bounds=bounds,
+        reference_plans=n_distinct,
+        reference_draws=n_draws,
+        measures=G.ENVELOPE_MEASURES,
+        source=source,
+        centre=0.5,
+    )
+
+
+def _inside(
+    plans: Sequence[Mapping[str, int]],
+    columns: Mapping[str, Sequence[Any]],
+    envelope: G.ShapeEnvelope | None,
+    k: int,
+) -> list[dict]:
+    """The distinct reference draws that already satisfy ``envelope``.
+
+    Handed to the search as ``start_plans`` so that it begins inside the feasible
+    set instead of walking in from a growth plan — the realistic adversary is a
+    mapper editing a compact map, not one building outwards from nothing. The
+    test is read off the columns already measured for these very draws, so it
+    costs nothing and cannot disagree with the envelope's own arithmetic.
+    """
+    if envelope is None:
+        return []
+    out: list[dict] = []
+    seen: set = set()
+    for i, plan in enumerate(plans):
+        metrics = {}
+        for name in envelope.bounds:
+            value = columns[name][i] if i < len(columns[name]) else None
+            if value is not None:
+                metrics[name] = float(value)
+        if not envelope.contains(metrics):
+            continue
+        key = ensemble.canonical(dict(plan), k)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(dict(plan))
+    return out
+
+
+def _in_gate_sample(case: "Case") -> bool:
+    """Whether this case counts toward the gate rates. Planted always; nulls by stratum."""
+    if case.kind != "null":
+        return True
+    return bool(case.provenance.get("in_gate_sample", True))
+
+
+def _envelope_block(envelope: G.ShapeEnvelope | None, kind: str) -> dict[str, Any]:
+    """An envelope as JSON. Infinite bounds are reported as absent, not as null."""
+    if envelope is None:
+        return {"calibrated": False, "kind": kind,
+                "note": "no reference draws to calibrate from; nothing was checked"}
+    bounds = {}
+    for name, (low, high) in sorted(envelope.bounds.items()):
+        bounds[name] = {
+            "at_least": None if low == -math.inf else low,
+            "at_most": None if high == math.inf else high,
+        }
+    return {
+        "calibrated": True,
+        "kind": kind,
+        "coverage": envelope.coverage,
+        "centre": envelope.centre,
+        "bounds": bounds,
+        "reference_draws": envelope.reference_draws,
+        "reference_plans": envelope.reference_plans,
+        "source": envelope.source,
+        "measures": list(envelope.measures),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# legality — measured at the operating point, whatever the run used
+# --------------------------------------------------------------------------- #
+
+def legality_records(
+    plan: Mapping[str, int],
+    metrics: Mapping[str, Any],
+    inputs: "Inputs",
+    size: Size,
+    floor: G.ShapeEnvelope | None,
+) -> tuple[G.LegalityRecord, G.LegalityRecord]:
+    """``(at GATE_EPSILON, at the run's epsilon)`` for one plan.
+
+    Both, because they answer different questions and round 1 published the
+    second under the first's name. The gate reads the first. The second is
+    reported beside it so that a reader can see the difference the run's own
+    tolerance made — at ``--quick``'s 1e-3 it is the difference between "legal"
+    and "illegal by a factor of five on population".
+
+    ``metrics`` supplies the compactness measures, which have already been
+    computed for this plan; nothing is re-measured here.
+    """
+    shape = (
+        {name: float(metrics[name]) for name in G.ENVELOPE_MEASURES
+         if metrics.get(name) is not None}
+        if floor is not None else None
+    )
+    at_gate = G.check_legality(
+        dict(plan), inputs.adjacency, inputs.populations, K, GATE_EPSILON,
+        shape_envelope=floor, plan_shape_metrics=shape,
+    )
+    if size.epsilon == GATE_EPSILON:
+        return at_gate, at_gate
+    at_run = G.check_legality(
+        dict(plan), inputs.adjacency, inputs.populations, K, size.epsilon,
+        shape_envelope=floor, plan_shape_metrics=shape,
+    )
+    return at_gate, at_run
+
+
+def relegalize(
+    cases: Sequence["Case"],
+    inputs: "Inputs",
+    size: Size,
+    floor: G.ShapeEnvelope | None,
+) -> None:
+    """Re-check every case's legality once the compactness floor exists, in place.
+
+    The floor is calibrated from the reference ensemble, which does not exist
+    when a plant or a null is built, so legality is settled here for every case
+    at once — one code path, one epsilon pair, one envelope, for planted and null
+    alike. The record the search kept for itself is not what the gate reads.
+    """
+    for case in cases:
+        at_gate, at_run = legality_records(case.plan, case.metrics, inputs, size, floor)
+        case.legality_at_gate = at_gate
+        case.legality_at_run = at_run
 
 
 # --------------------------------------------------------------------------- #
@@ -418,7 +909,18 @@ def context_for(plan: Mapping[str, int], inputs: Inputs) -> O.Context:
 
 @dataclass
 class Case:
-    """One scored scenario on its way into the report."""
+    """One scored scenario on its way into the report.
+
+    ``provenance`` is what makes the scenario reconstructible: the seed stream
+    name, the index in it and the derived seed for a plant; the pool's seeds and
+    the selection rank for a null. With the plan CSV beside it in the round
+    directory and the digest in the report, every ground-truth claim about this
+    case can be recomputed by someone who has the artifact and the master seed
+    and does not trust either.
+
+    Legality is held as two records rather than a boolean, and neither is filled
+    in until :func:`relegalize` runs — see it for why.
+    """
 
     id: str
     kind: str
@@ -429,10 +931,46 @@ class Case:
     baseline: str | None
     metrics: dict
     locations: dict
-    legal: bool
-    legal_failures: list
     notes: tuple
+    provenance: dict = field(default_factory=dict)
+    legality_at_gate: Any = None
+    legality_at_run: Any = None
     seconds: float = 0.0
+
+    @property
+    def digest(self) -> str | None:
+        """``outlier.plan_digest`` of this case's assignment."""
+        return O.plan_digest(self.plan)
+
+    @property
+    def legal(self) -> bool | None:
+        """Legal at :data:`GATE_EPSILON`, the operating point. ``None`` until checked."""
+        return None if self.legality_at_gate is None else self.legality_at_gate.passed
+
+    @property
+    def legal_failures(self) -> list:
+        return [] if self.legality_at_gate is None else self.legality_at_gate.failures()
+
+    def legality_block(self, size: Size) -> dict[str, Any]:
+        """Both legality records, each naming the epsilon it was measured at."""
+        gate, run = self.legality_at_gate, self.legality_at_run
+        if gate is None:
+            return {"checked": False,
+                    "note": "legality was not evaluated for this case"}
+        return {
+            "checked": True,
+            "gate_epsilon": GATE_EPSILON,
+            "legal_at_gate_epsilon": gate.passed,
+            "failures_at_gate_epsilon": gate.failures(),
+            "run_epsilon": size.epsilon,
+            "legal_at_run_epsilon": None if run is None else run.passed,
+            "failures_at_run_epsilon": [] if run is None else run.failures(),
+            "population_spread": gate.population_spread,
+            "max_deviation_persons": gate.max_deviation_persons,
+            "max_deviation_fraction": gate.max_deviation_fraction,
+            "compactness_checked": "compactness_within_neutral_envelope" in gate.checks,
+            "notes": dict(sorted(gate.notes.items())),
+        }
 
     def scenario(self) -> C.Scenario:
         return C.Scenario(
@@ -476,12 +1014,28 @@ def pick_max_dem_plan(plans: Sequence[Mapping[str, int]], inputs: Inputs) -> dic
     return best
 
 
+def _starts(starts: Sequence[Mapping[str, int]], cell: int, restarts: int) -> list[dict] | None:
+    """The start plans this cell's restarts begin from, rotated so cells differ.
+
+    ``maximize_seats`` walks ``start_plans`` round-robin across its restarts, so
+    handing every cell the same list would start every search from the same four
+    neutral plans. The rotation is by cell index and is therefore deterministic.
+    """
+    if not starts:
+        return None
+    offset = (cell * max(restarts, 1)) % len(starts)
+    ordered = list(starts[offset:]) + list(starts[:offset])
+    return [dict(plan) for plan in ordered]
+
+
 def plant_cases(
     inputs: Inputs,
     baselines: Mapping[str, dict],
     master_seed: int,
     round_number: int,
     size: Size,
+    envelope: G.ShapeEnvelope | None = None,
+    starts: Sequence[Mapping[str, int]] = (),
 ) -> tuple[list[Case], list[dict]]:
     """Planted gerrymanders across the achievable seat-shift range, both directions.
 
@@ -508,7 +1062,7 @@ def plant_cases(
             if size.probe_replicates:
                 cells.append((party, baseline_id, magnitude, size.probe_replicates))
 
-    for party, baseline_id, magnitude, replicates in cells:
+    for cell, (party, baseline_id, magnitude, replicates) in enumerate(cells):
         baseline = baselines[baseline_id]
         for index in range(replicates):
             purpose = _purpose(round_number, f"plant/{party}/{magnitude}")
@@ -526,10 +1080,23 @@ def plant_cases(
                 seed,
                 size.max_iterations,
                 baseline_plan=baseline,
+                baseline_source=baseline_id,
                 restarts=size.restarts,
+                shape_envelope=envelope,
+                geometry=None if envelope is None else inputs.geometry,
+                start_plans=_starts(starts, cell, size.restarts),
             )
             seconds = time.perf_counter() - started
             case_id = f"gerry_{party.lower()}_{magnitude}seat_{index:02d}"
+            provenance = {
+                "seed": seed,
+                "purpose": purpose,
+                "index": index,
+                "derivation": "generate.seeds.derive(master_seed, purpose, index)",
+                "built_by": "adversarial.gerrymander.plant_gerrymander",
+                "baseline": baseline_id,
+                "shape_envelope": "plant_envelope" if envelope is not None else None,
+            }
             attempts.append(
                 {
                     "id": case_id,
@@ -561,14 +1128,19 @@ def plant_cases(
                     baseline=baseline_id,
                     metrics=metrics,
                     locations=locations,
-                    legal=result.legality.passed,
-                    legal_failures=result.legality.failures(),
+                    provenance=provenance,
                     notes=(
                         f"baseline {baseline_id}: {result.baseline_seat_count} "
                         f"{party} seats -> {result.realized_seat_count}; "
                         f"population spread {result.population_spread}; "
                         f"seat ceiling at work epsilon "
                         f"{result.seat_ceiling_at_work_epsilon}",
+                        f"search kept its own legality record at epsilon "
+                        f"{size.epsilon:g}: " + (
+                            "passed" if result.legality.passed
+                            else "failed " + ", ".join(result.legality.failures())
+                        ) + "; the report's legality is re-derived by "
+                        "bench.relegalize at the operating epsilon",
                     ),
                     seconds=seconds,
                 )
@@ -583,27 +1155,50 @@ def null_cases(
     round_number: int,
     size: Size,
 ) -> list[Case]:
-    """Neutral maps, in two strata, both labelled ground-truth negative.
+    """Neutral maps in three strata, all labelled ground-truth negative.
 
-    ``null_geography_*`` come from ``adversarial.nulls.sample_nulls``, which
-    ranks distinct neutral plans by distance from the ensemble's median seat
-    count and then by efficiency gap, taking them alternately from either side of
-    the median. Those are the hardest negatives available: neutral by
-    construction, extreme by selection.
+    ``adversarial.nulls.sample_strata`` fills them from one pool with the plans
+    kept disjoint, so no plan is a negative twice:
 
-    ``null_random_*`` are drawn uniformly from the same pool's distinct plans,
-    excluding anything the first stratum already took. They are the ordinary
-    negative — what a neutral process usually produces rather than what it
-    produces at its worst — and without them the pooled FPR would be reporting
-    the selection rule rather than the detector.
+    ``null_concentration_*``
+        Distinct neutral plans ranked by the Herfindahl concentration of the
+        minority party's own votes across districts — the Chen & Rodden packing
+        CRITERIA.md 5.4 describes, measured on one party's totals and on no ratio
+        between the two. Hard negatives by mechanism.
+    ``null_seat_outcome_*``
+        Ranked by distance from the ensemble's median seat count. Hard negatives
+        by outcome, and in Iowa seats and the absolute efficiency gap are rank-correlated
+        at -0.868, so this stratum selects very nearly what ranking by the
+        detector's own test statistic selects.
+    ``null_random_*``
+        A uniform draw from the pool's distinct plans. The control: what a
+        neutral process usually produces rather than what it produces at its
+        worst.
 
-    Both strata are drawn from a pool sampled under its own seeds, so no null is
-    scored against an ensemble it is itself a draw from.
+    **Which of them the gate reads is this file's choice and it is a normative
+    one.** ``sample_strata`` returns a dict rather than a pooled list precisely
+    so that the caller has to make it. The gate pools *concentration* and
+    *random* and excludes *seat_outcome*, because a stratum ranked by a monotone
+    transform of the statistic under test measures the selection rule and not the
+    detector — round 2 measured that stratum's rate rising to 1.00 as the pool
+    grew while the control's fell to 0.125, with the reference held fixed. The
+    excluded stratum is drawn, scored, published as a scenario and reported with
+    its own rate; it is left out of one number, not out of the artifact, and
+    ``confusion.gate_sample`` names it and says why. Reported beside it is the
+    pooled rate over all three, so a reader who disagrees with the choice can
+    read the number this file did not use.
+
+    The pool is sampled under its own seeds, so no null is scored against an
+    ensemble it is itself a draw from.
     """
     cases: list[Case] = []
     plan_cache = compactness.MeasureCache()
-
-    hard = N.sample_nulls(
+    drawn_by = (
+        f"generate.ensemble.run_chains, {size.null_chains} independent chains x "
+        f"{size.null_steps} steps at epsilon={size.epsilon:g}, seeded from "
+        f"{_purpose(round_number, 'null-pool')}"
+    )
+    by_stratum = N.sample_strata(
         inputs.adjacency,
         inputs.populations,
         K,
@@ -612,65 +1207,54 @@ def null_cases(
         inputs.dem,
         inputs.rep,
         sampler=N.sampler_from_plans(pool),
+        n_per_stratum={
+            "concentration": size.n_hard_nulls,
+            "seat_outcome": size.n_hard_nulls,
+            "random": size.n_random_nulls,
+        },
+        strata=NULL_STRATA,
         party="D",
-        n_select=size.n_hard_nulls,
         balance_directions=True,
-        drawn_by=(
-            f"generate.ensemble.run_chains, {size.null_chains} independent "
-            f"chains x {size.null_steps} steps at epsilon={size.epsilon:g}"
-        ),
+        drawn_by=drawn_by,
+        seed=seeds.derive(master_seed, _purpose(round_number, "null-random"), 0),
     )
-    taken = {frozenset(plan.items()) for plan in (case.plan for case in hard)}
-    for case in hard:
-        cases.append(
-            _null_case(
-                case.id,
-                case.plan,
-                case.seat_shift,
-                inputs,
-                size,
-                plan_cache,
-                notes=(
-                    f"selection rank {case.selection_rank} of "
-                    f"{case.distinct_pool_size} distinct plans; "
-                    f"{case.selection_rule}",
-                    f"ensemble median {case.ensemble_median_seats} D seats, this "
-                    f"plan {case.realized_seat_count}",
-                ),
+    for stratum in NULL_STRATA:
+        for case in by_stratum[stratum]:
+            cases.append(
+                _null_case(
+                    case.id,
+                    case.plan,
+                    case.seat_shift,
+                    inputs,
+                    size,
+                    plan_cache,
+                    notes=(
+                        f"stratum {case.stratum}, selection rank "
+                        f"{case.selection_rank} of {case.distinct_pool_size} "
+                        f"distinct plans in a pool of {case.pool_size}",
+                        case.selection_rule,
+                        f"ensemble median {case.ensemble_median_seats} D seats, "
+                        f"this plan {case.realized_seat_count}",
+                    ),
+                    provenance={
+                        "stratum": case.stratum,
+                        "ensemble_median_seats": case.ensemble_median_seats,
+                        "party": case.party,
+                        "selection_rank": case.selection_rank,
+                        "selection_statistic": dict(case.selection_statistic),
+                        "distinct_pool_size": case.distinct_pool_size,
+                        "pool_size": case.pool_size,
+                        "purpose": _purpose(round_number, "null-pool"),
+                        "derivation": (
+                            "generate.seeds.stream(master_seed, purpose, "
+                            "null_chains) -> generate.ensemble.run_chains -> "
+                            "adversarial.nulls.sample_strata"
+                        ),
+                        "drawn_by": case.drawn_by,
+                        "in_gate_sample": case.stratum in GATE_NULL_STRATA,
+                    },
+                )
             )
-        )
-
-    distinct: list[dict] = []
-    seen: set = set()
-    for plan in pool:
-        key = ensemble.canonical(dict(plan), K)
-        if key in seen:
-            continue
-        seen.add(key)
-        if frozenset(dict(plan).items()) in taken:
-            continue
-        distinct.append(dict(plan))
-    distinct.sort(key=lambda p: tuple(sorted(p.items())))
-    rng = random.Random(seeds.derive(master_seed, _purpose(round_number, "null-random"), 0))
-    wanted = min(size.n_random_nulls, len(distinct))
-    for rank, plan in enumerate(rng.sample(distinct, wanted), start=1):
-        median = N.median_seats(list(pool), inputs.dem, inputs.rep, "D")
-        seats = partisan.seat_counts(plan, inputs.dem, inputs.rep)[0]
-        cases.append(
-            _null_case(
-                f"null_random_{rank:02d}",
-                plan,
-                float(seats) - median,
-                inputs,
-                size,
-                plan_cache,
-                notes=(
-                    "uniform draw from the distinct plans of an independent "
-                    "neutral pool; not selected for looking biased",
-                    f"ensemble median {median} D seats, this plan {seats}",
-                ),
-            )
-        )
     return cases
 
 
@@ -682,8 +1266,8 @@ def _null_case(
     size: Size,
     cache: compactness.MeasureCache,
     notes: tuple,
+    provenance: Mapping[str, Any] = (),
 ) -> Case:
-    legality = G.check_legality(dict(plan), inputs.adjacency, inputs.populations, K, size.epsilon)
     metrics = plan_metrics(plan, inputs, cache)
     return Case(
         id=case_id,
@@ -701,13 +1285,31 @@ def _null_case(
             context=context_for(plan, inputs),
             metrics=LOCATED_METRICS,
         ),
-        legal=legality.passed,
-        legal_failures=legality.failures(),
+        provenance=dict(provenance),
         notes=notes,
     )
 
 
-def relocate(cases: Sequence[Case], columns: Mapping[str, Sequence[Any]], inputs: Inputs) -> None:
+def reference_ids(plans: Sequence[Mapping[str, int]]) -> list:
+    """One identity per reference draw, label-invariant, in column order.
+
+    ``ensemble.canonical`` rather than a digest of the raw assignment, because
+    two draws differing only in which district got which number are one plan and
+    counting them twice overstates the reference's resolution. Handing these to
+    ``outlier.locate`` is what makes ``Location.ess`` count plan repeats instead
+    of value repeats: 806 draws holding 177 plans worth 11.7 independent ones is
+    the number the rule's resolution test needs, and it is not visible from the
+    column alone.
+    """
+    return [ensemble.canonical(dict(plan), K) for plan in plans]
+
+
+def relocate(
+    cases: Sequence[Case],
+    columns: Mapping[str, Sequence[Any]],
+    inputs: Inputs,
+    plan_ids: Sequence[Any] | None = None,
+) -> None:
     """Attach the real ensemble columns to every case's locations, in place.
 
     :func:`plant_cases` and :func:`null_cases` build their locations against an
@@ -722,6 +1324,7 @@ def relocate(cases: Sequence[Case], columns: Mapping[str, Sequence[Any]], inputs
             case.metrics,
             context=context_for(case.plan, inputs),
             metrics=LOCATED_METRICS,
+            ensemble_plan_ids=plan_ids,
         )
 
 
@@ -810,12 +1413,177 @@ def convergence_trace(
     return out
 
 
+def rhat_trend(trace: Mapping[str, Sequence[Mapping[str, Any]]]) -> dict[str, Any]:
+    """Was R-hat falling, or had it stopped? Read off this run's own trace.
+
+    A single end-of-run R-hat cannot distinguish a chain that needs more draws
+    from one that will never converge, and the difference decides whether the
+    gate is a budget problem or a sampler problem. This reports, per quantity,
+    the first and last checkpoint and the change between the last two, so the
+    claim lives in the artifact rather than in a builder's summary of an
+    experiment nobody else ran.
+    """
+    out: dict[str, Any] = {}
+    for name, rows in trace.items():
+        usable = [r for r in rows if r.get("split_rhat") is not None]
+        if len(usable) < 2:
+            out[name] = {"note": "fewer than two checkpoints with a value"}
+            continue
+        first, last, penultimate = usable[0], usable[-1], usable[-2]
+        out[name] = {
+            "first": {"draws_per_chain": first["draws_per_chain"],
+                      "split_rhat": first["split_rhat"], "ess": first["ess"]},
+            "last": {"draws_per_chain": last["draws_per_chain"],
+                     "split_rhat": last["split_rhat"], "ess": last["ess"]},
+            "change_over_last_checkpoint": last["split_rhat"] - penultimate["split_rhat"],
+            "still_falling": last["split_rhat"] < penultimate["split_rhat"],
+            "ess_still_growing": (
+                last["ess"] is not None and penultimate["ess"] is not None
+                and last["ess"] > penultimate["ess"]
+            ),
+        }
+    return out
+
+
+def _all_chain_convergence(result: ensemble.EnsembleResult) -> dict[str, Any]:
+    """The same diagnostics over *every* chain, truncated to the shortest.
+
+    ``convergence_block`` uses the completed chains, because a diagnostic over
+    chains needs a rectangle and that is the honest rectangle to build. But at
+    this epsilon a third of the seeds die, and a chain that died at draw 300 of
+    400 still carries 300 legitimate draws whose disagreement with the others is
+    evidence. This block is that second rectangle: shorter, wider, and reported
+    beside the first rather than in place of it. The gate reads the first.
+    """
+    out: dict[str, Any] = {
+        "sample": "all_chains_truncated_to_shortest",
+        "n_chains": len(result.traces),
+        "note": (
+            "reported, not gated: gates.split_rhat reads the completed-chain "
+            "rectangle. A chain here may be a partial trace"
+        ),
+    }
+    for name, chains in (
+        ("cut_edges", result.cut_edges_chains(only_completed=False)),
+        ("pop_spread", result.population_spread_chains(only_completed=False)),
+    ):
+        usable = [c for c in chains if len(c) >= convergence.MIN_DRAWS]
+        out[name] = _diagnostics(usable)
+        out[name]["draws_per_chain"] = min((len(c) for c in usable), default=0)
+        out[name]["n_chains_used"] = len(usable)
+    return out
+
+
 def _finite(x: float | None) -> float | None:
     """A real finite float, or ``None``. ``nan`` and ``inf`` are not measurements."""
     if x is None:
         return None
     x = float(x)
     return None if math.isnan(x) or math.isinf(x) else x
+
+
+def gate_qualification(
+    size: Size,
+    result: ensemble.EnsembleResult,
+    columns: Mapping[str, Sequence[Any]],
+    conv: Mapping[str, Any],
+    matrix: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Whether this run's gate values can be read as measurements at all.
+
+    ``Size``'s docstring has said since round 1 that a quick run's gate values
+    are not meaningful. The artifact said nothing, and a reader of round 1's
+    gates block saw two PASSes — one of which a constant detector ties. This puts
+    the statement in the file, next to the numbers it qualifies.
+
+    ``meaningful`` is false when the run is a smoke test, or when the reference
+    cannot express the rule's threshold: those are the two conditions under which
+    a rate is not a measurement of the detector. It is deliberately *not* false
+    merely because a gate failed, or because R-hat is above its band — those are
+    findings, and burying them under "unmeaningful" would be a way of not
+    reporting them. They appear in ``caveats``, which a reader must read and no
+    arithmetic reads.
+
+    Every reason names the number it was computed from.
+    """
+    reasons: list[str] = []
+    caveats: list[str] = []
+
+    if not size.meaningful_gates:
+        reasons.append(
+            f"size={size.label!r}: a smoke run, made at epsilon="
+            f"{size.epsilon:g} against an operating point of {EPSILON:g}, with "
+            f"{size.chains} chains x {size.steps} steps. Its gate values are "
+            "arithmetic on too few draws, not measurements of the detector"
+        )
+
+    required_distinct = RULE.required_distinct
+    if required_distinct is not None and result.distinct_plans < required_distinct:
+        reasons.append(
+            f"the reference holds {result.distinct_plans} distinct plans and the "
+            f"{RULE.threshold} threshold needs {required_distinct} "
+            "(confusion.Rule.required_distinct); no plan strictly inside the "
+            "ensemble can reach the threshold, so the rule degenerates into a "
+            "test of the observed support"
+        )
+
+    required_ess = RULE.required_ess
+    ess_by_metric: dict[str, float | None] = {}
+    for name in RULE.metrics or ():
+        values = [float(v) for v in columns.get(name, []) if v is not None]
+        ess_by_metric[name] = O.summarize(values).ess if values else None
+    usable = [v for v in ess_by_metric.values() if v is not None]
+    if required_ess is not None and usable and max(usable) < required_ess:
+        reasons.append(
+            f"the best effective sample size over the rule's own metrics is "
+            f"{max(usable):.1f} against a requirement of {required_ess:.0f}; "
+            "repeated draws are not independent evidence about a 1% tail"
+        )
+
+    worst_rhat = max(
+        (conv[name]["split_rhat"] for name in ("cut_edges", "pop_spread")
+         if conv[name]["split_rhat"] is not None),
+        default=None,
+    )
+    if worst_rhat is not None and worst_rhat > RHAT_GATE:
+        caveats.append(
+            f"split R-hat is {worst_rhat:.4f} against a band of 1.00-{RHAT_GATE}: "
+            "every percentile in this report is taken against chains that do not "
+            "agree with each other, so the reference is a sample of the sampler's "
+            "reachable set rather than of the neutral distribution"
+        )
+    if matrix.get("coverage") is not None and matrix["coverage"] < 1.0:
+        caveats.append(
+            f"the rule could be evaluated on {matrix['coverage']:.3f} of the gate "
+            f"scenarios ({matrix['n_resolved']}/{matrix['n']}); pass is read off "
+            "the bound that is worst for the rule, so abstentions cannot help it"
+        )
+    if result.failure_rate:
+        caveats.append(
+            f"{result.chain_failures} of {len(result.seeds)} chains died "
+            f"(rate {result.failure_rate:.3f}); surviving seeds are not a random "
+            "subset of attempted seeds (ARCHITECTURE.md 7)"
+        )
+
+    meaningful = not reasons
+    return {
+        "meaningful": meaningful,
+        "size": size.label,
+        "reasons": reasons,
+        "caveats": caveats,
+        "reference": {
+            "draws": len(result.plans),
+            "distinct_plans": result.distinct_plans,
+            "required_distinct": required_distinct,
+            "ess_by_rule_metric": ess_by_metric,
+            "required_ess": required_ess,
+        },
+        "note": (
+            "gate values on this run are measurements"
+            if meaningful else
+            "GATE VALUES ON THIS RUN ARE NOT MEANINGFUL — see gates.qualification.reasons"
+        ),
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -924,6 +1692,200 @@ def firewall_block() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
+# the sidecar: the plans themselves, and re-deriving the claims made about them
+# --------------------------------------------------------------------------- #
+
+def write_plan(path: Path, plan: Mapping[str, int]) -> None:
+    """One plan to CSV, in the two columns ARCHITECTURE.md 3 defines and no others.
+
+    Sorted by unit id so the file is a function of the assignment alone, which is
+    what makes it comparable with :func:`outlier.plan_digest` and diffable
+    between rounds.
+    """
+    lines = ["GEOID,district"]
+    lines += [f"{unit},{int(plan[unit])}" for unit in sorted(plan)]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def write_plans(
+    cases: Sequence[Case], baselines: Mapping[str, Mapping[str, int]], out_dir: Path
+) -> dict[str, Any]:
+    """Write every scenario and baseline plan beside the report. Returns the manifest.
+
+    ARCHITECTURE.md 5 makes ``bench-results.json`` the file critics read, and
+    round 2's version asserted a legality, a seat count and a realized seat shift
+    per scenario while shipping nothing to check them against. These files are
+    that missing half. They are gitignored with the rest of the round directory
+    (docs/DECISIONS.md D-008) and regenerate deterministically from the master
+    seed, which is the same standing the PNGs have.
+    """
+    plans_dir = out_dir / PLANS_DIRNAME
+    plans_dir.mkdir(parents=True, exist_ok=True)
+    written: list[dict[str, Any]] = []
+    for case in cases:
+        write_plan(plans_dir / f"{case.id}.csv", case.plan)
+        written.append({"id": case.id, "file": f"{PLANS_DIRNAME}/{case.id}.csv",
+                        "digest": case.digest})
+    for name, plan in sorted(baselines.items()):
+        write_plan(plans_dir / f"baseline_{name}.csv", plan)
+        written.append({"id": f"baseline_{name}",
+                        "file": f"{PLANS_DIRNAME}/baseline_{name}.csv",
+                        "digest": O.plan_digest(plan)})
+    return {
+        "directory": PLANS_DIRNAME,
+        "format": "CSV, columns GEOID,district, sorted by GEOID (ARCHITECTURE.md 3)",
+        "digest": "sha256 of 'GEOID:district;...' over sorted units, first 16 hex "
+                  "(detect.outlier.plan_digest)",
+        "n_files": len(written),
+        "files": written,
+        "verify": "python -m detect.bench --verify <this directory>",
+    }
+
+
+def verify(round_dir: Path) -> dict[str, Any]:
+    """Re-derive every ground-truth claim in a written artifact from its own plans.
+
+    Reads ``bench-results.json`` and the ``plans/`` sidecar beside it and checks,
+    per scenario: the plan's digest against the one published; the structural
+    invariants through ``evaluate.plan.validate``; every located metric and both
+    seat counts, recomputed from the plan; legality at :data:`GATE_EPSILON`,
+    including the compactness floor the run used, against the published verdict
+    and its failure list; and the realized seat shift against the named baseline
+    plan, also read from the sidecar.
+
+    **What this can and cannot establish.** It establishes that the report agrees
+    with the plans it shipped — that no number was transcribed, carried over from
+    an earlier run, or computed against a different baseline than the one named.
+    It cannot establish that either is right: it calls the same ``evaluate`` and
+    ``adversarial`` functions the bench called, so a bug in one of those is
+    invisible to it. That is the reason the plans are on disk in a documented
+    format rather than only their digests: a critic can compute the same
+    quantities with their own tools and needs nothing from this function.
+
+    Returns ``{"ok": bool, "checked": int, "checks": int, "failures": [...]}``.
+    Every failure names the scenario, the field and both values.
+    """
+    round_dir = Path(round_dir)
+    report = json.loads((round_dir / "bench-results.json").read_text(encoding="utf-8"))
+    inputs = load_inputs()
+    failures: list[dict[str, Any]] = []
+    checks = 0
+
+    def bad(scenario_id: str, field_name: str, reported: Any, recomputed: Any) -> None:
+        failures.append({"id": scenario_id, "field": field_name,
+                         "reported": reported, "recomputed": recomputed})
+
+    floor = _floor_from_report(report)
+    baselines: dict[str, dict] = {}
+    for row in report.get("plans", {}).get("files", []):
+        if row["id"].startswith("baseline_"):
+            baselines[row["id"][len("baseline_"):]] = EP.load_plan(round_dir / row["file"])
+    cache = compactness.MeasureCache()
+
+    for scenario in report["scenarios"]:
+        sid = scenario["id"]
+        path = round_dir / scenario["plan"]["file"]
+        if not path.exists():
+            bad(sid, "plan.file", scenario["plan"]["file"], "missing")
+            continue
+        plan = EP.load_plan(path)
+        checks += 1
+        if O.plan_digest(plan) != scenario["plan"]["digest"]:
+            bad(sid, "plan.digest", scenario["plan"]["digest"], O.plan_digest(plan))
+            continue
+
+        try:
+            EP.validate(plan, inputs.adjacency, K)
+        except Exception as exc:
+            bad(sid, "evaluate.plan.validate", "valid", f"{type(exc).__name__}: {exc}")
+
+        metrics = plan_metrics(plan, inputs, cache)
+        for name in LOCATED_METRICS:
+            checks += 1
+            if not _close(metrics.get(name), scenario["metrics"].get(name)):
+                bad(sid, f"metrics.{name}", scenario["metrics"].get(name), metrics.get(name))
+        for key, name in (("dem", "dem_seats"), ("rep", "rep_seats")):
+            checks += 1
+            if metrics[name] != scenario["seats"][key]:
+                bad(sid, f"seats.{key}", scenario["seats"][key], metrics[name])
+
+        record = G.check_legality(
+            plan, inputs.adjacency, inputs.populations, K, GATE_EPSILON,
+            shape_envelope=floor,
+            plan_shape_metrics={n: metrics[n] for n in G.ENVELOPE_MEASURES},
+        )
+        checks += 2
+        if record.passed != scenario["legal"]:
+            bad(sid, "legal", scenario["legal"], record.passed)
+        if record.failures() != list(scenario["legal_failures"]):
+            bad(sid, "legal_failures", scenario["legal_failures"], record.failures())
+
+        # The realized shift, against whichever baseline this kind of scenario
+        # names: a plan for a plant, the pool's median seat count for a null.
+        # Both are published, so both can be re-derived without the ensemble.
+        baseline_name = scenario.get("baseline")
+        party = scenario.get("target_party")
+        provenance = scenario.get("provenance") or {}
+        here = partisan.seat_counts(plan, inputs.dem, inputs.rep)
+        if party and baseline_name in baselines:
+            checks += 1
+            base = partisan.seat_counts(baselines[baseline_name], inputs.dem, inputs.rep)
+            index = 0 if party == "D" else 1
+            shift = here[index] - base[index]
+            if shift != scenario["realized_seat_shift"]:
+                bad(sid, "realized_seat_shift", scenario["realized_seat_shift"], shift)
+        elif provenance.get("ensemble_median_seats") is not None:
+            checks += 1
+            index = 0 if provenance.get("party", "D") == "D" else 1
+            shift = float(here[index]) - float(provenance["ensemble_median_seats"])
+            if not _close(shift, scenario["realized_seat_shift"]):
+                bad(sid, "realized_seat_shift", scenario["realized_seat_shift"], shift)
+
+    return {
+        "ok": not failures,
+        "round_dir": str(round_dir),
+        "checked": len(report["scenarios"]),
+        "checks": checks,
+        "failures": failures,
+    }
+
+
+def _floor_from_report(report: Mapping[str, Any]) -> G.ShapeEnvelope | None:
+    """Rebuild the legality compactness floor from what the report published.
+
+    Read back rather than recalibrated: the point of verification is to test the
+    report against its own stated standard, and recalibrating from a fresh
+    ensemble would test it against a different one.
+    """
+    block = report.get("diagnostics", {}).get("compactness_floor", {})
+    if not block.get("calibrated"):
+        return None
+    bounds = {
+        name: (
+            -math.inf if row["at_least"] is None else float(row["at_least"]),
+            math.inf if row["at_most"] is None else float(row["at_most"]),
+        )
+        for name, row in block["bounds"].items()
+    }
+    return G.ShapeEnvelope(
+        coverage=block["coverage"],
+        bounds=bounds,
+        reference_plans=block["reference_plans"],
+        reference_draws=block["reference_draws"],
+        measures=tuple(block["measures"]),
+        source=block["source"],
+        centre=block["centre"],
+    )
+
+
+def _close(a: Any, b: Any) -> bool:
+    """Equality for a recomputed measurement against a published one."""
+    if a is None or b is None:
+        return a is None and b is None
+    return math.isclose(float(a), float(b), rel_tol=1e-9, abs_tol=1e-12)
+
+
+# --------------------------------------------------------------------------- #
 # the run
 # --------------------------------------------------------------------------- #
 
@@ -933,8 +1895,13 @@ def run(
     size: Size = FULL,
     out_dir: Path | None = None,
     make_plots: bool = True,
+    jobs: int = DEFAULT_JOBS,
 ) -> dict[str, Any]:
-    """Do the whole bench and return the report dict. Writes JSON and PNGs."""
+    """Do the whole bench and return the report dict. Writes JSON, plans and PNGs.
+
+    ``jobs`` spreads the chains across processes. It changes wall clock and
+    nothing in the report outside ``timing``; see :func:`run_chains_parallel`.
+    """
     out_dir = Path(out_dir) if out_dir is not None else DEFAULT_OUT_ROOT / f"round-{round_number:02d}"
     out_dir.mkdir(parents=True, exist_ok=True)
     timing: dict[str, Any] = {}
@@ -948,7 +1915,7 @@ def run(
     chain_seeds = seeds.stream(
         master_seed, _purpose(round_number, "ensemble"), size.chains
     )
-    ens = ensemble.run_chains(
+    ens = run_chains_parallel(
         inputs.gen_adjacency,
         inputs.gen_populations,
         K,
@@ -956,16 +1923,18 @@ def run(
         size.steps,
         chain_seeds,
         NODE_REPEATS,
+        jobs,
     )
     timing["ensemble_seconds"] = time.perf_counter() - started
     timing["ensemble_chain_seconds"] = [t.seconds for t in ens.traces]
+    timing["jobs"] = jobs
 
     # 2. the null pool, independently seeded --------------------------------- #
     started = time.perf_counter()
     null_seeds = seeds.stream(
         master_seed, _purpose(round_number, "null-pool"), size.null_chains
     )
-    pool = ensemble.run_chains(
+    pool = run_chains_parallel(
         inputs.gen_adjacency,
         inputs.gen_populations,
         K,
@@ -973,6 +1942,7 @@ def run(
         size.null_steps,
         null_seeds,
         NODE_REPEATS,
+        jobs,
     )
     timing["null_pool_seconds"] = time.perf_counter() - started
 
@@ -981,13 +1951,26 @@ def run(
     columns, cache_stats = ensemble_columns(ens.plans, inputs)
     timing["ensemble_metrics_seconds"] = time.perf_counter() - started
 
-    # 4. scenarios ----------------------------------------------------------- #
+    # 4. the two shape envelopes, both from the reference columns ------------ #
+    source = (
+        f"round {round_number} reference ensemble: {len(ens.plans)} draws, "
+        f"{ens.distinct_plans} distinct, epsilon={size.epsilon:g}"
+    )
+    envelope = plant_envelope(
+        columns, n_draws=len(ens.plans), n_distinct=ens.distinct_plans, source=source
+    )
+    review_metrics = plan_metrics(inputs.enacted, inputs)
+    starts = _inside(ens.plans, columns, envelope, K)
+
+    # 5. scenarios ----------------------------------------------------------- #
     baselines = {
         "enacted": dict(inputs.enacted),
         "ensemble_max_d": pick_max_dem_plan(ens.plans, inputs),
     }
     started = time.perf_counter()
-    planted, attempts = plant_cases(inputs, baselines, master_seed, round_number, size)
+    planted, attempts = plant_cases(
+        inputs, baselines, master_seed, round_number, size, envelope, starts
+    )
     timing["planting_seconds"] = time.perf_counter() - started
     timing["plant_seconds"] = {case.id: case.seconds for case in planted}
 
@@ -996,27 +1979,46 @@ def run(
     timing["nulls_seconds"] = time.perf_counter() - started
 
     cases = planted + nulls
+    floor = compactness_floor(
+        columns,
+        [case.metrics for case in nulls] + [review_metrics],
+        n_draws=len(ens.plans),
+        n_distinct=ens.distinct_plans,
+        source=(
+            "the one-sided floor of bench.compactness_floor, calibrated on "
+            + source
+            + f", on this round's {len(nulls)} null cases, and on the enacted "
+            "CD118 plan"
+        ),
+    )
     started = time.perf_counter()
-    relocate(cases, columns, inputs)
+    plan_ids = reference_ids(ens.plans)
+    relocate(cases, columns, inputs, plan_ids)
+    relegalize(cases, inputs, size, floor)
     timing["scoring_seconds"] = time.perf_counter() - started
 
-    # 5. decisions ----------------------------------------------------------- #
+    # 6. decisions ----------------------------------------------------------- #
+    # The gate reads the pre-registered null strata; see null_cases for the
+    # argument and confusion.gate_sample in the report for the labelling.
     scenarios = [case.scenario() for case in cases]
+    gate_ids = {case.id for case in cases if _in_gate_sample(case)}
+    gate_scenarios = [s for s in scenarios if s.id in gate_ids]
     decisions = {s.id: d for s, d in C.decide(scenarios, RULE)}
-    matrix = C.confusion_matrix(scenarios, RULE)
-    curve = C.detection_curve(scenarios, RULE)
-    gate_block = C.gates(scenarios, RULE)
+    matrix = C.confusion_matrix(gate_scenarios, RULE)
+    curve = C.detection_curve(gate_scenarios, RULE)
+    gate_block = C.gates(gate_scenarios, RULE)
+    matrix_all = C.confusion_matrix(scenarios, RULE)
 
-    # 6. the plan under review ----------------------------------------------- #
-    review_metrics = plan_metrics(inputs.enacted, inputs)
+    # 7. the plan under review ----------------------------------------------- #
     review_locations = O.locate(
         inputs.enacted,
         columns,
         review_metrics,
         context=context_for(inputs.enacted, inputs),
         metrics=LOCATED_METRICS,
+        ensemble_plan_ids=plan_ids,
     )
-    review_decision = C.flag(review_locations, RULE)
+    # No C.flag here, deliberately. See the plan_under_review block in assemble.
 
     report = assemble(
         master_seed=master_seed,
@@ -1031,12 +2033,16 @@ def run(
         matrix=matrix,
         curve=curve,
         gate_block=gate_block,
+        matrix_all=matrix_all,
+        envelope=envelope,
+        floor=floor,
+        starts=starts,
+        jobs=jobs,
         attempts=attempts,
         baselines=baselines,
         inputs=inputs,
         review_metrics=review_metrics,
         review_locations=review_locations,
-        review_decision=review_decision,
         scenarios=scenarios,
         out_dir=out_dir,
         make_plots=make_plots,
@@ -1045,6 +2051,8 @@ def run(
     timing["total_seconds"] = time.perf_counter() - t0
     timing["generated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     report["timing"] = timing
+
+    report["plans"] = write_plans(cases, baselines, out_dir)
 
     path = out_dir / "bench-results.json"
     path.write_text(
@@ -1101,8 +2109,16 @@ def assemble(**kw) -> dict[str, Any]:
         if conv[name]["split_rhat"] is not None
     ]
     worst_rhat = max(rhat_values) if rhat_values else None
-    legal = [case.legal for case in cases]
+    legal = [bool(case.legal) for case in cases]
     legal_fraction = (sum(legal) / len(legal)) if legal else None
+    legal_at_run = [
+        bool(case.legality_at_run.passed) for case in cases
+        if case.legality_at_run is not None
+    ]
+    legal_fraction_at_run = (
+        (sum(legal_at_run) / len(legal_at_run)) if legal_at_run else None
+    )
+    illegal_ids = sorted(case.id for case in cases if not case.legal)
 
     scenarios_out = []
     for case in cases:
@@ -1116,14 +2132,24 @@ def assemble(**kw) -> dict[str, Any]:
                 "intended_seat_shift": case.intended_seat_shift,
                 "realized_seat_shift": case.realized_seat_shift,
                 "flagged": decision.flagged,
+                "in_gate_sample": _in_gate_sample(case),
+                "plan": {
+                    "digest": case.digest,
+                    "file": f"{PLANS_DIRNAME}/{case.id}.csv",
+                    "n_units": len(case.plan),
+                },
+                "provenance": case.provenance,
                 "legal": case.legal,
                 "legal_failures": case.legal_failures,
+                "legality": case.legality_block(size),
                 "metrics": {name: case.metrics.get(name) for name in LOCATED_METRICS},
                 "percentiles": O.percentiles(case.locations),
                 "statuses": {n: loc.status for n, loc in case.locations.items()},
                 "fired_metrics": list(decision.fired_metrics),
                 "eligible_metrics": list(decision.eligible),
                 "excluded_metrics": {m: w for m, w in decision.excluded},
+                "unresolvable_metrics": {m: w for m, w in decision.unresolvable},
+                "decision_reason": decision.reason,
                 "seats": {
                     "dem": case.metrics.get("dem_seats"),
                     "rep": case.metrics.get("rep_seats"),
@@ -1132,6 +2158,10 @@ def assemble(**kw) -> dict[str, Any]:
             }
         )
 
+    trace = convergence_trace(ens, size.trace_checkpoints)
+    trend = rhat_trend(trace)
+    qualification = gate_qualification(size, ens, columns, conv, matrix)
+
     gates_out = {
         "tpr_at_2seat": gate_block["tpr_at_2seat"],
         "fpr_on_nulls": gate_block["fpr_on_nulls"],
@@ -1139,9 +2169,17 @@ def assemble(**kw) -> dict[str, Any]:
             "target": RHAT_GATE,
             "value": worst_rhat,
             "pass": None if worst_rhat is None else worst_rhat <= RHAT_GATE,
+            "trend": trend,
             "note": (
                 "worst of cut_edges and pop_spread, rank-normalized split R-hat "
-                "over completed chains; CRITERIA.md 8 target band 1.00-1.01"
+                "over completed chains; CRITERIA.md 8 target band 1.00-1.01. "
+                "trend is this run's own R-hat against draws per chain: a value "
+                "that has stopped falling while ESS has stopped growing is a "
+                "statement about the sampler at this epsilon, not about the "
+                "budget, and no number of further draws will move it. "
+                "diagnostics.convergence_trace is the series it was read from "
+                "and diagnostics.convergence_all_chains recomputes it over the "
+                "partial traces as well"
             ),
         },
         "legal_compliance": {
@@ -1149,16 +2187,39 @@ def assemble(**kw) -> dict[str, Any]:
             "value": legal_fraction,
             "pass": None if legal_fraction is None else legal_fraction >= 1.0,
             "n": len(legal),
+            "epsilon": GATE_EPSILON,
+            "measured_at": (
+                f"epsilon={GATE_EPSILON:g}, the declared operating point "
+                "(bench.GATE_EPSILON), whatever epsilon this run used"
+            ),
+            "run_epsilon": size.epsilon,
+            "value_at_run_epsilon": legal_fraction_at_run,
+            "illegal_ids": illegal_ids,
+            "compactness_included": bool(kw["floor"] is not None),
             "note": (
                 "fraction of scenario plans passing every constraint in "
-                "adversarial.gerrymander.check_legality at this epsilon"
+                "adversarial.gerrymander.check_legality at the OPERATING "
+                "epsilon. Round 1 reported 1.0 for a run made at 1e-3 while 7 of "
+                "its 10 plans were illegal at 2e-4; the gate is read at the "
+                "operating point so that a cheaper run cannot pass it. "
+                "value_at_run_epsilon is the same fraction at the epsilon this "
+                "run actually used and is reported, never gated. Compactness — "
+                "Iowa Code ch. 42 criterion 4 — is included via a calibrated "
+                "one-sided floor whose choice and cost are in "
+                "bench.compactness_floor and diagnostics.compactness_floor"
             ),
         },
+        "qualification": qualification,
         "rule": RULE.as_dict(),
     }
+    for name in ("tpr_at_2seat", "fpr_on_nulls", "split_rhat", "legal_compliance"):
+        gates_out[name]["meaningful"] = qualification["meaningful"]
+        gates_out[name]["meaningful_note"] = qualification["note"]
 
-    hard = [c for c in cases if c.id.startswith("null_geography")]
-    random_nulls = [c for c in cases if c.id.startswith("null_random")]
+    strata_cases = {
+        name: [c for c in cases if c.provenance.get("stratum") == name]
+        for name in NULL_STRATA
+    }
 
     report: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -1214,6 +2275,31 @@ def assemble(**kw) -> dict[str, Any]:
         },
         "scenarios": scenarios_out,
         "confusion": {
+            "gate_sample": {
+                "null_strata_pooled": list(GATE_NULL_STRATA),
+                "null_strata_excluded": [
+                    name for name in NULL_STRATA if name not in GATE_NULL_STRATA
+                ],
+                "n_scenarios_in_gate": matrix["n"],
+                "n_scenarios_published": len(kw["scenarios"]),
+                "excluded_ids": [
+                    case.id for case in cases if not _in_gate_sample(case)
+                ],
+                "reason": (
+                    "the seat_outcome stratum is selected by |seats - median|, "
+                    "which is rank-correlated at -0.868 with the absolute "
+                    "efficiency gap the rule thresholds; pooling it would make "
+                    "the FPR a measurement of the selection rule. It is drawn, "
+                    "scored and published as a scenario, and its rate is in "
+                    "diagnostics.null_strata and confusion.all_strata"
+                ),
+            },
+            "all_strata": {
+                "fpr_on_nulls": kw["matrix_all"]["fpr"],
+                "n_null": kw["matrix_all"]["n_null"],
+                "unresolved_null": kw["matrix_all"]["unresolved_null"],
+                "note": "every null stratum pooled, including the excluded one",
+            },
             "tpr_at_2seat": C.tpr_at(curve, 2),
             "fpr_on_nulls": matrix["fpr"],
             "min_detectable_seat_shift": C.min_detectable_seat_shift(curve),
@@ -1233,6 +2319,8 @@ def assemble(**kw) -> dict[str, Any]:
                 for key in (
                     "n", "n_positive", "n_null", "tp", "fp", "tn", "fn",
                     "tpr", "fnr", "fpr", "tnr", "fired_on_positives", "fired_on_nulls",
+                    "unresolved_positive", "unresolved_null", "n_resolved",
+                    "coverage",
                 )
             },
             "tpr_ci95": list(matrix["tpr_ci95"]) if matrix["tpr_ci95"] else None,
@@ -1244,29 +2332,67 @@ def assemble(**kw) -> dict[str, Any]:
             "id": "ia_enacted_cd118",
             "source": str(ENACTED_PLAN.relative_to(REPO_ROOT)),
             "plan_digest": O.plan_digest(inputs.enacted),
+            "plan_file": f"{PLANS_DIRNAME}/baseline_enacted.csv",
             "metrics": {n: kw["review_metrics"].get(n) for n in LOCATED_METRICS},
             "percentiles": O.percentiles(kw["review_locations"]),
             "statuses": {n: l.status for n, l in kw["review_locations"].items()},
-            "flagged": kw["review_decision"].flagged,
-            "reason": kw["review_decision"].reason,
             "seats": {
                 "dem": kw["review_metrics"]["dem_seats"],
                 "rep": kw["review_metrics"]["rep_seats"],
             },
+            "indistinguishable_from": _indistinguishable(kw["review_metrics"], cases),
             "note": (
-                "reported, never scored: the enacted plan carries no manufactured "
-                "ground truth, so it is not a scenario and contributes to no rate "
-                "in the confusion matrix"
+                "A LOCATION, NOT A VERDICT. There is no `flagged` field here and "
+                "there must not be one: README.md and CRITERIA.md 11 forbid an "
+                "output of this system that reads as a judgement on the plan "
+                "under review, and round 2 published `flagged: true` on Iowa's "
+                "in-force CD118 map. What is here instead is where the enacted "
+                "plan sits in the neutral ensemble, metric by metric, with the "
+                "trusted set named in `statuses` — and, since the same round "
+                "found the enacted map's efficiency gap bit-identical to a "
+                "manufactured gerrymander's, `indistinguishable_from` names "
+                "every scenario this artifact cannot tell it apart from. It "
+                "carries no manufactured ground truth, so it is not a scenario "
+                "and contributes to no rate in the confusion matrix"
             ),
         },
         "diagnostics": {
             "null_strata": {
-                "null_geography": _stratum(hard, decisions),
-                "null_random": _stratum(random_nulls, decisions),
+                **{
+                    f"null_{name}": {
+                        **_stratum(strata_cases[name], decisions),
+                        "in_gate_sample": name in GATE_NULL_STRATA,
+                        "selection_rule": N.SELECTION_RULES[name],
+                    }
+                    for name in NULL_STRATA
+                },
                 "note": (
-                    "the gate reads the pooled rate; these are the same cases "
-                    "split by how they were chosen"
+                    "the gate pools "
+                    + ", ".join(GATE_NULL_STRATA)
+                    + "; every stratum is published and rated separately, and "
+                    "confusion.gate_sample says which were pooled and why"
                 ),
+            },
+            "compactness_floor": {
+                **_envelope_block(kw["floor"], "legality floor, one-sided"),
+                "role": (
+                    "the compactness standard gates.legal_compliance is measured "
+                    "against; see bench.compactness_floor for the value choice "
+                    "and what it cannot establish"
+                ),
+            },
+            "plant_envelope": {
+                **_envelope_block(kw["envelope"], "search constraint, two-sided"),
+                "role": (
+                    "the shape bounds adversarial.gerrymander's search may not "
+                    "leave (D-010). Weaker than the matched envelope that module "
+                    "documents; see bench.plant_envelope"
+                ),
+                "matches_module_default": (
+                    PLANT_SHAPE_COVERAGE == G.DEFAULT_SHAPE_COVERAGE
+                ),
+                "module_default_coverage": G.DEFAULT_SHAPE_COVERAGE,
+                "start_plans_available": len(kw["starts"]),
             },
             "planting_attempts": kw["attempts"],
             "achievable_range": _achievable(kw["attempts"]),
@@ -1291,7 +2417,8 @@ def assemble(**kw) -> dict[str, Any]:
                 "seeds": list(pool.seeds),
             },
             "metric_disagreement": disagreement_block(columns),
-            "convergence_trace": convergence_trace(ens, size.trace_checkpoints),
+            "convergence_trace": trace,
+            "convergence_all_chains": _all_chain_convergence(ens),
             "ensemble_distributions": {
                 name: _summary(columns[name]) for name in columns
             },
@@ -1309,6 +2436,45 @@ def assemble(**kw) -> dict[str, Any]:
     return report
 
 
+def _indistinguishable(
+    review_metrics: Mapping[str, Any], cases: Sequence[Case]
+) -> dict[str, Any]:
+    """Per metric, the scenarios whose value the enacted plan's cannot be told from.
+
+    Round 2 reported the enacted map and a deliberately built R-gerrymander with
+    a bit-identical efficiency gap — because under a 4-0 sweep the efficiency gap
+    barely depends on the lines — and said nothing about it. A metric that gives
+    the same number for the real map and for a planted one is not evidence about
+    either, and the artifact should say so on its own face rather than leave it
+    to be discovered.
+
+    Exact equality to within 1e-12, per metric, listing the scenario ids.
+    """
+    out: dict[str, Any] = {}
+    for name in LOCATED_METRICS:
+        value = review_metrics.get(name)
+        if value is None or isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        same = [
+            case.id for case in cases
+            if isinstance(case.metrics.get(name), (int, float))
+            and not isinstance(case.metrics.get(name), bool)
+            and math.isclose(float(case.metrics[name]), float(value),
+                             rel_tol=0.0, abs_tol=1e-12)
+        ]
+        if same:
+            out[name] = same
+    return {
+        "metrics": out,
+        "tolerance": 1e-12,
+        "note": (
+            "scenarios carrying the same value as the enacted plan on this "
+            "metric; on such a metric the artifact cannot distinguish the map in "
+            "force from a manufactured one, whatever the percentile says"
+        ),
+    }
+
+
 def _summary(column: Sequence[Any]) -> dict[str, Any]:
     """``outlier.summarize`` of one column, or an explicit reason it has none."""
     defined = [float(v) for v in column if v is not None]
@@ -1320,13 +2486,22 @@ def _summary(column: Sequence[Any]) -> dict[str, Any]:
 
 
 def _stratum(cases: Sequence[Case], decisions) -> dict[str, Any]:
+    """One stratum's rate, with abstentions counted rather than read as clean.
+
+    ``fpr`` is over the cases the rule could actually evaluate. A stratum where
+    every case was unresolvable reports ``fpr: null`` and ``resolved: 0``, which
+    is a different statement from a stratum that fired on none of them.
+    """
     n = len(cases)
-    flagged = sum(1 for case in cases if decisions[case.id].flagged)
-    ci = C.wilson_interval(flagged, n)
+    resolved = [case for case in cases if decisions[case.id].flagged is not None]
+    flagged = sum(1 for case in resolved if decisions[case.id].flagged)
+    ci = C.wilson_interval(flagged, len(resolved))
     return {
         "n": n,
+        "resolved": len(resolved),
+        "unresolved": n - len(resolved),
         "flagged": flagged,
-        "fpr": (flagged / n) if n else None,
+        "fpr": (flagged / len(resolved)) if resolved else None,
         "ci95": list(ci) if ci else None,
         "ids": [case.id for case in cases],
     }
@@ -1416,7 +2591,15 @@ def _plot_rounds(report, columns, plt):
             ax.text(j, i, str(grid[i][j]), ha="center", va="center", fontsize=16)
     ax.set_xticks([0, 1], ["flagged", "not flagged"])
     ax.set_yticks([0, 1], ["planted", "null"])
-    ax.set_title(f"round {report['round']}: confusion matrix\n{RULE.describe()}", fontsize=8)
+    qual = report["gates"].get("qualification", {})
+    banner = (
+        "" if qual.get("meaningful", True)
+        else f"  [NOT MEANINGFUL: {qual.get('size', '?')} run]"
+    )
+    ax.set_title(
+        f"round {report['round']}: confusion matrix{banner}\n{RULE.describe()}",
+        fontsize=8,
+    )
 
     ax = axes[1]
     rounds = [h["round"] for h in history]
@@ -1622,17 +2805,35 @@ def summary_lines(report: Mapping[str, Any]) -> list[str]:
     lines += report["diagnostics"]["report_lines"]
     lines.append("")
     strata = report["diagnostics"]["null_strata"]
-    for name in ("null_geography", "null_random"):
-        s = strata[name]
-        lines.append(f"  {name:<16} FPR {_fmt(s['fpr'])}  ({s['flagged']}/{s['n']})")
+    for name, stratum in strata.items():
+        if name == "note":
+            continue
+        mark = "" if stratum.get("in_gate_sample", True) else "   [not in the gate]"
+        lines.append(
+            f"  {name:<22} FPR {_fmt(stratum['fpr'])}  "
+            f"({stratum['flagged']}/{stratum['resolved']} resolved of "
+            f"{stratum['n']}){mark}"
+        )
     lines.append("")
     lines.append("gates:")
     for key in ("tpr_at_2seat", "fpr_on_nulls", "split_rhat", "legal_compliance"):
         gate = report["gates"][key]
         verdict = {True: "PASS", False: "FAIL", None: "NOT MEASURED"}[gate["pass"]]
+        extra = ""
+        if key == "legal_compliance":
+            extra = f"  at epsilon={gate['epsilon']:g}"
         lines.append(
-            f"  {key:<18} target {gate['target']}  value {_fmt(gate['value'])}  {verdict}"
+            f"  {key:<18} target {gate['target']}  value {_fmt(gate['value'])}  "
+            f"{verdict}{extra}"
         )
+    qual = report["gates"].get("qualification")
+    if qual and not qual["meaningful"]:
+        lines.append("")
+        lines.append("  *** " + qual["note"])
+        for reason in qual["reasons"]:
+            lines.append(f"      - {reason}")
+    for caveat in (qual or {}).get("caveats", []):
+        lines.append(f"  note: {caveat}")
     fw = report["firewall"]
     lines.append("")
     lines.append(f"firewall: {'clean' if fw['clean'] else 'VIOLATION'}  "
@@ -1649,9 +2850,9 @@ def build_parser() -> argparse.ArgumentParser:
         prog="python -m detect.bench",
         description="Headless districting bench: bench-results.json plus plots.",
     )
-    parser.add_argument("--master-seed", type=int, required=True,
+    parser.add_argument("--master-seed", type=int, required=False, default=None,
                         help="the one integer the whole run is reproducible from")
-    parser.add_argument("--round", type=int, required=True,
+    parser.add_argument("--round", type=int, required=False, default=None,
                         help="round number; part of every derived seed, so scenarios "
                              "regenerate rather than being re-scored")
     parser.add_argument("--quick", action="store_true",
@@ -1659,22 +2860,48 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--out-dir", type=Path, default=None,
                         help="default docs/progress/round-NN")
     parser.add_argument("--no-plots", action="store_true", help="skip the PNGs")
+    parser.add_argument("--jobs", type=int, default=DEFAULT_JOBS,
+                        help="worker processes for the chains; affects wall clock "
+                             "and nothing in the report outside timing")
+    parser.add_argument("--verify", type=Path, default=None, metavar="ROUND_DIR",
+                        help="re-derive every ground-truth claim in a written "
+                             "bench-results.json from the plans beside it, and "
+                             "exit non-zero on any disagreement")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.verify is None and (args.master_seed is None or args.round is None):
+        parser.error("--master-seed and --round are required unless --verify is given")
+    if args.verify is not None:
+        result = verify(args.verify)
+        print(f"verifying {result['round_dir']}")
+        print(f"  {result['checked']} scenarios, {result['checks']} claims "
+              f"re-derived from the plans on disk")
+        for failure in result["failures"]:
+            print(f"  MISMATCH {failure['id']}.{failure['field']}: "
+                  f"reported {failure['reported']!r}, recomputed "
+                  f"{failure['recomputed']!r}")
+        print("  OK" if result["ok"] else f"  {len(result['failures'])} MISMATCHES")
+        return 0 if result["ok"] else 1
     report = run(
         master_seed=args.master_seed,
         round_number=args.round,
         size=QUICK if args.quick else FULL,
         out_dir=args.out_dir,
         make_plots=not args.no_plots,
+        jobs=args.jobs,
     )
     print("\n".join(summary_lines(report)))
+    out_dir = Path(report["_path"]).parent
     print(f"\nwrote {report['_path']}")
+    print(f"wrote {out_dir / PLANS_DIRNAME}/ "
+          f"({report['plans']['n_files']} plans; check them with "
+          f"--verify {out_dir})")
     for name in report.get("plots", []):
-        print(f"wrote {Path(report['_path']).parent / name}")
+        print(f"wrote {out_dir / name}")
     failed = [
         key for key in ("tpr_at_2seat", "fpr_on_nulls", "split_rhat", "legal_compliance")
         if report["gates"][key]["pass"] is not True

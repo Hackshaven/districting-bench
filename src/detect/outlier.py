@@ -70,6 +70,46 @@ value as extreme-low and ``p_at_or_below`` reports the same plan as extreme-high
 1 — the tail probability a two-sided decision rule reads, computed inclusively so
 that ties count *against* calling a plan extreme.
 
+What a percentile rests on — resolution, not just count
+------------------------------------------------------
+
+A percentile computed from ``n`` reference draws cannot express an arbitrary
+threshold, and round 1 of the bench is what this section was written from. With
+``n`` draws the largest **interior** mid-rank percentile — the largest value
+attainable by a plan that is inside the ensemble's own range — is ``(n - 0.5)/n``
+when the maximum is unique, and lower when it is tied. At ``n = 28`` that is
+0.9821, below a 0.99 decision threshold, so no plan strictly inside the reference
+could ever fire and a "top 1%" rule silently degenerated into "outside the
+observed support". Six false positives followed, two of them plans that sat
+0.0005 of an efficiency-gap point outside a support pinched shut by 14 distinct
+plans.
+
+Three numbers are therefore reported on **every** :class:`Location`, and
+:func:`required_n` states the arithmetic:
+
+``n``
+    Raw defined draws. The weakest of the three, and the one that round 1 gated
+    on: duplicated draws inflate it without adding resolution.
+``n_distinct_plans`` (or ``n_distinct`` values, when plan ids are not supplied)
+    How many *different* things the reference actually contains. A reference of
+    806 draws holding 177 distinct plans is a 177-plan reference with a large
+    ``n``.
+``ess``
+    Kish effective sample size, ``n^2 / sum(m_i^2)`` over the multiplicities
+    ``m_i`` of the repeated items — :func:`kish_ess`. It is 806's answer to
+    "how many independent draws is this worth": the same 806-draw reference
+    scored 11.7. This is a duplication-weighted count, **not** the
+    autocorrelation ESS of ``generate.convergence`` (which needs chain structure
+    this module is not given); the two answer different questions and are not
+    interchangeable.
+
+:attr:`Location.max_interior_percentile` and
+:attr:`Location.min_interior_percentile` are the exact attainable bounds for
+*this* column, ties included. This module does not decide whether they are
+adequate — that depends on a threshold, and thresholds live in
+``confusion.Rule``, which refuses to evaluate a rule its reference cannot
+express rather than returning a 0.0 or a 1.0 that reads like a measurement.
+
 Imports
 -------
 
@@ -142,7 +182,79 @@ STATUSES: tuple[str, ...] = (
 #: not there. It is a floor on arithmetic meaningfulness, not on statistical
 #: adequacy: the bench runs ~14,000 draws (ARCHITECTURE.md section 5), and an
 #: ensemble of 20 that clears this check is still far too small to trust.
+#:
+#: It is deliberately **not** the check that stops a decision rule from reading
+#: resolution that is not there — this module does not know the rule's
+#: threshold. That check is ``confusion.Rule.resolvable``, against
+#: :func:`required_n`, ``n_distinct_plans`` and ``ess``. Round 2 had only this
+#: floor, gated on raw draws, and 28 draws over 14 distinct plans cleared it.
 MIN_ENSEMBLE = 20
+
+
+# --------------------------------------------------------------------------- #
+# resolution arithmetic
+# --------------------------------------------------------------------------- #
+
+def required_n(threshold: float) -> int | None:
+    """Smallest reference size whose interior percentiles can reach ``threshold``.
+
+    A mid-rank percentile over ``n`` draws with no ties runs from ``0.5/n`` to
+    ``(n - 0.5)/n``. A decision threshold ``t`` (fired on either tail) is
+    therefore expressible by a plan **inside** the ensemble only when
+    ``(n - 0.5)/n >= t``, equivalently ``n >= 0.5/(1 - t)``, equivalently
+    ``n >= 1/(2(1 - t))``. At ``t = 0.99`` that is 50; at ``t = 0.95`` it is 10.
+    The lower tail fires at ``p <= 1 - t`` and needs ``0.5/n <= 1 - t``, the
+    identical bound, so this holds for ``upper``, ``lower`` and ``two_sided``
+    alike.
+
+    ``None`` only at ``threshold = 1.0``, which no finite reference can express:
+    the sole way to reach a mid-rank percentile of exactly 1.0 is to have no draw
+    at or above the value, i.e. to be outside the observed support, and that is a
+    support test rather than a percentile test. Low thresholds return 1 — a rule
+    that fires at ``p >= 0.2`` asks nothing of the reference, which is why
+    ``ALWAYS_FLAG`` (threshold 0.0) is never refused for lack of resolution and
+    stays available as the control it exists to be.
+
+    This is a floor, not a sufficiency criterion. It is the size at which the
+    threshold stops being unreachable; ties at the extreme value push the real
+    requirement higher, which is why :attr:`Location.max_interior_percentile`
+    reports the attained bound for the actual column rather than this formula's
+    idealisation.
+    """
+    t = float(threshold)
+    if t >= 1.0:
+        return None
+    return max(1, int(math.ceil(0.5 / (1.0 - t))))
+
+
+def kish_ess(multiplicities: Iterable[int]) -> float:
+    """Kish effective sample size ``n^2 / sum(m_i^2)`` over item multiplicities.
+
+    The duplication-weighted count of a reference. ``n`` distinct items each
+    seen once gives ``n``; ``n`` copies of one item gives 1.0; the round-2 bench
+    reference — 806 draws over 177 distinct plans — gives 11.7.
+
+    It is the ordinary design-effect formula, read here with weights
+    ``w_i = m_i / n``: ``1 / sum(w_i^2)``. **It is not** the autocorrelation ESS
+    that ``generate.convergence.ess`` computes; that one needs the chain
+    structure and draw order, neither of which reaches this module. Duplication
+    is the part of the resolution loss ``detect`` can see from the columns
+    alone, and it is the part that defeated ``Rule.min_n``.
+
+    Returns 0.0 for an empty input.
+    """
+    ms = [int(m) for m in multiplicities if int(m) > 0]
+    n = sum(ms)
+    if n == 0:
+        return 0.0
+    return float(n * n) / float(sum(m * m for m in ms))
+
+
+def _multiplicities(items: Iterable[Any]) -> dict[Any, int]:
+    counts: dict[Any, int] = {}
+    for item in items:
+        counts[item] = counts.get(item, 0) + 1
+    return counts
 
 
 # --------------------------------------------------------------------------- #
@@ -162,6 +274,13 @@ class Distribution:
     ``n`` counts **defined** draws only; ``n_undefined`` counts draws dropped
     for being ``None``. ``n_distinct`` is the number of distinct values, which
     is 1 exactly when the ensemble is a point mass.
+
+    ``ess``, ``max_multiplicity`` and ``min_multiplicity`` describe the
+    resolution rather than the shape, and they are here because a count of draws
+    does not: ``ess`` is :func:`kish_ess` over the value multiplicities, and the
+    two multiplicities are how many draws tie the maximum and the minimum, which
+    is what actually bounds the attainable interior percentiles
+    (:attr:`max_interior_percentile`, :attr:`min_interior_percentile`).
     """
 
     n: int
@@ -176,17 +295,47 @@ class Distribution:
     p75: float
     p95: float
     maximum: float
+    ess: float = 0.0
+    max_multiplicity: int = 1
+    min_multiplicity: int = 1
 
     @property
     def constant(self) -> bool:
         """True when every defined draw has the same value."""
         return self.n_distinct <= 1
 
+    @property
+    def finest_tail(self) -> float:
+        """``1/n`` — the smallest non-zero one-sided tail this column can state."""
+        return 1.0 / self.n if self.n else 1.0
+
+    @property
+    def max_interior_percentile(self) -> float:
+        """Largest mid-rank percentile a plan **inside** the ensemble can reach.
+
+        A plan tying the ensemble maximum has ``(n - m_max) + 0.5 * m_max``
+        draws at or below it, so this is ``1 - 0.5 * m_max / n``. Anything above
+        it is only attainable by a plan strictly outside the observed support —
+        which is a different claim from "in the top 1% of the ensemble" and must
+        not be allowed to impersonate it. See :func:`required_n`.
+        """
+        if not self.n:
+            return 0.0
+        return 1.0 - 0.5 * self.max_multiplicity / self.n
+
+    @property
+    def min_interior_percentile(self) -> float:
+        """Mirror of :attr:`max_interior_percentile` on the low tail."""
+        if not self.n:
+            return 1.0
+        return 0.5 * self.min_multiplicity / self.n
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "n": self.n,
             "n_undefined": self.n_undefined,
             "n_distinct": self.n_distinct,
+            "ess": self.ess,
             "mean": self.mean,
             "sd": self.sd,
             "min": self.minimum,
@@ -197,6 +346,11 @@ class Distribution:
             "p95": self.p95,
             "max": self.maximum,
             "constant": self.constant,
+            "max_multiplicity": self.max_multiplicity,
+            "min_multiplicity": self.min_multiplicity,
+            "max_interior_percentile": self.max_interior_percentile,
+            "min_interior_percentile": self.min_interior_percentile,
+            "finest_tail": self.finest_tail,
         }
 
 
@@ -207,10 +361,12 @@ def summarize(values: Sequence[float], *, n_undefined: int = 0) -> Distribution:
         raise ValueError("summarize: no defined values")
     n = len(xs)
     sd = statistics.pstdev(xs) if n > 1 else 0.0
+    counts = _multiplicities(xs)
     return Distribution(
         n=n,
         n_undefined=int(n_undefined),
-        n_distinct=len(set(xs)),
+        n_distinct=len(counts),
+        ess=kish_ess(counts.values()),
         mean=statistics.fmean(xs),
         sd=sd,
         minimum=xs[0],
@@ -220,6 +376,8 @@ def summarize(values: Sequence[float], *, n_undefined: int = 0) -> Distribution:
         p75=_quantile(xs, 0.75),
         p95=_quantile(xs, 0.95),
         maximum=xs[-1],
+        max_multiplicity=counts[xs[-1]],
+        min_multiplicity=counts[xs[0]],
     )
 
 
@@ -257,6 +415,21 @@ class Location:
     ``False``  assessed and rejected for this regime — **marked, not dropped**
     ``None``   not assessed (no context given, or the metric is outside the set
                the trust judgement covers, e.g. ``polsby_popper``)
+
+    The resolution block — ``n``, ``n_distinct``, ``n_distinct_plans``, ``ess``,
+    ``ess_basis``, ``max_interior_percentile``, ``min_interior_percentile`` —
+    travels with the percentile so that a reader, and ``confusion.Rule``, can
+    see what it rests on. ``n`` alone cannot distinguish 806 independent draws
+    from 806 copies of one plan; ``ess`` can, and did (11.7). ``ess_basis`` says
+    which multiset the effective size was computed over: ``"plans"`` when the
+    caller supplied ensemble plan ids, ``"values"`` otherwise — the latter is
+    conservative, because two distinct plans sharing a metric value inflate that
+    value's multiplicity and so *lower* the reported ESS.
+
+    ``outside_support`` is ``True`` when the plan's value is strictly beyond
+    every draw. Such a plan gets percentile 0.0 or 1.0, which is a statement
+    about the support, not a position in it, and the decision rule needs to know
+    the difference.
     """
 
     metric: str
@@ -268,6 +441,13 @@ class Location:
     two_sided_p: float | None = None
     z: float | None = None
     n: int = 0
+    n_distinct: int | None = None
+    n_distinct_plans: int | None = None
+    ess: float | None = None
+    ess_basis: str | None = None
+    max_interior_percentile: float | None = None
+    min_interior_percentile: float | None = None
+    outside_support: bool | None = None
     distribution: Distribution | None = None
     trusted: bool | None = None
     reasons: tuple[str, ...] = ()
@@ -277,6 +457,33 @@ class Location:
     def located(self) -> bool:
         """True when this carries a percentile."""
         return self.status == LOCATED
+
+    @property
+    def n_distinct_reference(self) -> int | None:
+        """Distinct plans if the caller supplied ids, else distinct values.
+
+        The count a resolution check should read. Distinct values is the
+        conservative stand-in: it can only be smaller than the distinct-plan
+        count, never larger, so a rule that clears it would also clear the
+        exact figure.
+        """
+        if self.n_distinct_plans is not None:
+            return self.n_distinct_plans
+        return self.n_distinct
+
+    def resolution(self) -> dict[str, Any]:
+        """What the percentile rests on, as a block. Never a judgement of it."""
+        return {
+            "n": self.n,
+            "n_distinct_values": self.n_distinct,
+            "n_distinct_plans": self.n_distinct_plans,
+            "n_distinct_reference": self.n_distinct_reference,
+            "ess": self.ess,
+            "ess_basis": self.ess_basis,
+            "max_interior_percentile": self.max_interior_percentile,
+            "min_interior_percentile": self.min_interior_percentile,
+            "outside_support": self.outside_support,
+        }
 
     def as_dict(self) -> dict[str, Any]:
         """JSON-ready. ``distribution`` is nested, or ``None``."""
@@ -290,6 +497,7 @@ class Location:
             "two_sided_p": self.two_sided_p,
             "z": self.z,
             "n": self.n,
+            "resolution": self.resolution(),
             "distribution": None if self.distribution is None
             else self.distribution.as_dict(),
             "trusted": self.trusted,
@@ -473,6 +681,7 @@ def locate(
     *,
     context: Context | None = None,
     metrics: Sequence[str] | None = None,
+    ensemble_plan_ids: Sequence[Any] | None = None,
     min_n: int = MIN_ENSEMBLE,
 ) -> dict[str, Location]:
     """Locate ``plan_metrics`` in ``ensemble_metrics``, one :class:`Location` per metric.
@@ -503,6 +712,18 @@ def locate(
         input is reported — including ones appearing in only one, which get
         :data:`MISSING_FROM_ENSEMBLE` or :data:`MISSING_FROM_PLAN` rather than
         being dropped.
+    ensemble_plan_ids
+        One identifier per ensemble draw, in the same order as the columns —
+        ``generate``'s plan digests, or any hashable stand-in. Supplied, every
+        :class:`Location` reports ``n_distinct_plans`` and an ``ess`` computed
+        over plan multiplicities, which is what a reader needs to see that a
+        806-draw reference contains 177 plans worth 11.7 independent draws.
+        Omitted, the same two numbers are computed over the metric's own
+        *values*, which is conservative in both directions (see
+        :attr:`Location.n_distinct_reference`) and is marked ``ess_basis =
+        "values"`` so it cannot be mistaken for the exact figure. A length
+        mismatch raises: silently truncating would associate percentiles with
+        the wrong plans.
     min_n
         Defined draws required before a percentile is reported
         (:data:`MIN_ENSEMBLE`).
@@ -518,6 +739,18 @@ def locate(
     columns = _as_column_mapping(ensemble_metrics)
     digest = plan_digest(plan)
 
+    ids: list[Any] | None = None
+    if ensemble_plan_ids is not None:
+        ids = list(ensemble_plan_ids)
+        for name, column in columns.items():
+            if len(column) != len(ids):
+                raise ValueError(
+                    f"locate: ensemble_plan_ids has {len(ids)} entries but "
+                    f"column {name!r} has {len(column)}. They index the same "
+                    "draws; a mismatch would attach the wrong plan ids to the "
+                    "wrong values."
+                )
+
     if metrics is None:
         names: list[str] = list(plan_metrics)
         names += [m for m in columns if m not in plan_metrics]
@@ -532,6 +765,7 @@ def locate(
             ctx,
             min_n=min_n,
             digest=digest,
+            plan_ids=ids,
         )
         for name in names
     }
@@ -560,6 +794,7 @@ def _locate_one(
     *,
     min_n: int,
     digest: str | None,
+    plan_ids: Sequence[Any] | None = None,
 ) -> Location:
     trusted = ctx.trust_of(metric)
     base = dict(metric=metric, trusted=trusted, plan_id=digest)
@@ -618,8 +853,12 @@ def _locate_one(
         )
 
     column = list(columns[metric])
-    defined = [x for x in (_numeric(v) for v in column) if x is not None]
+    numeric = [_numeric(v) for v in column]
+    defined = [x for x in numeric if x is not None]
     n_undefined = len(column) - len(defined)
+    kept_ids: list[Any] | None = None
+    if plan_ids is not None:
+        kept_ids = [pid for pid, x in zip(plan_ids, numeric) if x is not None]
     undefined_note: tuple[str, ...] = ()
     if n_undefined:
         undefined_note = (
@@ -642,6 +881,30 @@ def _locate_one(
 
     dist = summarize(defined, n_undefined=n_undefined)
     n = dist.n
+
+    # Resolution: what the percentile about to be computed actually rests on.
+    # Reported on every status from here down, including the ones that get no
+    # percentile, because "no percentile, and here is how thin the reference
+    # was" is a more useful record than either half alone.
+    if kept_ids is not None:
+        plan_counts = _multiplicities(kept_ids)
+        n_distinct_plans: int | None = len(plan_counts)
+        ess = kish_ess(plan_counts.values())
+        ess_basis = "plans"
+    else:
+        n_distinct_plans = None
+        ess = dist.ess
+        ess_basis = "values"
+    resolution = dict(
+        n_distinct=dist.n_distinct,
+        n_distinct_plans=n_distinct_plans,
+        ess=ess,
+        ess_basis=ess_basis,
+        max_interior_percentile=dist.max_interior_percentile,
+        min_interior_percentile=dist.min_interior_percentile,
+        outside_support=value < dist.minimum or value > dist.maximum,
+    )
+    base.update(resolution)
 
     if dist.constant:
         return Location(
@@ -684,6 +947,23 @@ def _locate_one(
     z = (value - dist.mean) / dist.sd if dist.sd > 0 else None
 
     reasons = undefined_note + notes
+    reasons = reasons + (
+        f"reference resolution for {metric}: n={n} draws, "
+        f"{dist.n_distinct} distinct values"
+        + ("" if n_distinct_plans is None else f", {n_distinct_plans} distinct plans")
+        + f", ESS {ess:.4g} (basis: {ess_basis}). Interior percentiles reach "
+        f"[{dist.min_interior_percentile:.4g}, "
+        f"{dist.max_interior_percentile:.4g}]; a decision threshold outside "
+        "that band is only reachable by a plan outside the observed support "
+        "and is a support test, not a percentile test.",
+    )
+    if resolution["outside_support"]:
+        reasons = reasons + (
+            f"{metric} = {value:g} lies outside the ensemble's observed range "
+            f"[{dist.minimum:g}, {dist.maximum:g}], so its percentile is a "
+            "bound, not a position: every draw is on one side of it and no "
+            "finite reference can say how far outside it is.",
+        )
     if trusted is False:
         reasons = (
             f"{metric} is not trusted in this regime (CRITERIA.md section 5.1). "
@@ -740,6 +1020,150 @@ def by_status(locations: Mapping[str, Location]) -> dict[str, tuple[str, ...]]:
     }
 
 
+def review_report(
+    locations: Mapping[str, Location],
+    *,
+    plan_id: str | None = None,
+    source: str | None = None,
+    context: Context | None = None,
+    comparators: Mapping[str, Mapping[str, Any]] | None = None,
+    tolerance: float = 0.0,
+) -> dict[str, Any]:
+    """Where a **real, in-force** plan sits in the ensemble. Deliberately no boolean.
+
+    This is the sanctioned output for a plan that carries no manufactured ground
+    truth — Iowa's enacted CD118 map being the case it exists for. It is not
+    ``confusion.flag``'s job and must not be done with ``confusion.flag``:
+
+        README.md and CRITERIA.md section 11 — *any output of this system that
+        reads as a verdict rather than a distribution is a bug.*
+
+    Round 2's artifact published ``plan_under_review.flagged = true``, a boolean
+    judgement on a map that four million people live under, derived from a rule
+    whose threshold its own reference could not express. There is no ``flagged``
+    key here and no way to add one: the return value carries a location per
+    metric, the trusted set by name, the untrusted set marked, the resolution
+    each percentile rests on, and the metrics on which this system **cannot
+    tell** the plan apart from something else.
+
+    ``comparators``
+        ``{name: {metric: value}}`` for other plans — planted gerrymanders, the
+        ensemble median, whatever the caller wants compared. Any metric whose
+        value matches within ``tolerance`` (default 0.0, i.e. bit-identical)
+        lands in ``indistinguishable``, with prose. This exists because Iowa's
+        enacted plan and manufactured R-gerrymanders have the *same* efficiency
+        gap to the last bit. Measured on round 2's 62 scenarios, grouped by
+        seat split:
+
+        =============  =========================================
+        seat split     distinct efficiency-gap values among them
+        =============  =========================================
+        0D-4R          **2**, differing in the 7th decimal
+        1D-3R          25
+        2D-2R          20
+        =============  =========================================
+
+        Under a 4-0 sweep every Democratic vote is lost and every Republican
+        vote above the winning margin is surplus, so the wasted-vote arithmetic
+        is essentially a function of the statewide totals and the seat split
+        rather than of the lines. Three planted 2-seat R-gerrymanders *and* one
+        neutral null carried the enacted plan's efficiency gap bit for bit. The
+        enacted plan's percentile of 1.0 on that metric therefore says it sweeps
+        4-0, not that its boundaries are unusual — and a detector reading that
+        metric cannot tell the enacted map, a manufactured gerrymander and a
+        neutral draw apart. The honest output says so rather than reporting a
+        percentile as though it had discriminated.
+
+    Returns a mapping with:
+
+    ``metrics``            ``{metric: value}``
+    ``percentiles``        ``{metric: percentile or None}``
+    ``statuses``           ``{metric: status}``
+    ``locations``          the full per-metric locations
+    ``trusted``            names trusted in this regime, and the assessed set
+    ``untrusted``          names assessed and rejected — marked, never dropped
+    ``not_assessed``       names the trust judgement did not cover
+    ``resolution``         ``{metric: what its percentile rests on}``
+    ``indistinguishable``  ``{metric: [comparator names]}`` plus prose
+    ``no_verdict``         the constant string this function exists to print
+    """
+    ctx = context or EMPTY_CONTEXT
+    names = list(locations)
+
+    trusted = [n for n in names if locations[n].trusted is True]
+    untrusted = [n for n in names if locations[n].trusted is False]
+    not_assessed = [n for n in names if locations[n].trusted is None]
+
+    matches: dict[str, list[str]] = {}
+    if comparators:
+        for name in names:
+            value = locations[name].value
+            if value is None:
+                continue
+            hits = []
+            for other, other_metrics in comparators.items():
+                theirs = _numeric(other_metrics.get(name))
+                if theirs is None:
+                    continue
+                if abs(theirs - value) <= tolerance:
+                    hits.append(other)
+            if hits:
+                matches[name] = sorted(hits)
+
+    notes: list[str] = list(ctx.notes)
+    for metric, others in sorted(matches.items()):
+        notes.append(
+            f"{metric} is identical (within {tolerance:g}) between this plan "
+            f"and {', '.join(others)}. On this metric the system cannot "
+            "distinguish them, and neither can any rule built on it. A "
+            "percentile reported for this metric locates the value, not the "
+            "plan."
+        )
+
+    return {
+        "plan_id": plan_id,
+        "source": source,
+        "metrics": {n: locations[n].value for n in names},
+        "percentiles": percentiles(locations),
+        "statuses": {n: locations[n].status for n in names},
+        "locations": locations_as_dict(locations),
+        "trusted": {
+            "trusted": sorted(trusted),
+            "untrusted_marked_not_dropped": sorted(untrusted),
+            "not_assessed": sorted(not_assessed),
+            "assessed_over": sorted(ctx.trust_assessed),
+            "note": (
+                "CRITERIA.md section 5.1: where one party predominates only the "
+                "efficiency gap and declination are held to be trustworthy. "
+                "Untrusted percentiles are printed because hiding a "
+                "disagreement between metrics is worse than showing an "
+                "unreliable one, and they are marked because printing one "
+                "unmarked presents a VALUE choice as a computed result."
+            ),
+        },
+        "resolution": {n: locations[n].resolution() for n in names},
+        "indistinguishable": {
+            "matches": matches,
+            "tolerance": tolerance,
+            "note": (
+                "metrics on which this plan's value equals a comparator's. The "
+                "system reports that it cannot tell them apart rather than "
+                "reporting a number that looks like it did."
+            ) if matches else "no comparator matched any metric",
+        },
+        "notes": notes,
+        "summary_lines": summary_lines(locations),
+        "no_verdict": (
+            "This block reports a location in a distribution. It contains no "
+            "flag, no score and no judgement, because this plan carries no "
+            "manufactured ground truth against which a flag could be scored "
+            "(README.md, CRITERIA.md section 11). A percentile is where this "
+            "plan sits among the maps a neutral process drew; it is not a "
+            "finding that the plan is or is not a gerrymander."
+        ),
+    }
+
+
 def summary_lines(locations: Mapping[str, Location]) -> list[str]:
     """One human-readable line per metric. Prose, not a score.
 
@@ -761,15 +1185,28 @@ def summary_lines(locations: Mapping[str, Location]) -> list[str]:
             else f"n={dist.n} median={dist.median:.6g} "
                  f"[p05 {dist.p05:.6g}, p95 {dist.p95:.6g}]"
         )
+        res = ""
+        if loc.ess is not None:
+            distinct = loc.n_distinct_reference
+            res = (
+                f" | rests on {distinct} distinct "
+                f"{'plans' if loc.ess_basis == 'plans' else 'values'}, "
+                f"ESS {loc.ess:.4g}, interior percentiles reach "
+                f"{loc.max_interior_percentile:.4g}"
+            )
+        outside = " [OUTSIDE the ensemble's observed range]" if loc.outside_support else ""
         lines.append(
             f"{name}: value={loc.value:.6g} percentile={loc.percentile:.4f} "
-            f"z={z} two_sided_p={tail} | ensemble {spread}{mark}"
+            f"z={z} two_sided_p={tail} | ensemble {spread}{res}{outside}{mark}"
         )
     return lines
 
 
 __all__ = [
     "LOCATED",
+    "required_n",
+    "kish_ess",
+    "review_report",
     "VALUE_UNDEFINED",
     "DEGENERATE",
     "INSUFFICIENT_ENSEMBLE",

@@ -225,3 +225,52 @@ counts as a realistic adversary: one that would survive the traditional-criteria
 review a real map receives. A less capable adversary would make the detector look
 better. That is the reason to state the choice here rather than bury it in the
 search's acceptance rule.
+
+---
+
+## D-011 — Round 3's adversary is not accepted, despite improving its headline number
+
+**Date:** 2026-08-19 · **Phase:** 1
+
+Non-partisan separability fell from AUC 1.00 to 0.89. That is a real improvement
+and it is not sufficient: D-010 requires indistinguishability, and 0.89 means a
+compactness screen alone still classifies the ground truth nearly perfectly.
+
+*Chosen:* record round 3 as failing its acceptance test and leave the numbers in
+`docs/progress.md` as measured. The alternative — accepting 0.89 as "much better
+than 1.00" — would reinstate exactly the failure D-009 was written about, since
+every detection result built on that ground truth stays confounded by an amount
+nobody would have quantified.
+
+*Note on process:* the acceptance test was measured by an agent with no sight of
+the implementation, generating fresh plans from the committed code. The
+implementing agent reported far better figures for a function
+(`envelope_around_plan`) that is exported but called from nowhere in `src/`. The
+gap between "a good instrument exists in the module" and "the shipped path uses it"
+is precisely what an independent artifact-only check is for.
+
+---
+
+## D-012 — The compactness/yield frontier is a result, not a tuning curve
+
+**Date:** 2026-08-19 · **Phase:** 1 · **EMPIRICAL**
+
+Measured on Iowa, D-direction, 2-seat shift: as the compactness constraint tightens
+from the neutral ensemble's central 100% band to its central 10%, planted-plan
+yield falls 32/32 → 0/24 while non-partisan AUC falls only 0.994 → unscoreable,
+passing through 0.654 at the 25% band with 4/32 yield.
+
+*Interpretation, stated as a hypothesis rather than a conclusion:* on this problem
+a gerrymander that is shape-typical of the neutral ensemble may not exist at a
+2-seat magnitude. Compactness is doing real constraining work in Iowa's
+4-whole-county congressional problem, and there is little room for a gerrymander to
+hide inside the traditional criteria.
+
+*Why this is logged as a decision:* the frontier could have been treated as a knob
+to turn until the acceptance test passed. Treating it instead as a measurement —
+and reporting that the tight end is empty — is the choice. It is also a `VALUE`-adjacent
+judgement about what counts as a realistic adversary, and it belongs in
+`docs/CRITERIA.md` as a candidate row if it survives replication in a second state.
+
+*Not generalisable as measured:* one state, one direction, one magnitude, one
+search algorithm. Colorado or any precinct-level state would need it re-measured.

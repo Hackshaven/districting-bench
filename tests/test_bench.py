@@ -21,12 +21,23 @@ exactly that and diffs the two reports with the ``timing`` block removed. It is
 the slowest test in the suite (about a minute for the pair) and it is the one
 that would catch an unseeded ``random.Random()`` or a dict built from a set.
 
+**Round 3 adds a fourth group: the artifact has to be checkable.** Those tests
+assert properties rather than values — that every scenario's plan is on disk and
+hashes to the digest published for it, that ``verify`` rejects a report whose
+numbers its own plans do not support, that the legality gate is read at the
+operating epsilon rather than the run's, that compactness is in the legality
+claim and its floor is one-sided, and that a ``--quick`` run says in the file
+that its gates are not measurements. The tampering tests are the important ones:
+a verifier that has never been shown a wrong artifact is not known to reject one.
+
 The gate values are deliberately **not** asserted. A test that pinned the TPR
 would turn the detection gates into something the test suite protects rather
 than something the bench measures, and CRITERIA.md section 8 is explicit that
 the measurement is the point. What is asserted is that the gates are computed,
 that they read the rates they claim to read, and that a degenerate detector
-fails one of them.
+fails one of them. The same goes for the ensemble budget: nothing here pins
+``FULL``'s size, because the size is a cost decision that ``Size``'s docstring
+argues for and a test would only freeze.
 """
 from __future__ import annotations
 
@@ -143,21 +154,35 @@ def test_achievable_range_reports_attempts_not_assumptions():
 
 
 def _loc(metric: str, percentile: float) -> O.Location:
+    """A location a resolution-checking rule will actually accept.
+
+    ``n_distinct_plans``, ``ess`` and the interior band are not decoration: since
+    round 3 ``confusion.Rule`` refuses to evaluate a location that cannot express
+    its threshold, and a hand-built location missing them is unresolvable rather
+    than unremarkable. Round 2's version of this helper omitted them, which is
+    the same mistake in a test that the bench made in the artifact.
+    """
     return O.Location(
         metric=metric, status=O.LOCATED, value=0.0, percentile=percentile,
         p_below=percentile, p_at_or_below=percentile,
-        two_sided_p=2 * min(percentile, 1 - percentile), z=0.0, n=100,
-        trusted=True,
+        two_sided_p=2 * min(percentile, 1 - percentile), z=0.0, n=400,
+        n_distinct=400, n_distinct_plans=400, ess=400.0, ess_basis="plans",
+        min_interior_percentile=0.0025, max_interior_percentile=0.9975,
+        outside_support=False, trusted=True,
     )
 
 
-def _case(case_id: str, kind: str, percentile: float) -> bench.Case:
+def _case(case_id: str, kind: str, percentile: float,
+          stratum: str | None = None) -> bench.Case:
+    provenance = {} if stratum is None else {
+        "stratum": stratum, "in_gate_sample": stratum in bench.GATE_NULL_STRATA
+    }
     return bench.Case(
         id=case_id, kind=kind, plan={"a": 1},
         intended_seat_shift=0 if kind == "null" else 2,
         realized_seat_shift=0, target_party=None, baseline="x",
         metrics={}, locations={"efficiency_gap": _loc("efficiency_gap", percentile)},
-        legal=True, legal_failures=[], notes=(),
+        notes=(), provenance=provenance,
     )
 
 
@@ -166,7 +191,29 @@ def test_stratum_reports_a_rate_and_an_interval_per_stratum():
     decisions = {s.id: d for s, d in C.decide([c.scenario() for c in cases], bench.RULE)}
     out = bench._stratum(cases, decisions)
     assert out["n"] == 2 and out["flagged"] == 1 and out["fpr"] == 0.5
+    assert out["resolved"] == 2 and out["unresolved"] == 0
     assert out["ci95"][0] < 0.5 < out["ci95"][1]
+
+
+def test_stratum_counts_an_abstention_as_unresolved_not_as_clean():
+    """A rule that could not look has not cleared the case. Round 2 reported it clean."""
+    cases = [_case("null_a", "null", 0.999), _case("null_b", "null", 0.5)]
+    cases[1].locations = {"efficiency_gap": O.Location(
+        metric="efficiency_gap", status=O.INSUFFICIENT_ENSEMBLE, n=3)}
+    decisions = {s.id: d for s, d in C.decide([c.scenario() for c in cases], bench.RULE)}
+    out = bench._stratum(cases, decisions)
+    assert out["n"] == 2 and out["resolved"] == 1 and out["unresolved"] == 1
+    assert out["fpr"] == 1.0, "the rate is over the cases the rule could evaluate"
+
+
+def test_only_the_pre_registered_null_strata_reach_the_gate():
+    """The excluded stratum is published as a scenario and left out of one number."""
+    assert "seat_outcome" in bench.NULL_STRATA
+    assert "seat_outcome" not in bench.GATE_NULL_STRATA
+    assert set(bench.GATE_NULL_STRATA) < set(bench.NULL_STRATA)
+    assert bench._in_gate_sample(_case("p", "planted", 0.5)) is True
+    assert bench._in_gate_sample(_case("n", "null", 0.5, "random")) is True
+    assert bench._in_gate_sample(_case("n", "null", 0.5, "seat_outcome")) is False
 
 
 def test_stratum_of_no_cases_reports_none_not_zero():
@@ -278,7 +325,11 @@ def test_every_scenario_is_labelled_and_carries_its_percentiles(quick_report):
         assert s["kind"] in ("planted", "null")
         assert set(s["metrics"]) == set(bench.LOCATED_METRICS)
         assert set(s["percentiles"]) == set(bench.LOCATED_METRICS)
-        assert isinstance(s["flagged"], bool)
+        assert s["flagged"] in (True, False, None), (
+            "flagged is three-valued: None is an abstention, not a clean case"
+        )
+        if s["flagged"] is None:
+            assert s["decision_reason"], "an abstention must say why"
         if s["kind"] == "null":
             assert s["intended_seat_shift"] == 0
         else:
@@ -290,13 +341,36 @@ def test_every_scenario_is_labelled_and_carries_its_percentiles(quick_report):
 
 
 @iowa
-def test_both_null_strata_are_present_and_reported_separately(quick_report):
+def test_every_null_stratum_is_published_and_rated_separately(quick_report):
     strata = quick_report["diagnostics"]["null_strata"]
-    assert strata["null_geography"]["n"] == bench.QUICK.n_hard_nulls
-    assert strata["null_random"]["n"] >= 1
+    for name in bench.NULL_STRATA:
+        assert strata[f"null_{name}"]["n"] >= 1
+        assert strata[f"null_{name}"]["selection_rule"]
+    published = [s for s in quick_report["scenarios"] if s["kind"] == "null"]
+    assert len(published) == sum(
+        strata[f"null_{name}"]["n"] for name in bench.NULL_STRATA
+    ), "every stratum drawn is published as a scenario, gate or no gate"
+
+
+@iowa
+def test_the_gate_pools_only_the_pre_registered_strata_and_says_so(quick_report):
+    """CRITERIA.md 8 wants one FPR; which nulls go into it is a choice, so it is named."""
+    strata = quick_report["diagnostics"]["null_strata"]
+    sample = quick_report["confusion"]["gate_sample"]
+    assert sample["null_strata_pooled"] == list(bench.GATE_NULL_STRATA)
+    assert sample["null_strata_excluded"] == ["seat_outcome"]
+    assert sample["reason"]
     pooled = quick_report["confusion"]["matrix"]
-    assert pooled["n_null"] == (
-        strata["null_geography"]["n"] + strata["null_random"]["n"]
+    assert pooled["n_null"] == sum(
+        strata[f"null_{name}"]["n"] for name in bench.GATE_NULL_STRATA
+    )
+    excluded_ids = set(sample["excluded_ids"])
+    assert excluded_ids == {
+        s["id"] for s in quick_report["scenarios"] if not s["in_gate_sample"]
+    }
+    assert excluded_ids, "the excluded stratum is still in the artifact"
+    assert quick_report["confusion"]["all_strata"]["n_null"] > pooled["n_null"], (
+        "the pooled-over-everything rate is reported beside the gate's"
     )
 
 
@@ -312,15 +386,15 @@ def test_administrative_metrics_get_no_percentile_on_county_units(quick_report):
 @iowa
 def test_the_confusion_block_matches_the_scenarios_it_was_built_from(quick_report):
     matrix = quick_report["confusion"]["matrix"]
-    scenarios = quick_report["scenarios"]
+    scenarios = [s for s in quick_report["scenarios"] if s["in_gate_sample"]]
     planted = [s for s in scenarios if s["kind"] == "planted"]
     nulls = [s for s in scenarios if s["kind"] == "null"]
     assert matrix["n_positive"] == len(planted)
     assert matrix["n_null"] == len(nulls)
-    assert matrix["tp"] == sum(1 for s in planted if s["flagged"])
-    assert matrix["fp"] == sum(1 for s in nulls if s["flagged"])
-    assert matrix["tp"] + matrix["fn"] == len(planted)
-    assert matrix["fp"] + matrix["tn"] == len(nulls)
+    assert matrix["tp"] == sum(1 for s in planted if s["flagged"] is True)
+    assert matrix["fp"] == sum(1 for s in nulls if s["flagged"] is True)
+    assert matrix["tp"] + matrix["fn"] + matrix["unresolved_positive"] == len(planted)
+    assert matrix["fp"] + matrix["tn"] + matrix["unresolved_null"] == len(nulls)
     assert "accuracy" not in matrix and "f1" not in matrix
 
 
@@ -376,6 +450,33 @@ def test_the_plan_under_review_is_reported_but_never_scored(quick_report):
         "the enacted plan carries no manufactured ground truth and must not "
         "contribute to any rate"
     )
+
+
+@iowa
+def test_the_artifact_publishes_no_verdict_on_the_enacted_plan(quick_report):
+    """README and CRITERIA.md 11. Round 2 published ``flagged: true`` on CD118."""
+    review = quick_report["plan_under_review"]
+    assert "flagged" not in review, (
+        "a boolean judgement on the map in force is the bug CRITERIA.md 11 names"
+    )
+    assert review["percentiles"] and review["statuses"], (
+        "what replaces the verdict is the location, per metric"
+    )
+    body = json.dumps(review)
+    for word in ("gerrymander", "verdict"):
+        assert f'"{word}"' not in body
+
+
+@iowa
+def test_the_artifact_says_which_metrics_cannot_tell_the_enacted_map_apart(quick_report):
+    """Round 2's enacted EG was bit-identical to a planted one and said nothing."""
+    block = quick_report["plan_under_review"]["indistinguishable_from"]
+    assert block["tolerance"] == 1e-12 and block["note"]
+    for name, ids in block["metrics"].items():
+        assert name in bench.LOCATED_METRICS
+        for scenario_id in ids:
+            s = next(x for x in quick_report["scenarios"] if x["id"] == scenario_id)
+            assert s["metrics"][name] == quick_report["plan_under_review"]["metrics"][name]
 
 
 @iowa
@@ -473,12 +574,379 @@ def test_the_cli_runs_and_reports(tmp_path, capsys):
     assert (tmp_path / "bench-results.json").exists()
 
 
+# --------------------------------------------------------------------------- #
+# round 3: the artifact has to be checkable, and the legality claim honest
+# --------------------------------------------------------------------------- #
+
+def test_write_plan_round_trips_through_evaluates_own_loader(tmp_path):
+    """The sidecar is only useful if the loader in the contract can read it."""
+    from evaluate import plan as EP
+    plan = {"19001": 1, "19003": 2, "19005": 1}
+    path = tmp_path / "p.csv"
+    bench.write_plan(path, plan)
+    assert path.read_text().splitlines()[0] == "GEOID,district"
+    assert EP.load_plan(path) == plan
+    assert O.plan_digest(EP.load_plan(path)) == O.plan_digest(plan)
+
+
+def test_write_plan_is_a_function_of_the_assignment_alone(tmp_path):
+    """Two orderings of the same plan give the same bytes, so digests compare."""
+    a, b = tmp_path / "a.csv", tmp_path / "b.csv"
+    bench.write_plan(a, {"19005": 1, "19001": 2})
+    bench.write_plan(b, {"19001": 2, "19005": 1})
+    assert a.read_bytes() == b.read_bytes()
+
+
+def test_compactness_floor_is_one_sided_and_admits_every_plan_it_was_built_from():
+    """The value choice, tested as a property: no neutral draw is illegal by it."""
+    from adversarial import gerrymander as G
+    columns = {
+        "cut_edges": [40.0, 45.0, 52.0],
+        "polsby_popper_mean": [0.30, 0.33, 0.36],
+        "reock_mean": [0.32, 0.40, 0.47],
+        "schwartzberg_mean": [1.60, 1.75, 1.87],
+        "convex_hull_mean": [0.70, 0.75, 0.79],
+    }
+    enacted = {"cut_edges": 51.0, "polsby_popper_mean": 0.29, "reock_mean": 0.33,
+               "schwartzberg_mean": 1.90, "convex_hull_mean": 0.71}
+    floor = bench.compactness_floor(
+        columns, [enacted], n_draws=3, n_distinct=3, source="test")
+    assert floor is not None
+    # one-sided, in the direction evaluate.compactness declares
+    assert floor.bounds["cut_edges"][0] == -math.inf
+    assert floor.bounds["polsby_popper_mean"][1] == math.inf
+    # every calibration plan is inside, including the enacted one
+    for i in range(3):
+        assert floor.contains({k: v[i] for k, v in columns.items()})
+    assert floor.contains(enacted)
+    # a plan more compact than anything neutral is legal; a raggeder one is not
+    assert floor.contains({**enacted, "cut_edges": 20.0, "polsby_popper_mean": 0.9,
+                           "reock_mean": 0.9, "schwartzberg_mean": 1.0,
+                           "convex_hull_mean": 0.99})
+    broken = floor.violations({**enacted, "cut_edges": 95.0})
+    assert "cut_edges" in broken and "95" in broken["cut_edges"]
+
+
+def test_compactness_floor_admits_a_neutral_draw_outside_the_reference():
+    """The nulls come from a different pool; a floor that fails them measures noise."""
+    columns = {name: [1.0, 2.0] for name in
+               ("polsby_popper_mean", "reock_mean", "convex_hull_mean")}
+    columns["cut_edges"] = [40.0, 45.0]
+    columns["schwartzberg_mean"] = [1.6, 1.7]
+    stray = {"cut_edges": 60.0, "polsby_popper_mean": 0.5, "reock_mean": 0.5,
+             "schwartzberg_mean": 2.5, "convex_hull_mean": 0.5}
+    floor = bench.compactness_floor(
+        columns, [stray], n_draws=2, n_distinct=2, source="test")
+    assert floor.contains(stray)
+
+
+def test_plant_envelope_is_the_central_band_and_two_sided():
+    """D-010's constraint is two-sided; conspicuously compact is conspicuous too."""
+    columns = {name: [float(i) for i in range(101)] for name in
+               ("cut_edges", "polsby_popper_mean", "reock_mean",
+                "schwartzberg_mean", "convex_hull_mean")}
+    env = bench.plant_envelope(columns, n_draws=101, n_distinct=101, source="test")
+    assert env.coverage == bench.PLANT_SHAPE_COVERAGE
+    for low, high in env.bounds.values():
+        assert (low, high) == pytest.approx((5.0, 95.0))
+    assert not env.contains({name: 100.0 for name in env.bounds})
+    assert not env.contains({name: 0.0 for name in env.bounds})
+
+
+def test_inside_filters_reference_draws_by_the_columns_already_measured():
+    columns = {name: [0.0, 50.0, 100.0] for name in
+               ("cut_edges", "polsby_popper_mean", "reock_mean",
+                "schwartzberg_mean", "convex_hull_mean")}
+    env = bench.plant_envelope(
+        {name: [float(i) for i in range(101)] for name in columns},
+        n_draws=101, n_distinct=101, source="test")
+    plans = [{"a": 1, "b": 2}, {"a": 2, "b": 1}, {"a": 1, "b": 1}]
+    inside = bench._inside(plans, columns, env, 2)
+    assert inside == [{"a": 2, "b": 1}], "only the middle draw is in the band"
+    assert bench._inside(plans, columns, None, 2) == []
+
+
+def test_gate_qualification_is_false_on_a_reference_too_small_to_express_the_rule():
+    ens = _FakeEnsemble(distinct=10, draws=100)
+    out = bench.gate_qualification(
+        bench.FULL, ens, {"efficiency_gap": [0.01 * i for i in range(100)]},
+        _CONVERGED, {"coverage": 1.0, "n_resolved": 1, "n": 1})
+    assert out["meaningful"] is False
+    assert any("distinct" in r for r in out["reasons"])
+    assert out["reference"]["required_distinct"] == bench.RULE.required_distinct
+
+
+def test_gate_qualification_is_false_for_a_quick_run_however_it_scores():
+    ens = _FakeEnsemble(distinct=5000, draws=5000)
+    columns = {"efficiency_gap": [0.0001 * i for i in range(5000)]}
+    out = bench.gate_qualification(
+        bench.QUICK, ens, columns, _CONVERGED,
+        {"coverage": 1.0, "n_resolved": 1, "n": 1})
+    assert out["meaningful"] is False
+    assert any("smoke run" in r for r in out["reasons"])
+    assert "NOT MEANINGFUL" in out["note"]
+
+
+def test_gate_qualification_keeps_findings_out_of_the_meaningfulness_verdict():
+    """A failing R-hat is a finding to report, not a reason to void the gates."""
+    ens = _FakeEnsemble(distinct=5000, draws=5000)
+    columns = {"efficiency_gap": [0.0001 * i for i in range(5000)]}
+    conv = {"cut_edges": {"split_rhat": 1.47}, "pop_spread": {"split_rhat": 1.18}}
+    out = bench.gate_qualification(
+        bench.FULL, ens, columns, conv,
+        {"coverage": 1.0, "n_resolved": 1, "n": 1})
+    assert out["meaningful"] is True
+    assert any("R-hat" in c for c in out["caveats"])
+
+
+def test_rhat_trend_separates_a_budget_problem_from_a_sampler_problem():
+    """The distinction the split_rhat gate turns on, computed from the run itself."""
+    falling = {"cut_edges": [
+        {"draws_per_chain": 50, "split_rhat": 1.40, "ess": 10.0},
+        {"draws_per_chain": 100, "split_rhat": 1.20, "ess": 20.0},
+        {"draws_per_chain": 200, "split_rhat": 1.07, "ess": 40.0},
+    ]}
+    out = bench.rhat_trend(falling)["cut_edges"]
+    assert out["still_falling"] is True and out["ess_still_growing"] is True
+    assert out["first"]["split_rhat"] == 1.40 and out["last"]["split_rhat"] == 1.07
+    assert out["change_over_last_checkpoint"] == pytest.approx(-0.13)
+
+    stuck = {"cut_edges": [
+        {"draws_per_chain": 100, "split_rhat": 1.66, "ess": 8.2},
+        {"draws_per_chain": 300, "split_rhat": 1.68, "ess": 8.1},
+        {"draws_per_chain": 500, "split_rhat": 1.67, "ess": 8.3},
+    ]}
+    out = bench.rhat_trend(stuck)["cut_edges"]
+    assert out["still_falling"] is True, "1.67 < 1.68 — falling by a hair"
+    assert abs(out["change_over_last_checkpoint"]) < 0.02, (
+        "a run that has stopped moving reports a change near zero, which is the "
+        "number that says more draws will not help"
+    )
+    assert bench.rhat_trend({"pop_spread": []})["pop_spread"]["note"]
+
+
+@iowa
+def test_the_rhat_gate_carries_the_trend_it_was_read_from(quick_report):
+    gate = quick_report["gates"]["split_rhat"]
+    assert gate["target"] == bench.RHAT_GATE
+    assert "trend" in gate
+    trace = quick_report["diagnostics"]["convergence_trace"]
+    for name in ("cut_edges", "pop_spread"):
+        if gate["trend"][name].get("last"):
+            assert gate["trend"][name]["last"]["split_rhat"] == (
+                [r for r in trace[name] if r["split_rhat"] is not None][-1]["split_rhat"]
+            )
+
+
+class _FakeEnsemble:
+    def __init__(self, distinct, draws):
+        self.distinct_plans = distinct
+        self.plans = [None] * draws
+        self.failure_rate = 0.0
+        self.chain_failures = 0
+        self.seeds = (1, 2)
+
+
+_CONVERGED = {"cut_edges": {"split_rhat": 1.0}, "pop_spread": {"split_rhat": 1.0}}
+
+
+@iowa
+def test_parallel_chains_are_the_same_chains(tmp_path):
+    """The merge is the one aggregate the bench computes that generate also computes."""
+    from generate import ensemble, seeds
+    inputs = bench.load_inputs()
+    chain_seeds = list(seeds.stream(99, "parallel-test", 2))
+    serial = ensemble.run_chains(
+        inputs.gen_adjacency, inputs.gen_populations, bench.K, 1e-3, 6,
+        chain_seeds, bench.NODE_REPEATS)
+    parallel = bench.run_chains_parallel(
+        inputs.gen_adjacency, inputs.gen_populations, bench.K, 1e-3, 6,
+        chain_seeds, bench.NODE_REPEATS, jobs=2)
+    assert parallel.seeds == serial.seeds
+    assert parallel.plans == serial.plans
+    assert parallel.n_completed == serial.n_completed
+    assert parallel.chain_failures == serial.chain_failures
+    assert parallel.failure_rate == serial.failure_rate
+    assert parallel.distinct_plans == serial.distinct_plans
+    assert [t.cut_edges for t in parallel.traces] == [t.cut_edges for t in serial.traces]
+    assert [t.failure for t in parallel.traces] == [t.failure for t in serial.traces]
+
+
+@iowa
+def test_every_scenario_carries_a_digest_and_a_plan_on_disk(quick_report):
+    """ARCHITECTURE.md 5 makes this file the one critics read; round 2 shipped no plans."""
+    from evaluate import plan as EP
+    out = Path(quick_report["_path"]).parent
+    digests = set()
+    for s in quick_report["scenarios"]:
+        path = out / s["plan"]["file"]
+        assert path.exists(), f"{s['id']} has no plan on disk"
+        loaded = EP.load_plan(path)
+        assert O.plan_digest(loaded) == s["plan"]["digest"]
+        assert len(loaded) == s["plan"]["n_units"]
+        digests.add(s["plan"]["digest"])
+    assert len(digests) == len(quick_report["scenarios"]), (
+        "two scenarios sharing a digest are the same plan counted twice"
+    )
+    manifest = quick_report["plans"]
+    assert manifest["n_files"] == len(quick_report["scenarios"]) + 2
+    for name in ("baseline_enacted", "baseline_ensemble_max_d"):
+        assert (out / "plans" / f"{name}.csv").exists()
+
+
+@iowa
+def test_every_scenario_says_which_seed_it_came_from(quick_report):
+    """ARCHITECTURE.md 7: a scenario is regenerable from the master seed or it is not."""
+    for s in quick_report["scenarios"]:
+        provenance = s["provenance"]
+        assert provenance["derivation"]
+        if s["kind"] == "planted":
+            assert isinstance(provenance["seed"], int)
+            assert provenance["purpose"].startswith(f"round-{quick_report['round']}/")
+            assert provenance["baseline"] == s["baseline"]
+        else:
+            assert provenance["stratum"] in bench.NULL_STRATA
+            assert provenance["selection_rank"] >= 1
+
+
+@iowa
+def test_verify_accepts_the_run_that_produced_it(quick_report):
+    result = bench.verify(Path(quick_report["_path"]).parent)
+    assert result["ok"], result["failures"]
+    assert result["checked"] == len(quick_report["scenarios"])
+    assert result["checks"] > result["checked"]
+
+
+@iowa
+@pytest.mark.parametrize("field,value", [
+    ("legal", True),
+    ("realized_seat_shift", 3),
+])
+def test_verify_catches_a_claim_the_plans_do_not_support(quick_report, tmp_path, field, value):
+    """The point of the sidecar: a number nobody can check is not a measurement."""
+    import shutil
+    src = Path(quick_report["_path"]).parent
+    dst = tmp_path / "tampered"
+    shutil.copytree(src, dst)
+    report = json.loads((dst / "bench-results.json").read_text())
+    target = next(s for s in report["scenarios"] if s[field] != value)
+    target[field] = value
+    (dst / "bench-results.json").write_text(json.dumps(report))
+    result = bench.verify(dst)
+    assert not result["ok"]
+    assert any(f["field"] == field and f["id"] == target["id"]
+               for f in result["failures"]), result["failures"]
+
+
+@iowa
+def test_verify_catches_a_plan_swapped_under_its_digest(quick_report, tmp_path):
+    import shutil
+    src = Path(quick_report["_path"]).parent
+    dst = tmp_path / "swapped"
+    shutil.copytree(src, dst)
+    report = json.loads((dst / "bench-results.json").read_text())
+    a, b = report["scenarios"][0], report["scenarios"][1]
+    (dst / a["plan"]["file"]).write_text((dst / b["plan"]["file"]).read_text())
+    result = bench.verify(dst)
+    assert not result["ok"]
+    assert any(f["field"] == "plan.digest" for f in result["failures"])
+
+
+@iowa
+def test_the_legality_gate_is_read_at_the_operating_epsilon_not_the_run_s(quick_report):
+    """Round 1 reported legal_compliance 1.0 at 1e-3 against an operating 2e-4."""
+    gate = quick_report["gates"]["legal_compliance"]
+    assert gate["epsilon"] == bench.GATE_EPSILON == bench.EPSILON
+    assert quick_report["config"]["epsilon"] == bench.QUICK.epsilon
+    assert gate["run_epsilon"] == bench.QUICK.epsilon
+    assert gate["run_epsilon"] > gate["epsilon"], "the smoke run is looser on purpose"
+    measured = sum(1 for s in quick_report["scenarios"] if s["legal"])
+    assert gate["value"] == pytest.approx(measured / len(quick_report["scenarios"]))
+    assert gate["value_at_run_epsilon"] is not None
+    assert gate["value_at_run_epsilon"] >= gate["value"], (
+        "the looser tolerance cannot certify fewer plans than the tighter one"
+    )
+
+
+@iowa
+def test_a_quick_run_cannot_report_a_legality_pass_the_operating_point_would_fail(quick_report):
+    """The whole finding, as one property."""
+    gate = quick_report["gates"]["legal_compliance"]
+    if gate["pass"] is True:
+        for s in quick_report["scenarios"]:
+            assert s["legality"]["legal_at_gate_epsilon"], s["id"]
+    else:
+        assert gate["illegal_ids"], "a failing gate must name the plans that failed it"
+        for scenario_id in gate["illegal_ids"]:
+            s = next(x for x in quick_report["scenarios"] if x["id"] == scenario_id)
+            assert s["legal_failures"], "an illegal plan names the constraint it broke"
+
+
+@iowa
+def test_compactness_is_part_of_the_legality_claim(quick_report):
+    """Iowa Code ch. 42 criterion 4. Round 2 certified plans nobody had measured."""
+    gate = quick_report["gates"]["legal_compliance"]
+    assert gate["compactness_included"] is True
+    floor = quick_report["diagnostics"]["compactness_floor"]
+    assert floor["calibrated"] is True
+    assert set(floor["bounds"]) == set(bench.COMPACTNESS_METRICS)
+    for name, row in floor["bounds"].items():
+        assert (row["at_least"] is None) != (row["at_most"] is None), (
+            f"{name}: the floor is one-sided; see bench.compactness_floor"
+        )
+    for s in quick_report["scenarios"]:
+        assert s["legality"]["compactness_checked"] is True
+
+
+@iowa
+def test_the_gates_block_says_whether_it_is_meaningful(quick_report):
+    """bench.Size has said so in a docstring since round 1; the artifact did not."""
+    qual = quick_report["gates"]["qualification"]
+    assert qual["meaningful"] is False, "a --quick run is never a measurement"
+    assert qual["size"] == "quick"
+    assert qual["reasons"], "an unmeaningful verdict has to say why"
+    assert "NOT MEANINGFUL" in qual["note"]
+    for key in ("tpr_at_2seat", "fpr_on_nulls", "split_rhat", "legal_compliance"):
+        assert quick_report["gates"][key]["meaningful"] is False
+        assert quick_report["gates"][key]["meaningful_note"] == qual["note"]
+
+
+@iowa
+def test_convergence_is_reported_over_both_rectangles(quick_report):
+    """The completed chains are the gate's sample; the partial ones are evidence too."""
+    gated = quick_report["ensemble"]["convergence"]
+    assert gated["sample"] == "completed_chains"
+    everything = quick_report["diagnostics"]["convergence_all_chains"]
+    assert everything["sample"] == "all_chains_truncated_to_shortest"
+    assert everything["n_chains"] >= gated["n_chains"]
+    for name in ("cut_edges", "pop_spread"):
+        assert "split_rhat" in everything[name] and "n_chains_used" in everything[name]
+
+
+@iowa
+def test_the_reference_resolution_is_counted_in_plans_not_in_repeated_draws(quick_report):
+    """806 draws holding 177 plans are 177 plans. Round 2's rule read the 806."""
+    ens = quick_report["ensemble"]
+    assert ens["distinct_plans"] <= ens["n_completed"]
+    qual = quick_report["gates"]["qualification"]["reference"]
+    assert qual["distinct_plans"] == ens["distinct_plans"]
+    assert set(qual["ess_by_rule_metric"]) == set(bench.RULE.metrics)
+
+
 def test_summary_lines_show_both_rates_never_one():
     """A report quoting one rate presents a degenerate detector as a working one."""
     report = json.loads(_MINIMAL_REPORT)
     lines = "\n".join(bench.summary_lines(report))
     assert "TPR" in lines and "FPR" in lines
     assert "split_rhat" in lines and "legal_compliance" in lines
+
+
+def test_summary_lines_carry_the_unmeaningful_banner_and_the_gate_epsilon():
+    """Whatever else a reader skips, they cannot skip these two."""
+    lines = "\n".join(bench.summary_lines(json.loads(_MINIMAL_REPORT)))
+    assert "NOT MEANINGFUL" in lines
+    assert "at epsilon=0.0002" in lines
+    assert "not in the gate" in lines, "the excluded stratum is marked on stdout"
 
 
 _MINIMAL_REPORT = json.dumps({
@@ -497,14 +965,23 @@ _MINIMAL_REPORT = json.dumps({
         "tpr_at_2seat": {"target": 0.95, "value": 1.0, "pass": True},
         "fpr_on_nulls": {"target": 0.05, "value": 0.0, "pass": True},
         "split_rhat": {"target": 1.01, "value": 1.0, "pass": True},
-        "legal_compliance": {"target": 1.0, "value": 1.0, "pass": True},
+        "legal_compliance": {"target": 1.0, "value": 1.0, "pass": True,
+                             "epsilon": 2e-4},
+        "qualification": {"meaningful": False, "size": "quick",
+                          "note": "GATE VALUES ON THIS RUN ARE NOT MEANINGFUL",
+                          "reasons": ["a smoke run"], "caveats": []},
     },
     "firewall": {"clean": True, "config_sha256": "0" * 64},
     "diagnostics": {
         "report_lines": ["TPR = 1.0000", "FPR = 0.0000"],
         "null_strata": {
-            "null_geography": {"n": 1, "flagged": 0, "fpr": 0.0},
-            "null_random": {"n": 1, "flagged": 0, "fpr": 0.0},
+            "null_concentration": {"n": 1, "flagged": 0, "resolved": 1,
+                                   "fpr": 0.0, "in_gate_sample": True},
+            "null_seat_outcome": {"n": 1, "flagged": 1, "resolved": 1,
+                                  "fpr": 1.0, "in_gate_sample": False},
+            "null_random": {"n": 1, "flagged": 0, "resolved": 1,
+                            "fpr": 0.0, "in_gate_sample": True},
+            "note": "the gate pools concentration, random",
         },
     },
 })

@@ -31,20 +31,29 @@ from __future__ import annotations
 
 import ast
 import itertools
+import random
 from pathlib import Path
 
+import geopandas as gpd
 import pytest
+from shapely.geometry import box
 
+from adversarial import gerrymander as G
 from adversarial import nulls as N
 from adversarial.gerrymander import (
+    ENVELOPE_MEASURES,
     GerrymanderResult,
     LegalityRecord,
     SearchExhausted,
+    ShapeEnvelope,
     achievable_seats,
+    calibrate_shape_envelope,
     check_legality,
     maximize_seats,
     plant_gerrymander,
+    shape_metrics,
 )
+from evaluate import compactness
 from evaluate.elections import load_elections, two_party
 from evaluate.plan import is_valid, load_plan, populations as load_populations
 from evaluate.plan import load_adjacency as load_rook
@@ -224,7 +233,7 @@ def test_the_realized_shift_is_measured_not_intended():
     """``seat_shift`` must come from the vote counts, not from the request."""
     baseline = brute_force_plans()[0]
     result = maximize_on_path("D", baseline_plan=baseline)
-    assert result.baseline_source == "supplied"
+    assert result.baseline_source == "supplied (unnamed)"
     assert result.baseline_seat_count == brute_force_seats(baseline, "D")
     assert result.realized_seat_count == brute_force_seats(result.plan, "D")
     assert result.seat_shift == result.realized_seat_count - result.baseline_seat_count
@@ -465,6 +474,372 @@ def test_asymmetric_adjacency_is_refused():
 
 
 # --------------------------------------------------------------------------- #
+# the synthetic grid: shape varies here, so the envelope has something to bind
+# --------------------------------------------------------------------------- #
+#
+# A path graph cannot test a shape constraint at all: every plan on a path has
+# exactly ``k-1`` cut edges, so the envelope is a point and the search is either
+# unconstrained or infeasible. The grid is the smallest thing that separates a
+# compact partition from a ragged one.
+
+#: A projected CRS that is locally undistorted over this figure's own extent,
+#: so ``evaluate.compactness``'s projection guard is entered rather than
+#: side-stepped. Same convention as tests/test_compactness.py.
+GRID_CRS = "+proj=laea +lat_0=0 +lon_0=0 +datum=WGS84 +units=m +no_defs"
+GRID_N = 6
+GRID_CELL = 1000.0
+GRID_UNITS = [f"g{r}{c}" for r in range(GRID_N) for c in range(GRID_N)]
+GRID_K = 3
+GRID_EPSILON = 0.05
+GRID_POPS = {unit: 100 for unit in GRID_UNITS}
+#: Democratic votes piled into the bottom-left 3x3 block, which is the Chen &
+#: Rodden geography in miniature: a party that clusters can be packed by a map
+#: nobody drew to pack it.
+GRID_DEM = {
+    unit: (80 if int(unit[1]) < 3 and int(unit[2]) < 3 else 30) for unit in GRID_UNITS
+}
+GRID_REP = {unit: 100 - GRID_DEM[unit] for unit in GRID_UNITS}
+
+
+def grid_adjacency() -> dict[str, list[str]]:
+    adjacency: dict[str, list[str]] = {unit: [] for unit in GRID_UNITS}
+    for unit in GRID_UNITS:
+        row, col = int(unit[1]), int(unit[2])
+        for drow, dcol in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            if 0 <= row + drow < GRID_N and 0 <= col + dcol < GRID_N:
+                adjacency[unit].append(f"g{row + drow}{col + dcol}")
+    return adjacency
+
+
+def grid_geometry():
+    """The grid as unit squares, in a projected CRS."""
+    shapes = []
+    for unit in GRID_UNITS:
+        row, col = int(unit[1]), int(unit[2])
+        shapes.append(
+            box(
+                col * GRID_CELL,
+                row * GRID_CELL,
+                (col + 1) * GRID_CELL,
+                (row + 1) * GRID_CELL,
+            )
+        )
+    return gpd.GeoDataFrame({"GEOID": GRID_UNITS}, geometry=shapes, crs=GRID_CRS)
+
+
+def grid_pool():
+    """A stand-in neutral pool: two strip plans plus twelve growth partitions.
+
+    Blind to votes, exactly as a real neutral ensemble is: nothing in
+    ``_random_growth`` reads an election result. Its spread on the shape
+    measures is what gives the calibrated envelope a width.
+    """
+    rows = {unit: 1 + int(unit[1]) // 2 for unit in GRID_UNITS}
+    cols = {unit: 1 + int(unit[2]) // 2 for unit in GRID_UNITS}
+    adjacency = {unit: tuple(sorted(n)) for unit, n in grid_adjacency().items()}
+    grown = [
+        G._random_growth(adjacency, GRID_POPS, sorted(GRID_UNITS), GRID_K,
+                         random.Random(seed))
+        for seed in range(12)
+    ]
+    return [rows, cols] + grown
+
+
+def grid_envelope(coverage: float = 0.90, geometry=None):
+    return calibrate_shape_envelope(
+        grid_pool(),
+        grid_adjacency(),
+        geometry,
+        coverage=coverage,
+        source="grid pool of 14 vote-blind partitions",
+    )
+
+
+def maximize_on_grid(party: str = "D", seed: int = 7, **kwargs):
+    return maximize_seats(
+        party,
+        grid_adjacency(),
+        GRID_POPS,
+        GRID_DEM,
+        GRID_REP,
+        GRID_K,
+        GRID_EPSILON,
+        seed,
+        kwargs.pop("max_iterations", 20_000),
+        restarts=kwargs.pop("restarts", 4),
+        work_epsilon=kwargs.pop("work_epsilon", 0.2),
+        **kwargs,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# the shape envelope (docs/DECISIONS.md D-010)
+# --------------------------------------------------------------------------- #
+
+def test_the_envelope_is_the_ensembles_own_quantiles_not_a_constant():
+    """Calibration is the claim: the bound is the reference distribution."""
+    pool = grid_pool()
+    adjacency = grid_adjacency()
+    counts = sorted(compactness.cut_edges(plan, adjacency) for plan in pool)
+
+    full = calibrate_shape_envelope(pool, adjacency, coverage=1.0)
+    assert full.bounds["cut_edges"] == (counts[0], counts[-1])
+
+    ninety = calibrate_shape_envelope(pool, adjacency, coverage=0.90)
+    low, high = ninety.bounds["cut_edges"]
+    assert counts[0] <= low < high <= counts[-1]
+    # Two-sided by construction: both tails are closed, not just the ragged one.
+    assert low > counts[0] and high < counts[-1]
+    assert ninety.reference_plans == len(pool)
+
+
+def test_a_bounded_measure_that_was_not_measured_is_a_violation_not_a_pass():
+    envelope = grid_envelope(geometry=grid_geometry())
+    assert set(envelope.bounds) == set(ENVELOPE_MEASURES)
+    broken = envelope.violations({"cut_edges": sum(envelope.bounds["cut_edges"]) / 2})
+    assert set(broken) == set(ENVELOPE_MEASURES) - {"cut_edges"}
+    assert all("not measured" in reason for reason in broken.values())
+
+
+def test_without_geometry_only_the_graph_measure_is_bounded():
+    envelope = grid_envelope()
+    assert set(envelope.bounds) == {"cut_edges"}
+    assert envelope.in_loop == ("cut_edges",)
+    assert set(shape_metrics(grid_pool()[0], grid_adjacency())) == {"cut_edges"}
+
+
+def test_the_incremental_shape_arithmetic_matches_evaluate_compactness():
+    """The search's own numbers, checked against the module of record.
+
+    The search cannot afford to dissolve polygons on every proposal, so it
+    maintains cut edges and Polsby-Popper incrementally. If that arithmetic
+    drifted, the envelope would be enforced against a number nobody else
+    computes and every "inside the envelope" claim would be vacuous.
+    """
+    adjacency = grid_adjacency()
+    ordered = {unit: tuple(sorted(adjacency[unit])) for unit in sorted(adjacency)}
+    geometry = grid_geometry()
+    guard = G._Guard(grid_envelope(geometry=geometry), geometry, ordered)
+    state = G._State(
+        grid_pool()[0], ordered, GRID_POPS, GRID_DEM, GRID_REP, GRID_K, guard
+    )
+    rng = random.Random(4)
+    checked = 0
+    for step in range(160):
+        applied = G._propose(state, rng, 0.4)
+        if applied is None:
+            continue
+        truth = compactness.all_metrics(state.plan, geometry, adjacency)
+        assert state.cut == truth["cut_edges"]
+        assert state.polsby_popper_mean() == pytest.approx(
+            truth["polsby_popper_mean"], abs=1e-9
+        )
+        if step % 3 == 0:  # and the undo path, which is where drift accumulates
+            state.undo(applied)
+            truth = compactness.all_metrics(state.plan, geometry, adjacency)
+            assert state.cut == truth["cut_edges"]
+            assert state.polsby_popper_mean() == pytest.approx(
+                truth["polsby_popper_mean"], abs=1e-9
+            )
+        checked += 1
+    assert checked > 50, "the walk must actually move for this to test anything"
+
+
+def test_the_constrained_search_stays_inside_the_envelope_and_the_old_one_does_not():
+    """D-010, executed. This is the round-2 finding as a regression test.
+
+    Round 2 measured planted plans at ~2x the cut edges and ~1/3 the
+    Polsby-Popper of every neutral map, so ``cut_edges > 60`` alone scored
+    TPR 1.0 and FPR 0.0. The unconstrained search is kept reachable — it is the
+    other end of the frontier — and this test pins that it is *still* the
+    separable one, so nobody can conclude the problem went away on its own.
+    """
+    geometry = grid_geometry()
+    envelope = grid_envelope(geometry=geometry)
+    adjacency = grid_adjacency()
+
+    loose = maximize_on_grid()
+    assert loose.shape_envelope is None
+    assert loose.shape_constrained is False
+    assert envelope.violations(shape_metrics(loose.plan, adjacency, geometry))
+
+    tight = maximize_on_grid(shape_envelope=envelope, geometry=geometry)
+    assert tight.shape_constrained is True
+    measured = shape_metrics(tight.plan, adjacency, geometry)
+    assert envelope.violations(measured) == {}
+    assert tight.shape_metrics == pytest.approx(measured)
+    assert tight.legality.passed
+    # The constraint costs something or it is not a constraint.
+    assert measured["cut_edges"] < shape_metrics(
+        loose.plan, adjacency, geometry
+    )["cut_edges"]
+
+
+def test_an_envelope_around_one_plan_is_centred_on_that_plan_and_is_never_empty():
+    """The distribution-matching instrument: bounds anchored on a real draw.
+
+    A quantile window narrow enough to make the planted plans look *typical*
+    rather than merely *admissible* is usually empty on all five measures at
+    once, because the measures disagree (CRITERIA.md section 3). An envelope
+    built around a plan that exists cannot be: that plan is inside it.
+    """
+    geometry = grid_geometry()
+    adjacency = grid_adjacency()
+    pool = grid_pool()
+    target = pool[3]
+    envelope = G.envelope_around_plan(target, pool, adjacency, geometry, width=0.5)
+
+    measured = shape_metrics(target, adjacency, geometry)
+    assert envelope.violations(measured) == {}
+    for name, (low, high) in envelope.bounds.items():
+        assert low < measured[name] < high
+        assert (low + high) / 2 == pytest.approx(measured[name])
+
+    result = maximize_on_grid(
+        shape_envelope=envelope, geometry=geometry, start_plans=[target]
+    )
+    assert envelope.violations(result.shape_metrics) == {}
+    with pytest.raises(ValueError, match="width"):
+        G.envelope_around_plan(target, pool, adjacency, geometry, width=0)
+    with pytest.raises(ValueError, match="no reference plans"):
+        G.envelope_around_plan(target, [], adjacency, geometry)
+
+
+def test_an_unsatisfiable_envelope_exhausts_the_search_rather_than_returning_a_plan():
+    """No plan outside the envelope is ever handed back, and the message says so."""
+    geometry = grid_geometry()
+    impossible = ShapeEnvelope(
+        coverage=0.90,
+        bounds={"cut_edges": (0.0, 1.0)},
+        reference_plans=1,
+        reference_draws=1,
+        measures=("cut_edges",),
+        source="deliberately unsatisfiable",
+    )
+    with pytest.raises(SearchExhausted, match="shape envelope"):
+        maximize_on_grid(shape_envelope=impossible, geometry=geometry)
+
+
+def test_the_envelope_and_its_provenance_are_recorded_on_the_result():
+    geometry = grid_geometry()
+    envelope = grid_envelope(geometry=geometry)
+    result = maximize_on_grid(shape_envelope=envelope, geometry=geometry)
+    assert result.shape_envelope is envelope
+    assert result.shape_envelope.coverage == 0.90
+    assert "grid pool" in result.shape_envelope.source
+    assert result.shape_envelope.reference_plans == len(grid_pool())
+    assert set(result.shape_metrics) == set(ENVELOPE_MEASURES)
+
+
+def test_starting_from_supplied_plans_is_recorded_and_used():
+    """A realistic adversary starts from a compact map and edits it."""
+    geometry = grid_geometry()
+    envelope = grid_envelope(geometry=geometry)
+    result = maximize_on_grid(
+        shape_envelope=envelope, geometry=geometry, start_plans=grid_pool()[:4]
+    )
+    assert result.start_source == "supplied start_plans"
+    assert envelope.violations(result.shape_metrics) == {}
+    with pytest.raises(ValueError, match="start_plans"):
+        maximize_on_grid(start_plans=[])
+
+
+def test_bounding_polsby_popper_without_geometry_is_refused():
+    """A bound nothing can enforce is an error, not a silently ignored field."""
+    envelope = ShapeEnvelope(
+        coverage=0.9,
+        bounds={"polsby_popper_mean": (0.3, 0.6)},
+        reference_plans=2,
+        reference_draws=2,
+        measures=("polsby_popper_mean",),
+        source="test",
+    )
+    with pytest.raises(ValueError, match="geometry"):
+        maximize_on_grid(shape_envelope=envelope)
+
+
+def test_calibration_refuses_a_meaningless_coverage_or_measure():
+    with pytest.raises(ValueError, match="coverage"):
+        calibrate_shape_envelope(grid_pool(), grid_adjacency(), coverage=0.0)
+    with pytest.raises(ValueError, match="envelope measure"):
+        calibrate_shape_envelope(
+            grid_pool(), grid_adjacency(), measures=("compactness",)
+        )
+    with pytest.raises(ValueError, match="no plans"):
+        calibrate_shape_envelope([], grid_adjacency())
+
+
+# --------------------------------------------------------------------------- #
+# compactness in the legality record (Iowa Code ch. 42 criterion 4)
+# --------------------------------------------------------------------------- #
+
+def test_legality_says_compactness_was_not_checked_rather_than_passing_it():
+    record = check_legality(
+        grid_pool()[0], grid_adjacency(), GRID_POPS, GRID_K, GRID_EPSILON
+    )
+    assert "compactness_within_neutral_envelope" not in record.checks
+    assert "ch. 42 criterion 4" in record.notes["compactness_not_checked"]
+    assert record.passed
+
+
+def test_legality_checks_compactness_when_given_a_standard_to_check_against():
+    """Round 2 certified plans at a third the Polsby-Popper of every neutral draw."""
+    geometry = grid_geometry()
+    envelope = grid_envelope(geometry=geometry)
+    adjacency = grid_adjacency()
+    loose = maximize_on_grid()
+
+    record = check_legality(
+        loose.plan,
+        adjacency,
+        GRID_POPS,
+        GRID_K,
+        GRID_EPSILON,
+        shape_envelope=envelope,
+        plan_shape_metrics=shape_metrics(loose.plan, adjacency, geometry),
+    )
+    assert record.checks["compactness_within_neutral_envelope"] is False
+    assert not record.passed
+    assert "compactness_within_neutral_envelope" in record.failures()
+
+    tight = maximize_on_grid(shape_envelope=envelope, geometry=geometry)
+    assert tight.legality.checks["compactness_within_neutral_envelope"] is True
+    assert tight.legality.passed
+
+
+# --------------------------------------------------------------------------- #
+# baselines: a shift is a difference, so the record says what from
+# --------------------------------------------------------------------------- #
+
+def test_a_supplied_baseline_that_is_not_named_says_so():
+    baseline = brute_force_plans()[0]
+    named = maximize_on_path("D", baseline_plan=baseline, baseline_source="enacted")
+    assert named.baseline_source == "enacted"
+    unnamed = maximize_on_path("D", baseline_plan=baseline)
+    assert unnamed.baseline_source == "supplied (unnamed)"
+
+
+def test_both_directions_come_from_one_baseline_and_the_pair_is_marked_comparable():
+    """Round 2 pooled a D shift from one baseline with an R shift from another."""
+    baseline = brute_force_plans()[0]
+    found = achievable_seats(
+        path_adjacency(), PATH_POPS, PATH_DEM, PATH_REP, PATH_K, PATH_EPSILON,
+        11, 8_000, restarts=4, work_epsilon=0.6,
+        baseline_plan=baseline, baseline_source="brute-force plan 0",
+    )
+    assert found["comparable"] is True
+    assert found["baseline_source"] == "brute-force plan 0"
+    assert found["baseline_plan"] == baseline
+    for party in ("D", "R"):
+        assert found[party]["baseline_seats"] == brute_force_seats(baseline, party)
+        assert (
+            found[party]["max_shift"]
+            == found[party]["max_seats"] - found[party]["baseline_seats"]
+        )
+    assert sum(found[party]["baseline_seats"] for party in ("D", "R")) == PATH_K
+
+
+# --------------------------------------------------------------------------- #
 # null cases
 # --------------------------------------------------------------------------- #
 
@@ -473,21 +848,132 @@ def path_pool():
     return brute_force_plans()
 
 
-def test_selection_keeps_the_most_lopsided_plans():
-    pool = path_pool()
-    seats = [brute_force_seats(plan, "D") for plan in pool]
-    median = N.median_seats(pool, PATH_DEM, PATH_REP, "D")
-    worst = max(abs(s - median) for s in seats)
+def by_hand_concentration(plan, votes):
+    """The selection statistic, recomputed from scratch by the test."""
+    totals = {}
+    for unit, district in plan.items():
+        totals[district] = totals.get(district, 0) + votes[unit]
+    total = sum(totals.values())
+    return sum((value / total) ** 2 for value in totals.values())
 
-    cases = N.sample_nulls(
+
+def nulls_on_path(**kwargs):
+    return N.sample_nulls(
         path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
-        PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(pool), n_select=2,
+        PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(kwargs.pop("pool", path_pool())),
+        **kwargs,
     )
-    assert cases, "the pool must yield at least one null case"
+
+
+def test_the_selection_statistic_is_not_a_metric_the_detector_reads():
+    """The round-2 defect, as a test that fails if it comes back.
+
+    ``|efficiency gap|`` was the tie-break, and it is a monotone transform of
+    the detector's own test statistic, so the selected nulls walked into the
+    tail the detector thresholds and *any* correct rule flagged them: the
+    stratum's false positive rate rose to 1.00 as the pool grew while the random
+    stratum's fell to 0.125. Nothing that appears in ``selection_statistic`` may
+    be one of the detector's metrics.
+    """
+    cases = nulls_on_path(n_select=3)
+    for case in cases:
+        assert set(case.selection_statistic) == {"seat_deviation", "vote_concentration"}
+        assert "efficiency_gap" not in case.selection_statistic
+        assert "mean_median" not in case.selection_statistic
+        assert case.stratum == "concentration"
+        # recorded, because a reader wants it -- but not ranked on
+        assert case.efficiency_gap == pytest.approx(
+            case.efficiency_gap
+        )
+
+
+def test_the_concentration_stratum_ranks_by_concentration_and_nothing_else():
+    pool = path_pool()
+    expected = sorted(
+        (by_hand_concentration(plan, PATH_DEM) for plan in pool), reverse=True
+    )
+    cases = nulls_on_path(n_select=len(pool), balance_directions=False)
+    got = [case.vote_concentration for case in cases]
+    assert got == pytest.approx(expected[: len(got)])
+    assert [case.selection_rank for case in cases] == list(range(1, len(cases) + 1))
+    assert [case.id for case in cases[:2]] == [
+        "null_geography_01", "null_geography_02"
+    ]
+
+
+def test_vote_concentration_reads_one_party_and_nothing_else():
+    """The property that makes it independent of the detector's metrics."""
+    plan = path_pool()[0]
+    value = N.vote_concentration(plan, PATH_DEM)
+    assert 1.0 / PATH_K - 1e-12 <= value <= 1.0
+    assert value == pytest.approx(by_hand_concentration(plan, PATH_DEM))
+    # It cannot see the other party at all: doubling every R vote changes the
+    # efficiency gap and every share-based metric, and leaves this unmoved.
+    doubled = {unit: 2 * count for unit, count in PATH_REP.items()}
+    assert N.vote_concentration(plan, PATH_DEM) == value
+    assert doubled != PATH_REP
+    # And it is invariant to district relabelling, like the plan itself.
+    relabelled = {unit: PATH_K + 1 - d for unit, d in plan.items()}
+    assert N.vote_concentration(relabelled, PATH_DEM) == pytest.approx(value)
+    with pytest.raises(ValueError, match="no votes"):
+        N.vote_concentration(plan, {unit: 0 for unit in plan})
+
+
+def test_the_seat_outcome_stratum_ranks_by_seats_and_warns_what_it_is():
+    """Kept, labelled, and reported apart: in Iowa it is nearly the old rule."""
+    pool = path_pool()
+    median = N.median_seats(pool, PATH_DEM, PATH_REP, "D")
+    worst = max(abs(brute_force_seats(plan, "D") - median) for plan in pool)
+    cases = nulls_on_path(n_select=3, stratum="seat_outcome")
     assert abs(cases[0].seat_shift) == worst
-    assert [c.selection_rank for c in cases] == [1, 2]
-    assert [c.id for c in cases] == ["null_geography_01", "null_geography_02"]
-    assert abs(cases[0].seat_shift) >= abs(cases[-1].seat_shift)
+    assert all(case.stratum == "seat_outcome" for case in cases)
+    assert all(case.id.startswith("null_seat_outcome_") for case in cases)
+    assert N.ID_PREFIXES["concentration"] == "null_geography"
+    assert "rank-correlated" in cases[0].selection_rule
+    deviations = [case.selection_statistic["seat_deviation"] for case in cases]
+    assert deviations[0] == max(deviations)
+
+
+def test_the_random_stratum_is_a_control_and_is_seeded():
+    pool = path_pool()
+    one = nulls_on_path(n_select=2, stratum="random", seed=3)
+    again = nulls_on_path(n_select=2, stratum="random", seed=3)
+    other = nulls_on_path(n_select=len(pool), stratum="random", seed=9)
+    assert [c.plan for c in one] == [c.plan for c in again]
+    assert all(c.stratum == "random" for c in one)
+    assert "not selected for looking biased" in one[0].selection_rule
+    assert len(other) == len(pool)
+
+
+def test_the_strata_are_returned_separately_and_share_no_plan():
+    """A pooled false positive rate over these is not a quantity; see the docstring."""
+    strata = N.sample_strata(
+        path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
+        PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(path_pool()),
+        n_per_stratum=1,
+    )
+    assert list(strata) == list(N.STRATA)
+    assert N.null_strata is N.sample_strata  # the older name, kept as an alias
+    plans = [case.plan for cases in strata.values() for case in cases]
+    assert len(plans) == len({_plan_key(plan) for plan in plans})
+    for name, cases in strata.items():
+        assert all(case.stratum == name for case in cases)
+    counted = N.sample_strata(
+        path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
+        PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(path_pool()),
+        n_per_stratum={"concentration": 2, "seat_outcome": 1, "random": 0},
+    )
+    assert [len(counted[name]) for name in N.STRATA] == [2, 1, 0]
+    with pytest.raises(ValueError, match="unknown stratum"):
+        N.sample_strata(
+            path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
+            PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(path_pool()),
+            strata=("efficiency_gap",),
+        )
+
+
+def _plan_key(plan):
+    return tuple(sorted(plan.items()))
 
 
 def test_the_null_set_is_not_all_one_direction():
@@ -500,30 +986,19 @@ def test_the_null_set_is_not_all_one_direction():
     """
     pool = path_pool()
     median = N.median_seats(pool, PATH_DEM, PATH_REP, "D")
-    balanced = N.sample_nulls(
-        path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
-        PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(pool), n_select=2,
-    )
+    balanced = nulls_on_path(n_select=2, stratum="seat_outcome")
     sides = {case.realized_seat_count > median for case in balanced}
     assert sides == {True, False}
     assert all("not all one direction" in c.selection_rule for c in balanced)
 
-    strict = N.sample_nulls(
-        path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
-        PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(pool), n_select=4,
-        balance_directions=False,
-    )
-    statistics = [case.selection_statistic for case in strict]
-    assert statistics == sorted(statistics, reverse=True)
+    strict = nulls_on_path(n_select=4, stratum="seat_outcome", balance_directions=False)
+    deviations = [case.selection_statistic["seat_deviation"] for case in strict]
+    assert deviations == sorted(deviations, reverse=True)
     assert "not all one direction" not in strict[0].selection_rule
 
 
 def test_every_null_case_carries_zero_intended_shift_and_its_provenance():
-    cases = N.sample_nulls(
-        path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
-        PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(path_pool()),
-        n_select=3, drawn_by="ReCom, epsilon=0.1, seeds 1..3",
-    )
+    cases = nulls_on_path(n_select=3, drawn_by="ReCom, epsilon=0.1, seeds 1..3")
     for case in cases:
         assert case.intended_seat_shift == 0
         assert case.legality.passed
@@ -537,10 +1012,8 @@ def test_every_null_case_carries_zero_intended_shift_and_its_provenance():
 def test_relabelled_duplicates_do_not_take_two_slots():
     pool = path_pool()
     relabelled = [{u: (PATH_K + 1 - d) for u, d in plan.items()} for plan in pool]
-    cases = N.sample_nulls(
-        path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
-        PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(pool + relabelled),
-        n_select=len(pool) + len(relabelled),
+    cases = nulls_on_path(
+        pool=pool + relabelled, n_select=len(pool) + len(relabelled)
     )
     assert cases[0].pool_size == 2 * len(pool)
     assert cases[0].distinct_pool_size == len(pool)
@@ -553,18 +1026,11 @@ def test_illegal_plans_are_dropped_rather_than_presented_as_neutral_maps():
     lopsided[PATH_UNITS[0]] = PATH_K  # breaks contiguity and population both
     with_bad = [lopsided] + pool
 
-    kept = N.sample_nulls(
-        path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
-        PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(with_bad), n_select=10,
-    )
+    kept = nulls_on_path(pool=with_bad, n_select=10)
     assert all(case.legality.passed for case in kept)
     assert all(case.plan != lopsided for case in kept)
 
-    kept_anyway = N.sample_nulls(
-        path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
-        PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(with_bad),
-        n_select=10, require_legal=False,
-    )
+    kept_anyway = nulls_on_path(pool=with_bad, n_select=10, require_legal=False)
     assert any(not case.legality.passed for case in kept_anyway)
 
 
@@ -618,25 +1084,20 @@ def test_seat_distribution_and_median_describe_the_pool():
 
 
 def test_an_empty_draw_is_an_empty_null_set_not_a_crash():
-    assert (
-        N.sample_nulls(
-            path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
-            PATH_DEM, PATH_REP, sampler=N.sampler_from_plans([]),
-        )
-        == []
-    )
+    assert nulls_on_path(pool=[]) == []
 
 
 @pytest.mark.parametrize(
     "kwargs, message",
-    [({"party": "Whig"}, "party"), ({"n_select": 0}, "n_select")],
+    [
+        ({"party": "Whig"}, "party"),
+        ({"n_select": 0}, "n_select"),
+        ({"stratum": "efficiency_gap"}, "stratum"),
+    ],
 )
 def test_sample_nulls_refuses_bad_arguments(kwargs, message):
     with pytest.raises(ValueError, match=message):
-        N.sample_nulls(
-            path_adjacency(), PATH_POPS, PATH_K, PATH_EPSILON, (1,),
-            PATH_DEM, PATH_REP, sampler=N.sampler_from_plans(path_pool()), **kwargs
-        )
+        nulls_on_path(**kwargs)
 
 
 # --------------------------------------------------------------------------- #
@@ -826,13 +1287,102 @@ def test_iowa_achievable_range_is_two_seats_in_one_direction(iowa_inputs):
     adjacency, pops, dem, rep, enacted = iowa_inputs
     found = achievable_seats(
         adjacency, pops, dem, rep, 4, 2e-4, 20260818, 40_000,
-        restarts=3, baseline_plan=enacted,
+        restarts=3, baseline_plan=enacted, baseline_source="enacted CD118",
     )
     assert found["D"]["max_seats"] == 2
     assert found["R"]["max_seats"] == 4
     assert found["D"]["max_shift"] == 2
     assert found["R"]["max_shift"] == 0
     assert found["max_shift"] == 2
+    assert found["comparable"] is True
+    assert found["baseline_source"] == "enacted CD118"
+    assert found["baseline_seat_counts"] == (0, 4, 0)
+
+
+@iowa
+def test_iowa_r_direction_headroom_is_a_property_of_the_baseline(iowa_inputs, iowa_d):
+    """The round-2 "manufactured headroom", as a measurement of the choice.
+
+    Iowa 2020 is R+8.4 and the enacted map is already 4R-0D, so from the
+    enacted plan the Republican ceiling *is* the baseline and the achievable R
+    shift is 0. Measured from a plan that already gives the Democrats two of
+    four seats — which 47% of neutral ReCom draws do — the same search in the
+    same state reports a **+2** R shift. Nothing about Iowa changed; the
+    subtrahend did. Round 2 took its D shifts from the enacted plan and its R
+    shifts from the most Democratic-favouring draw of a 14-plan reference and
+    pooled the two into one gate.
+    """
+    adjacency, pops, dem, rep, enacted = iowa_inputs
+    assert iowa_d.realized_seat_count >= 2, "the second baseline must not be 4R-0D"
+
+    from_enacted = maximize_seats(
+        "R", adjacency, pops, dem, rep, 4, 2e-4, 20260818, 20_000,
+        restarts=2, baseline_plan=enacted, baseline_source="enacted CD118",
+    )
+    from_two_seat = maximize_seats(
+        "R", adjacency, pops, dem, rep, 4, 2e-4, 20260818, 20_000,
+        restarts=2, baseline_plan=iowa_d.plan,
+        baseline_source="a plan that already gives D two seats",
+    )
+    assert from_enacted.realized_seat_count == from_two_seat.realized_seat_count == 4
+    assert from_enacted.seat_shift == 0
+    assert from_two_seat.seat_shift == 4 - iowa_d.realized_seat_count >= 2
+    assert from_enacted.baseline_source != from_two_seat.baseline_source
+
+
+@iowa
+def test_iowa_the_shape_envelope_makes_a_planted_plan_shape_typical(iowa_inputs):
+    """D-010 on the real graph: the round-2 fingerprint, and its removal.
+
+    Round 2's planted plans had 93-99 cut edges against 46-55 for every neutral
+    map, so ``cut_edges > 60`` alone scored TPR 1.0 and FPR 0.0 without reading
+    a vote. Inside a calibrated envelope the same search, at the same magnitude,
+    returns a plan whose five non-partisan measures all sit within the neutral
+    draws' own range — and the unconstrained search, run here beside it, still
+    does not.
+
+    ``generate`` is imported *in the test*, as in the null case below: the
+    neutral draw happens on the far side of the firewall and this package never
+    reaches across it. Both runs are at the quick epsilon, for the same reason
+    the bench's QUICK size is: at 2e-4 a single unlucky ReCom seed can hold a
+    chain for minutes.
+    """
+    from generate.ensemble import run_chains  # noqa: PLC0415 - see docstring
+    from generate.units import load_geometry  # noqa: PLC0415
+
+    adjacency, pops, dem, rep, enacted = iowa_inputs
+    geometry = load_geometry()
+    epsilon = 2e-3
+    pool = list(run_chains(adjacency, pops, 4, epsilon, 30, (11, 12, 13)).plans)
+    assert len(pool) > 20, "the neutral pool must be big enough to calibrate from"
+    envelope = calibrate_shape_envelope(
+        pool, adjacency, geometry, coverage=1.0,
+        source="3 ReCom chains x 30 steps at epsilon=2e-3",
+    )
+
+    planted = plant_gerrymander(
+        "D", 2, adjacency, pops, dem, rep, 4, epsilon, 20260818, 20_000,
+        baseline_plan=enacted, baseline_source="enacted CD118", restarts=4,
+        shape_envelope=envelope, geometry=geometry, start_plans=pool[::4],
+    )
+    assert planted is not None, "a 2-seat D shift must survive the envelope"
+    assert planted.seat_shift == 2
+    assert planted.legality.passed
+    assert envelope.violations(planted.shape_metrics) == {}
+    assert planted.legality.checks["compactness_within_neutral_envelope"] is True
+
+    unconstrained = plant_gerrymander(
+        "D", 2, adjacency, pops, dem, rep, 4, epsilon, 20260818, 20_000,
+        baseline_plan=enacted, baseline_source="enacted CD118", restarts=4,
+    )
+    assert unconstrained is not None
+    loose_shape = shape_metrics(unconstrained.plan, adjacency, geometry)
+    assert envelope.violations(loose_shape), (
+        "the unconstrained search is supposed to still be separable; if this "
+        "stops being true the round-2 finding has changed and the numbers in "
+        "docs/progress.md need re-measuring"
+    )
+    assert loose_shape["cut_edges"] > planted.shape_metrics["cut_edges"]
 
 
 @iowa

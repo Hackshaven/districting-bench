@@ -162,3 +162,96 @@ Ranked by what has to change first:
 
 Nothing in this round was tuned to make a gate pass. Every gate result above is
 the run as it came out.
+
+---
+
+## Round 3 — the redesign fails its own acceptance test, and produces the round's real result
+
+Round 3 reworked the adversary, the detector's percentile floor and the null
+strata. It was given one falsifiable acceptance test, measured by an agent that
+saw none of the implementation work:
+
+> **AUC separating planted from neutral using ONLY non-partisan metrics.**
+> 0.5 = indistinguishable (the goal). 1.0 = the ground truth leaks its provenance.
+
+| | AUC | verdict |
+| --- | --- | --- |
+| Round 2 (unconstrained search) | 1.000 | trivially separable |
+| **Round 3 (shipped path)** | **0.890** | **PARTIALLY_SEPARABLE — `still_confounded = true`** |
+
+**D-010 is not met.** Separability fell from 1.00 to 0.89; it did not reach 0.5.
+Planted cut edges 46–54 (n=19) against a neutral reference of 40–67 (n=8,793):
+every plant now lies inside the neutral *range*, but only 5.3% sit inside the
+neutral interquartile range, and the histogram overlap coefficient is 0.239. A
+non-partisan screen still beats the shipped detector by a wide margin.
+
+The instrument that *does* reach the target exists and is not wired in.
+`envelope_around_plan` scores 0.52–0.56, is exported in `__all__`, and is called
+from nothing in `src/` — only from tests. The path the bench actually runs is the
+coverage-0.90 quantile band, and the plants pile against its ceiling exactly as the
+module's own docstring predicts.
+
+### The frontier — the actual finding
+
+Asked what happens as the compactness constraint tightens, rather than allowed to
+loosen it until the gate passed:
+
+D-direction, 2-seat shift from the enacted plan, 40,000 iterations × 4 restarts:
+
+| Constraint | Yield | Non-partisan AUC |
+| --- | --- | --- |
+| none (round-2 search) | 8/8 | 1.000 |
+| band 1.00 | 32/32 | 0.994 |
+| band 0.95 | 32/32 | 0.935 |
+| **band 0.90 (shipped)** | **32/32** | **0.912** |
+| band 0.75 | 30/32 | 0.759 |
+| band 0.50 | 20/32 | 0.695 |
+| band 0.25 | 4/32 | 0.654 |
+| band 0.10 | **0/24** | unscoreable |
+
+**Yield collapses to zero before separability reaches 0.5.** On Iowa, at a 2-seat
+shift, a gerrymander that is shape-typical of the neutral ensemble appears not to
+exist — the search cannot find one at any constraint tight enough to make it
+indistinguishable.
+
+If that survives scrutiny it is the most interesting result the project has
+produced, and it points the opposite way from the usual worry: in Iowa's
+4-whole-county congressional problem, **compactness is doing real work as a
+constraint**, and there is very little room for a gerrymander to hide inside the
+traditional criteria. It also means the detection gate as posed may be unreachable
+here for a reason that is about Iowa, not about the detector.
+
+Strong caveat: Iowa is 99 whole counties and 4 districts — an unusually constrained
+problem, chosen precisely because it is small. Nothing here generalises to a
+precinct-level state without being re-measured, and the frontier above is one
+direction, one magnitude, one search algorithm.
+
+### Two more gates that passed for the wrong reason
+
+Round 2's lesson was that a passing gate can mean nothing. Two new instances:
+
+- **`Rule.resolvable` ORs the two tails.** A two-sided rule is declared resolvable
+  when only *one* tail is expressible, and then answers `flagged=False` on the tail
+  the reference provably cannot express. That deflates FPR and lets the FPR gate
+  pass. Round 2's percentile-floor finding survives in one direction.
+- **The FPR gate passes at 0.0000 on a deliberately narrowed null sample**, and the
+  run's only false positive sits in the stratum that was excluded.
+
+Also: the compactness component added to `legal_compliance` cannot fail for any
+scenario the bench can produce — it makes the gate look stricter while adding no
+capacity to fail. And the detection-curve plot now crashes, with the failure
+written to stderr only; `bench-results.json`, which `ARCHITECTURE.md` §5 designates
+as the file critics read, records nothing about the missing plot.
+
+### Round 4 must start here
+
+1. **Wire in the envelope that works, or establish that it cannot work.** The
+   frontier suggests the honest answer may be that a 2-seat shape-typical
+   gerrymander does not exist on Iowa. If so, say that and re-pose the gate; do not
+   ship an adversary at AUC 0.89 and call the ground truth clean.
+2. **Fix `Rule.resolvable` to require both tails**, and re-run — the FPR gate's
+   current pass is not evidence.
+3. **Report strata separately and never pool them**, and stop excluding the
+   stratum that contains the failures.
+4. **A plot that fails must fail the run**, or at minimum be recorded in the
+   artifact.

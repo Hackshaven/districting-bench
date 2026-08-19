@@ -74,12 +74,21 @@ def located(
     trusted: bool | None = None,
     n: int = 1000,
     value: float = 0.0,
+    distinct: int | None = None,
+    ess: float | None = None,
 ) -> O.Location:
     """A hand-built LOCATED location, for decision-rule tests.
 
     Built directly rather than through ``locate`` so that the decision tests
     control the percentile exactly and depend on none of the percentile
     arithmetic; the arithmetic has its own tests above.
+
+    The resolution block defaults to ``n`` distinct draws with no repeats — the
+    best case an ``n``-draw reference can be — so that a decision test which
+    says nothing about resolution is testing the decision. Tests that care pass
+    ``distinct`` or ``ess`` explicitly. Nothing here defaults to "unknown",
+    because ``Rule.resolvable`` refuses an unknown and every decision test would
+    then be a resolution test.
     """
     return O.Location(
         metric=metric,
@@ -91,6 +100,12 @@ def located(
         two_sided_p=min(1.0, 2 * min(percentile, 1 - percentile)),
         z=None,
         n=n,
+        n_distinct=n if distinct is None else distinct,
+        ess=float(n) if ess is None else float(ess),
+        ess_basis="values",
+        max_interior_percentile=(n - 0.5) / n,
+        min_interior_percentile=0.5 / n,
+        outside_support=False,
         trusted=trusted,
     )
 
@@ -168,9 +183,12 @@ def test_a_none_metric_is_not_a_percentile():
     assert loc.value is None
     assert any("undefined, not zero" in r for r in loc.reasons)
 
-    # and the decision rule cannot fire on it
+    # and the decision rule cannot fire on it — and does not answer "not
+    # flagged" either, because it read nothing
     decision = C.flag({"declination": loc})
-    assert decision.flagged is False
+    assert decision.flagged is None
+    assert decision.resolved is False
+    assert "not a finding that the plan is typical" in decision.reason
     assert dict(decision.excluded)["declination"].startswith("no percentile")
 
     # the coercion this guards against would have fired
@@ -458,18 +476,31 @@ def test_combination_rules_differ_on_the_same_locations():
 
 
 def test_all_does_not_flag_vacuously_when_nothing_is_eligible():
-    """"Every eligible metric fired" must not be true of no metrics at all."""
+    """"Every eligible metric fired" must not be true of no metrics at all.
+
+    And the answer is an abstention, not a clean bill of health: round 2
+    returned False here, so a plan the detector could not look at was counted a
+    correct rejection.
+    """
     locations = {"a": O.Location(metric="a", status=O.DEGENERATE)}
     decision = C.flag(locations, C.Rule(combination="all"))
-    assert decision.flagged is False
+    assert decision.flagged is None
+    assert decision.resolved is False
     assert decision.eligible == ()
-    assert "no metric was eligible" in decision.reason
+    assert "UNRESOLVED" in decision.reason
+    assert not decision.flagged                 # still falsy: conservative
+
+
+def test_never_flag_still_answers_false_when_nothing_is_eligible():
+    """The one exception, and it has to be: a control that abstains is no floor."""
+    locations = {"a": O.Location(metric="a", status=O.DEGENERATE)}
+    assert C.flag(locations, C.NEVER_FLAG).flagged is False
 
 
 def test_untrusted_metrics_are_excluded_by_default_and_includable_by_parameter():
     locations = {"mean_median": located("mean_median", 0.999, trusted=False)}
     default = C.flag(locations)
-    assert default.flagged is False
+    assert default.flagged is None            # excluded, so nothing was read
     assert "not trusted" in dict(default.excluded)["mean_median"]
     permissive = C.flag(locations, C.Rule(untrusted="include"))
     assert permissive.flagged is True
@@ -490,9 +521,23 @@ def test_unlocatable_metrics_are_excluded_with_reasons_never_scored_as_typical()
 
 
 def test_a_thin_ensemble_cannot_fire():
+    """Five draws cannot express a 0.99 threshold, and lowering min_n does not help.
+
+    Finding 1 of the round-2 critique in one test. ``min_n`` counts draws; the
+    question is whether the reference can express the threshold, and at n=5 the
+    largest interior percentile is 4.5/5 = 0.9. Setting ``min_n=1`` used to make
+    the rule fire — on a plan whose 0.999 could only have come from sitting
+    outside the observed support.
+    """
     locations = {"m": located("m", 0.999, n=5)}
-    assert C.flag(locations).flagged is False
-    assert C.flag(locations, C.Rule(min_n=1)).flagged is True
+    assert C.flag(locations).flagged is None
+    permissive = C.flag(locations, C.Rule(min_n=1))
+    assert permissive.flagged is None
+    why = dict(permissive.unresolvable)["m"]
+    assert "cannot express threshold 0.99" in why
+    assert "needs at least 50 draws" in why
+    # a threshold the reference *can* express is answered normally
+    assert C.flag(locations, C.Rule(threshold=0.8, min_n=1)).flagged is True
 
 
 def test_every_decision_carries_its_rule():
@@ -616,21 +661,38 @@ def test_the_confusion_matrix_counts_are_exact():
     assert matrix["fired_on_nulls"] == {}
 
 
-def test_no_single_accuracy_number_is_reported():
-    """CRITERIA.md section 11 failure mode 1, in the detector's own output.
+def test_no_accuracy_or_f1_but_the_two_numbers_a_constant_cannot_tie():
+    """CRITERIA.md section 11 failure mode 1, and the round-3 amendment to it.
 
     On this scenario set — 20 planted, 60 nulls — flag-nothing posts an accuracy
-    of 0.75 and flag-everything 0.25; neither is a detector. The matrix is the
-    output.
+    of 0.75 and flag-everything 0.25; neither is a detector, which is why
+    accuracy and F1 stay banned. AUC and Youden J are the opposite case: both
+    constants score exactly at their floor, so a summary built from them cannot
+    report a constant as a working detector. That is the whole reason they were
+    added, and the reason they are reported *beside* the counts and never
+    instead of them.
     """
     scenarios = calibrated_scenarios() + [
         scenario(f"extra_{i}", "null", 0.5) for i in range(40)
     ]
     matrix = C.confusion_matrix(scenarios, C.NEVER_FLAG)
     assert (matrix["tn"] + matrix["tp"]) / matrix["n"] == pytest.approx(0.75)
-    for banned in ("accuracy", "f1", "score", "skill", "auc"):
+    for banned in ("accuracy", "f1", "balanced_accuracy", "fairness_score"):
         assert banned not in matrix
     assert matrix["tpr"] == 0.0 and matrix["fpr"] == 0.0
+
+    # never-flag reads nothing, so it induces no ranking and gets no AUC
+    assert matrix["auc"]["value"] is None
+    assert matrix["youden_j"] == 0.0
+
+    # and the working rule is scored against both constants, in the matrix
+    good = C.confusion_matrix(scenarios)
+    assert set(good["baselines"]) == {"always-flag", "never-flag"}
+    assert good["baselines"]["always-flag"]["youden_j"] == 0.0
+    assert good["baselines"]["never-flag"]["youden_j"] == 0.0
+    assert good["youden_j"] > 0.0
+    assert good["auc"]["value"] > 0.5
+    assert good["beats_baselines"]["verdict"] is True
 
 
 def test_a_calibrated_detector_passes_both_gates():
@@ -682,9 +744,13 @@ def test_a_detector_cannot_flag_what_it_cannot_measure():
             "county_splits": O.Location(metric="county_splits", status=O.DEGENERATE),
         },
     )
-    assert C.flag(blind.locations, C.ALWAYS_FLAG).flagged is False
+    assert C.flag(blind.locations, C.ALWAYS_FLAG).flagged is None
     matrix = C.confusion_matrix([blind], C.ALWAYS_FLAG)
-    assert matrix["fn"] == 1
+    assert matrix["fn"] == 0                    # not a miss — nothing was read
+    assert matrix["unresolved_positive"] == 1
+    assert matrix["tpr"] is None                # no positive was resolved
+    assert matrix["tpr_bounds"]["lower"] == 0.0
+    assert matrix["tpr_bounds"]["upper"] == 1.0
 
 
 def test_rates_over_an_empty_class_are_none_and_gate_pass_is_none():
@@ -852,7 +918,7 @@ def test_iowa_administrative_metrics_are_degenerate_not_typical():
     )
     assert locations["county_splits"].status == O.DEGENERATE
     assert locations["county_splits"].percentile is None
-    assert C.flag(locations).flagged is False
+    assert C.flag(locations).flagged is None
 
 
 def test_summary_lines_survive_a_location_without_a_distribution():
@@ -868,3 +934,358 @@ def test_summary_lines_survive_a_location_without_a_distribution():
     assert "no distribution summary" in lines[0]
     assert "UNTRUSTED" in lines[1] and "UNTRUSTED" not in lines[0]
     assert O.VALUE_UNDEFINED in lines[2]
+
+
+# --------------------------------------------------------------------------- #
+# the percentile floor — round-2 finding 1
+# --------------------------------------------------------------------------- #
+
+def test_the_largest_interior_percentile_is_arithmetic_not_a_preference():
+    """(n - 0.5)/n, and at n=28 that is below a 0.99 threshold.
+
+    The exact statement round 1 violated. ``required_n`` is the inverse: 50
+    draws at t=0.99, 10 at t=0.95, and no finite reference at t=1.0.
+    """
+    assert O.required_n(0.99) == 50
+    assert O.required_n(0.95) == 10
+    assert O.required_n(1.0) is None
+    assert O.required_n(0.0) == 1               # ALWAYS_FLAG asks nothing
+
+    unique = O.locate(None, {"m": list(range(28))}, {"m": 27.0})["m"]
+    assert unique.max_interior_percentile == pytest.approx(27.5 / 28)
+    assert unique.max_interior_percentile < 0.99
+
+
+def test_a_reference_that_cannot_express_the_threshold_is_refused_not_answered():
+    """Round 1's regime: 28 draws over 14 distinct plans, a 0.99 rule.
+
+    The plan sits 0.0005 outside a support pinched shut by 14 distinct values —
+    the shape of two of round 1's six false positives. The old rule returned
+    ``flagged=True`` with percentile 1.0. The fix is an abstention naming the
+    arithmetic, not a smaller number.
+    """
+    ensemble = [float(i % 14) for i in range(28)]         # 28 draws, 14 plans
+    loc = O.locate(None, {"m": ensemble}, {"m": 13.0005})["m"]
+    assert loc.percentile == 1.0                          # outside the support
+    assert loc.outside_support is True
+    assert loc.max_interior_percentile == pytest.approx(1 - 1.0 / 28)
+
+    decision = C.flag({"m": loc})
+    assert decision.flagged is None
+    why = dict(decision.unresolvable)["m"]
+    assert "degenerates into 'outside the observed support'" in why
+    assert "needs at least 50 draws" in why
+
+
+def test_min_n_counts_draws_and_ess_counts_what_they_are_worth():
+    """Round-2 finding 2: 806 draws, 177 distinct plans, ESS 11.7.
+
+    ``Rule.min_n=20`` is satisfied by all three of those numbers, which is the
+    complaint. The reference is built to reproduce the measured figures: one
+    plan repeated 630 times and 176 others once each.
+    """
+    ids = (
+        ["dup"] * 234                                     # one plan, 234 times
+        + [f"a{i}" for i in range(44) for _ in range(4)]  # 44 plans, 4 times
+        + [f"b{i}" for i in range(132) for _ in range(3)] # 132 plans, 3 times
+    )
+    assert len(ids) == 806 and len(set(ids)) == 177
+    # distinct values, so the expressibility and distinct-plan checks both pass
+    # and the effective sample size is the one thing that fails
+    values = [0.001 * i for i in range(806)]
+    loc = O.locate(
+        None, {"m": values}, {"m": 0.5}, ensemble_plan_ids=ids
+    )["m"]
+
+    counts = [234] + [4] * 44 + [3] * 132
+    assert loc.n == 806                                   # passes min_n=20
+    assert loc.n_distinct_plans == 177
+    assert loc.ess == pytest.approx(
+        sum(counts) ** 2 / sum(m * m for m in counts), rel=1e-9
+    )
+    assert 11.0 < loc.ess < 12.0                          # round 2 measured 11.7
+    assert loc.ess_basis == "plans"
+
+    decision = C.flag({"m": loc})
+    assert decision.flagged is None
+    why = dict(decision.unresolvable)["m"]
+    assert "effective sample size" in why and "needs at least 50" in why
+
+
+def test_kish_ess_is_a_duplication_count_at_both_extremes():
+    assert O.kish_ess([1] * 40) == pytest.approx(40.0)     # no repeats
+    assert O.kish_ess([40]) == pytest.approx(1.0)          # one plan, 40 times
+    assert O.kish_ess([]) == 0.0
+    assert O.kish_ess([2, 2]) == pytest.approx(2.0)
+
+
+def test_plan_ids_give_the_exact_distinct_count_and_values_the_conservative_one():
+    """Two distinct plans sharing a value lower the value-basis ESS, never raise it."""
+    values = [0.0, 0.0, 1.0, 2.0]
+    ids = ["a", "b", "c", "d"]                             # four distinct plans
+    with_ids = O.locate(None, {"m": values}, {"m": 1.0}, ensemble_plan_ids=ids)["m"]
+    without = O.locate(None, {"m": values}, {"m": 1.0})["m"]
+    assert with_ids.n_distinct_plans == 4
+    assert with_ids.n_distinct_reference == 4
+    assert without.n_distinct_plans is None
+    assert without.n_distinct_reference == 3               # distinct values
+    assert without.ess < with_ids.ess                      # conservative
+
+
+def test_mismatched_plan_ids_raise_rather_than_misalign():
+    with pytest.raises(ValueError, match="ensemble_plan_ids has 2 entries"):
+        O.locate(None, {"m": [1.0, 2.0, 3.0]}, {"m": 1.0}, ensemble_plan_ids=["a", "b"])
+
+
+def test_the_resolution_travels_with_every_location():
+    loc = O.locate(None, {"m": [float(i) for i in range(60)]}, {"m": 30.0})["m"]
+    block = loc.as_dict()["resolution"]
+    assert block["n"] == 60 and block["n_distinct_values"] == 60
+    assert block["ess"] == pytest.approx(60.0)
+    assert block["max_interior_percentile"] == pytest.approx(59.5 / 60)
+    assert any("reference resolution" in r for r in loc.reasons)
+
+
+def test_rule_resolution_requirements_are_derived_from_the_threshold():
+    """Not constants. A fixed floor here would be one more dial pointed at a gate."""
+    strict = C.Rule(threshold=0.99)
+    loose = C.Rule(threshold=0.95)
+    assert strict.required_n == 50 and strict.required_distinct == 50
+    assert strict.required_ess == 50.0
+    assert loose.required_n == 10 and loose.required_ess == 10.0
+    assert C.NEVER_FLAG.required_n == 0
+    assert C.ALWAYS_FLAG.required_n == 1                   # controls stay usable
+    assert "50" in strict.describe()
+    override = C.Rule(threshold=0.99, min_distinct=4, min_ess=4)
+    assert override.required_distinct == 4 and override.required_ess == 4.0
+    assert override.as_dict()["resolution_requirement"]["required_n"] == 50
+
+
+# --------------------------------------------------------------------------- #
+# AUC and the constant detectors — round-2 finding 3
+# --------------------------------------------------------------------------- #
+
+def inverted_scenarios() -> list[C.Scenario]:
+    """Two plants the rule ranks below two nulls. AUC 0.25 — round 2's number.
+
+    ``outlierness`` is ``2p - 1`` on the high side, so percentiles 0.95 / 0.50
+    for the plants and 0.75 / 0.975 for the nulls put exactly one of the four
+    pairs the right way round.
+    """
+    return [
+        scenario("g_a", "planted", 0.950, shift=2, party="R"),
+        scenario("g_b", "planted", 0.500, shift=1, party="D"),
+        scenario("n_a", "null", 0.750),
+        scenario("n_b", "null", 0.975),
+    ]
+
+
+def test_auc_below_half_means_the_ranking_is_inverted():
+    """The decisive round-2 number, now a first-class output."""
+    block = C.auc(inverted_scenarios())
+    assert block["value"] == pytest.approx(0.25)
+    assert block["beats_constant"] is False
+    assert block["constant_baseline"] == 0.5
+    assert block["n_pairs"] == 4
+    assert "ranking is inverted" in block["note"]
+
+    matrix = C.confusion_matrix(inverted_scenarios())
+    assert matrix["auc"]["value"] == pytest.approx(0.25)
+    assert matrix["beats_baselines"]["verdict"] is False
+    assert matrix["beats_baselines"]["ranking"]["beats"] is False
+
+
+def test_a_constant_detector_scores_exactly_the_auc_floor():
+    """0.5, and it is the *decision* that is 0.5, not the statistic.
+
+    Always-flag can see the same outlierness every rule can — on this set that
+    statistic ranks perfectly — and discards all of it at a threshold of 0.0.
+    So its statistic AUC is 1.0 and its decision AUC is exactly 0.5. The floor
+    "beats both baselines" is measured against is the decision, which is why the
+    baseline block reports that one.
+    """
+    scenarios = calibrated_scenarios()
+    assert C.auc(scenarios, C.ALWAYS_FLAG)["value"] == pytest.approx(1.0)
+
+    always = C.confusion_matrix(scenarios, C.ALWAYS_FLAG, with_baselines=False)
+    assert always["auc"]["decision_auc"] == pytest.approx(0.5)
+    assert always["youden_j"] == pytest.approx(0.0)
+
+    never = C.confusion_matrix(scenarios, C.NEVER_FLAG, with_baselines=False)
+    assert never["auc"]["decision_auc"] == pytest.approx(0.5)
+    assert never["auc"]["value"] is None       # reads nothing, induces no ranking
+
+    baselines = C.confusion_matrix(scenarios)["baselines"]
+    assert baselines["always-flag"]["auc"] == pytest.approx(0.5)
+    assert baselines["never-flag"]["auc"] == pytest.approx(0.5)
+    assert baselines["always-flag"]["statistic_auc"] == pytest.approx(1.0)
+
+
+def test_every_matrix_gate_block_and_report_line_carries_both_baselines():
+    """Finding 3: round 2 buried these in diagnostics, where no gate saw them."""
+    scenarios = calibrated_scenarios()
+    matrix = C.confusion_matrix(scenarios)
+    assert set(matrix["baselines"]) == {"always-flag", "never-flag"}
+    assert matrix["baselines"]["always-flag"]["fpr"] == pytest.approx(1.0)
+    assert matrix["baselines"]["always-flag"]["tpr"] == pytest.approx(1.0)
+    assert matrix["baselines"]["never-flag"]["tpr"] == pytest.approx(0.0)
+
+    gate_block = C.gates(scenarios)
+    assert set(gate_block["baselines"]) == {"always-flag", "never-flag"}
+    assert gate_block["beats_baselines"]["gated"] is False
+    assert gate_block["auc"]["gated"] is False
+
+    text = "\n".join(C.report_lines(matrix, C.detection_curve(scenarios)))
+    assert "always-flag" in text and "never-flag" in text
+    assert "AUC" in text and "Youden J" in text
+    assert "does the rule beat both constant detectors? YES" in text
+
+
+def test_a_rule_a_constant_ties_is_reported_as_not_beating_it():
+    """The round-1 situation: the shipped rule and always-flag score alike."""
+    scenarios = [
+        scenario(f"g{i}", "planted", 0.9999, shift=2, party="R") for i in range(4)
+    ] + [scenario(f"n{i}", "null", 0.9999) for i in range(4)]
+    matrix = C.confusion_matrix(scenarios)
+    assert matrix["tpr"] == pytest.approx(1.0) and matrix["fpr"] == pytest.approx(1.0)
+    assert matrix["youden_j"] == pytest.approx(0.0)
+    assert matrix["auc"]["value"] == pytest.approx(0.5)
+    assert matrix["beats_baselines"]["verdict"] is False
+    assert matrix["beats_baselines"]["operating_point"]["beats"] is False
+
+
+# --------------------------------------------------------------------------- #
+# abstention and the gates
+# --------------------------------------------------------------------------- #
+
+def thin(ident: str, kind: str, percentile: float, *, shift: int = 0) -> C.Scenario:
+    """A scenario whose reference is five draws — too coarse for a 0.99 rule."""
+    return C.Scenario(
+        id=ident,
+        kind=kind,
+        intended_seat_shift=shift,
+        locations={"efficiency_gap": located("efficiency_gap", percentile, n=5)},
+    )
+
+
+def test_abstaining_cannot_pass_a_gate():
+    """A detector that declines to answer must not collect a clean FPR for it.
+
+    Every case here is unresolvable, so the rule flags nothing. Reading the rate
+    over resolved cases would report FPR 0/0 and the gate would go to ``None``;
+    reading it over all nulls with abstentions as clean would report 0.00 and
+    the gate would PASS. Both are wrong, and the second is how a broken detector
+    ships. The gate reads the bound that is worst for the rule.
+    """
+    scenarios = [thin(f"g{i}", "planted", 0.999, shift=2) for i in range(4)]
+    scenarios += [thin(f"n{i}", "null", 0.5) for i in range(10)]
+    matrix = C.confusion_matrix(scenarios)
+    assert (matrix["tp"], matrix["fp"], matrix["tn"], matrix["fn"]) == (0, 0, 0, 0)
+    assert matrix["unresolved_positive"] == 4 and matrix["unresolved_null"] == 10
+    assert matrix["coverage"] == 0.0
+    assert matrix["fpr"] is None                       # nothing was measured
+
+    gate_block = C.gates(scenarios)
+    assert gate_block["fpr_on_nulls"]["value"] is None
+    assert gate_block["fpr_on_nulls"]["bounds"]["upper"] == 1.0
+    assert gate_block["fpr_on_nulls"]["pass"] is False
+    assert gate_block["tpr_at_2seat"]["bounds"]["lower"] == 0.0
+    assert gate_block["tpr_at_2seat"]["pass"] is False
+    assert gate_block["coverage"]["value"] == 0.0
+
+
+def test_an_abstention_is_not_a_true_negative_and_not_a_false_negative():
+    scenarios = [thin("g", "planted", 0.999, shift=2), scenario("n", "null", 0.5)]
+    matrix = C.confusion_matrix(scenarios)
+    rows = {row["id"]: row for row in matrix["scenarios"]}
+    assert rows["g"]["outcome"] == "unresolved_positive"
+    assert rows["g"]["flagged"] is None and rows["g"]["resolved"] is False
+    assert rows["n"]["outcome"] == "true_negative"
+    assert matrix["fn"] == 0 and matrix["tn"] == 1
+
+
+def test_a_bucket_the_rule_abstained_on_is_not_a_detected_magnitude():
+    """min_detectable_seat_shift reads the worst case, so abstention cannot help."""
+    curve = C.detection_curve(
+        [thin(f"g{i}", "planted", 0.999, shift=2) for i in range(4)]
+    )
+    assert curve[0]["n"] == 4 and curve[0]["unresolved"] == 4
+    assert curve[0]["tpr"] is None
+    assert curve[0]["tpr_bounds"]["lower"] == 0.0
+    assert C.min_detectable_seat_shift(curve) is None
+
+
+# --------------------------------------------------------------------------- #
+# no verdict on a real map — round-2 finding 4
+# --------------------------------------------------------------------------- #
+
+def review_locations() -> dict[str, O.Location]:
+    return {
+        "efficiency_gap": located(
+            "efficiency_gap", 0.87, trusted=True, n=200, value=0.1234
+        ),
+        "mean_median": located("mean_median", 0.60, trusted=False, n=200, value=0.02),
+        "declination": O.Location(metric="declination", status=O.VALUE_UNDEFINED),
+        "county_splits": O.Location(metric="county_splits", status=O.DEGENERATE),
+    }
+
+
+def test_the_enacted_plan_gets_a_location_and_no_boolean():
+    """README line 28 and CRITERIA.md 11: a verdict on a real map is a bug."""
+    report = O.review_report(
+        review_locations(),
+        plan_id="ia_enacted_cd118",
+        context=O.Context(
+            trusted=frozenset({"efficiency_gap"}),
+            trust_assessed=frozenset({"efficiency_gap", "mean_median", "declination"}),
+        ),
+    )
+    flat = repr(sorted(report))
+    assert "flagged" not in flat and "verdict" not in flat.replace("no_verdict", "")
+    assert report["percentiles"]["efficiency_gap"] == pytest.approx(0.87)
+    assert report["percentiles"]["declination"] is None
+    assert report["trusted"]["trusted"] == ["efficiency_gap"]
+    assert report["trusted"]["untrusted_marked_not_dropped"] == ["mean_median"]
+    assert "county_splits" in report["trusted"]["not_assessed"]
+    assert report["statuses"]["county_splits"] == O.DEGENERATE
+    assert report["resolution"]["efficiency_gap"]["ess"] == 200.0
+    assert "no flag, no score and no judgement" in report["no_verdict"]
+
+
+def test_the_review_report_says_when_it_cannot_tell_two_plans_apart():
+    """Iowa's enacted efficiency gap is bit-identical to a planted R-gerrymander's.
+
+    Under a 4-0 sweep every Republican vote in a won district is surplus and
+    every Democratic vote is lost, so the wasted-vote arithmetic barely depends
+    on the lines. A percentile on that metric locates the value, not the plan,
+    and the report has to say so rather than publishing the number alone.
+    """
+    report = O.review_report(
+        review_locations(),
+        comparators={"gerry_r_2seat": {"efficiency_gap": 0.1234, "mean_median": 0.09}},
+    )
+    assert report["indistinguishable"]["matches"] == {
+        "efficiency_gap": ["gerry_r_2seat"]
+    }
+    assert any(
+        "cannot distinguish them" in note for note in report["notes"]
+    )
+    assert any("locates the value, not the plan" in n for n in report["notes"])
+
+
+def test_flag_refuses_a_plan_that_carries_no_ground_truth():
+    """The boolean is only defined against a manufactured label."""
+    decision = C.flag(review_locations(), for_scenario=False)
+    assert decision.flagged is None
+    assert "REFUSED" in decision.reason
+    assert "review_report" in decision.reason
+    assert decision.fired == ()
+
+
+def test_an_inverted_ranking_settles_the_baseline_verdict_on_its_own():
+    """Round 1: AUC 0.25 and no measurable operating point. Still a NO."""
+    thin_positives = [thin(f"g{i}", "planted", 0.999, shift=2) for i in range(2)]
+    scenarios = inverted_scenarios() + thin_positives
+    matrix = C.confusion_matrix(scenarios)
+    assert matrix["auc"]["value"] < 0.5
+    assert matrix["beats_baselines"]["verdict"] is False
