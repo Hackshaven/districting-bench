@@ -76,28 +76,42 @@ Which forces two numbers that are *not* accuracy or F1
 The old rule here was "no accuracy, no F1, no single skill number", and the
 reason was sound: on a mostly-null scenario set both constants post respectable
 accuracies, so either summary would report a constant as a working detector.
-That reasoning **argues for** the two statistics added in round 3, because both
-score the constants at exactly their floor by construction:
+That reasoning argues for the two statistics added in round 3 — but **only two
+of the three numbers they produce score the constants at their floor, and round
+3 claimed it of all of them**. The correction, because it was wrong in the
+direction that flatters the report:
 
-``auc``
+``auc["value"]`` — the **statistic** AUC
     Area under the ROC curve for separating planted from neutral plans, over the
-    continuous outlierness the rule actually reads (:func:`outlierness`). Any
-    constant score gives 0.5, ties included. Round 2's rule scored **0.25** —
-    worse than a coin flip, meaning it ranked neutral maps as more gerrymandered
-    than the deliberately planted ones — and that number appeared nowhere in the
-    artifact. It is first-class here: :func:`auc` computes it and every matrix
-    carries it.
+    continuous statistic the rule actually thresholds (:func:`outlierness`).
+    **A constant detector does not score 0.5 here and the old docstring's "any
+    constant score gives 0.5, ties included" was false.** ``ALWAYS_FLAG`` is a
+    constant *decision*, not a constant score: it reads the same percentiles
+    every rule reads and merely thresholds them at 0.0, so on
+    ``tests.calibrated_scenarios`` its statistic AUC is **1.0**, not 0.5, while
+    the shipped rule's is also 1.0 — the number a constant supposedly could not
+    tie, tied. (``NEVER_FLAG`` reads nothing and scores ``None``.) The statistic
+    AUC is still first-class — round 2's rule scored **0.25**, an inverted
+    ranking, and that number appeared nowhere in its artifact — but it is a
+    property of the *statistic*, not of the *detector*, and it has no
+    constant-detector floor. :func:`report_lines` labels it accordingly.
+``auc["decision_auc"]``
+    ``(1 + TPR - FPR)/2``, the area under the ROC through the rule's one shipped
+    operating point. **This** is the number that is exactly 0.5 for both
+    constants by construction, and it is the one the baseline block and
+    ``beats_baselines`` compare against 0.5.
 ``youden_j``
     ``TPR - FPR`` at the rule's own operating point. Exactly 0.0 for always-flag
     and 0.0 for never-flag, so it cannot be tied by a constant without the
     detector being worthless.
 
-Neither is a fairness score and neither replaces the matrix: both are reported
-*after* the full counts, and :func:`confusion_matrix` still returns no accuracy
-and no F1. CRITERIA.md section 11's prohibition is on collapsing **fairness** to
-one number; these collapse **detection skill against manufactured labels**, which
-CRITERIA.md section 8 calls the only thing in the system worth optimizing
-against, and they exist specifically to expose a detector that a constant ties.
+None of the three is a fairness score and none replaces the matrix: all are
+reported *after* the full counts, and :func:`confusion_matrix` still returns no
+accuracy and no F1. CRITERIA.md section 11's prohibition is on collapsing
+**fairness** to one number; these collapse **detection skill against
+manufactured labels**, which CRITERIA.md section 8 calls the only thing in the
+system worth optimizing against. They exist specifically to expose a detector
+that a constant ties — which is why round 3's misplaced floor claim mattered.
 
 A rule its reference cannot express is refused, not answered
 ------------------------------------------------------------
@@ -223,10 +237,12 @@ class Rule:
         The exact check, and the one that subsumes the idealised ``required_n``:
         the reference's attained interior percentile band
         ``[min_interior_percentile, max_interior_percentile]`` must contain the
-        threshold on whichever tail(s) the rule fires. At 28 draws with a tied
-        maximum that band tops out at 0.9643, so a 0.99 rule can only fire on a
-        plan outside the observed support — which is a support test wearing a
-        percentile's clothes, and is exactly how round 1 produced FPR 1.00.
+        threshold on **every** tail the rule fires on — both of them under
+        ``two_sided``, and the check is an AND, not an OR (see
+        :meth:`resolvable`). At 28 draws with a tied maximum that band tops out
+        at 0.9643, so a 0.99 rule can only fire on a plan outside the observed
+        support — which is a support test wearing a percentile's clothes, and is
+        exactly how round 1 produced FPR 1.00.
 
     A location failing any of the four is **unresolvable**, not "not extreme":
     the rule abstains and says so. See :meth:`resolvable`.
@@ -309,6 +325,33 @@ class Rule:
         req = self.required_n
         return None if req is None else float(req)
 
+    @property
+    def fires_on(self) -> tuple[str, ...]:
+        """The tails this rule can fire on: ``("high",)``, ``("low",)`` or both."""
+        if self.tail == "upper":
+            return ("high",)
+        if self.tail == "lower":
+            return ("low",)
+        return ("high", "low")
+
+    def tail_expressibility(self, loc: Location) -> dict[str, bool | None]:
+        """Per-tail: can this reference express this threshold on that tail?
+
+        ``True``/``False`` for each tail in :attr:`fires_on`, ``None`` when the
+        location reports no interior band. Reported as well as read, so an
+        artifact can show *which* half of a two-sided rule the reference
+        supports rather than only that something was unresolvable.
+        """
+        hi = loc.max_interior_percentile
+        lo = loc.min_interior_percentile
+        out: dict[str, bool | None] = {}
+        for side in self.fires_on:
+            if side == "high":
+                out["high"] = None if hi is None else hi >= self.threshold
+            else:
+                out["low"] = None if lo is None else lo <= 1.0 - self.threshold
+        return out
+
     def resolvable(self, loc: Location) -> str | None:
         """``None`` if this reference can express this rule, else the prose why not.
 
@@ -316,10 +359,33 @@ class Rule:
         number it read, because "unresolvable" without the figure is the same
         opacity the round-2 artifact had.
 
-        1. **Expressibility** (``require_expressible``). The threshold must fall
-           inside the attained interior percentile band. Failing this, the only
-           plans that can fire are the ones outside the observed support, and the
-           rule has stopped being a percentile rule.
+        1. **Expressibility** (``require_expressible``), on **every tail the
+           rule fires on** — see :attr:`fires_on` and
+           :meth:`tail_expressibility`. The threshold must fall inside the
+           attained interior percentile band on each of them. Failing this, the
+           only plans that can fire are the ones outside the observed support,
+           and the rule has stopped being a percentile rule.
+
+           Round 3 found this check ORing the two tails, which is the bug it
+           existed to prevent: a ``two_sided`` rule was declared resolvable when
+           only the high tail was expressible and then answered ``False`` on
+           plans in the low tail — the tail the reference provably cannot
+           express. Those silent ``False``\\ s land on nulls, where they are
+           counted as true negatives, so the bug **deflated FPR** and the FPR
+           gate could pass on the strength of answers the arithmetic did not
+           support. A two-sided rule is a claim about both tails and is
+           resolvable only when both are expressible.
+
+           **Why refuse rather than narrow to the expressible tail.** Narrowing
+           is the other defensible repair and it is rejected on purpose: the
+           direction of a one-sided test would then be chosen per metric, per
+           plan, by tie multiplicities in the reference — a data-dependent
+           hypothesis, and the resulting "FPR" would not be the false-positive
+           rate of any rule that could be shipped. A caller who wants one tail
+           declares ``Rule(tail="upper"|"lower")`` in advance, which is
+           resolvable here and is recorded in ``rule.as_dict()`` like every
+           other parameter. The refusal is not silence: the reason names both
+           attained bounds, names the dead tail, and names that remedy.
         2. **Distinct reference items** against :attr:`required_distinct`.
         3. **Effective sample size** against :attr:`required_ess`.
         4. **A location that reports no resolution at all.** Refused rather than
@@ -350,16 +416,28 @@ class Rule:
                     "this location reports no interior percentile band, so "
                     "whether the reference can express the threshold is unknown"
                 )
-            reach_high = self.tail in ("two_sided", "upper") and hi >= self.threshold
-            reach_low = self.tail in ("two_sided", "lower") and lo <= 1.0 - self.threshold
-            if not (reach_high or reach_low):
+            reach = self.tail_expressibility(loc)
+            dead = [name for name, ok in reach.items() if ok is False]
+            if dead:
+                which = " and ".join(f"{name} tail" for name in dead)
+                these = "those tails" if len(dead) > 1 else "that tail"
+                alive = [name for name, ok in reach.items() if ok is True]
+                remedy = (
+                    f" The {alive[0]} tail alone is expressible, so a one-sided "
+                    f"rule — Rule(tail={'upper' if alive[0] == 'high' else 'lower'!r}) "
+                    "— would resolve here; it has to be chosen in advance by a "
+                    "caller who has decided which direction is being tested "
+                    "for, because letting the reference pick the rule's "
+                    "direction makes the test data-dependent."
+                ) if alive else ""
                 return (
                     f"the reference cannot express threshold {self.threshold:g} "
-                    f"on tail {self.tail!r}: its interior percentiles reach only "
-                    f"[{lo:.4g}, {hi:.4g}] over {loc.n} draws, so no plan inside "
-                    f"the ensemble could fire and the rule degenerates into "
-                    f"'outside the observed support'. It needs at least "
-                    f"{req_n} draws with no tie at the extreme value"
+                    f"on the {which} of a {self.tail!r} rule: its interior "
+                    f"percentiles reach only [{lo:.4g}, {hi:.4g}] over {loc.n} "
+                    f"draws, so no plan inside the ensemble could fire on "
+                    f"{these} and the rule degenerates into 'outside the "
+                    f"observed support' there. It needs at least {req_n} draws "
+                    f"with no tie at the extreme value." + remedy
                 )
 
         distinct = loc.n_distinct_reference
@@ -402,12 +480,15 @@ class Rule:
             "required_distinct": self.required_distinct,
             "required_ess": self.required_ess,
             "require_expressible": self.require_expressible,
+            "tails_that_must_be_expressible": list(self.fires_on),
             "min_n": self.min_n,
             "derivation": (
                 "required_n = ceil(0.5 / (1 - max(t, 1 - t))) — the smallest "
                 "reference whose interior mid-rank percentiles can reach the "
                 "threshold t. required_distinct and required_ess default to the "
-                "same figure; both are overridable per rule."
+                "same figure; both are overridable per rule. Expressibility is "
+                "required on EVERY tail the rule fires on — a two_sided rule "
+                "with one dead tail is unresolvable, not half-answered."
             ),
         }
 
@@ -475,6 +556,7 @@ class Rule:
             "min_distinct": self.min_distinct,
             "min_ess": self.min_ess,
             "require_expressible": self.require_expressible,
+            "fires_on": list(self.fires_on),
             "resolution_requirement": self.resolution_requirement(),
             "describe": self.describe(),
         }
@@ -584,20 +666,28 @@ def _screen(loc: Location, rule: Rule) -> tuple[str, str | None]:
 
 
 def _fire(loc: Location, rule: Rule) -> MetricFiring | None:
-    """Does this eligible location cross the rule's threshold?"""
+    """Does this eligible location cross the rule's threshold?
+
+    The comparison is ``metric_statistic(loc, rule) >= rule.threshold`` and
+    nothing else, so the quantity :func:`outlierness` ranks by and the quantity
+    this thresholds cannot drift apart — round 3 found them already apart, with
+    the AUC computed over ``1 - two_sided_p`` while the flag was decided on the
+    mid-rank percentile. Two expressions of one rule is one expression too many.
+    """
     p = loc.percentile
     assert p is not None  # guaranteed by _screen
-    high = p >= rule.threshold
-    low = p <= 1.0 - rule.threshold
-    if rule.tail == "upper":
-        low = False
-    elif rule.tail == "lower":
-        high = False
-    if not (high or low):
+    stat = metric_statistic(loc, rule)
+    if stat is None or stat < rule.threshold:
         return None
-    # A threshold of exactly 0.5 under two_sided makes both true; report the
-    # side the value actually sits on, breaking the exact centre as "high".
-    side = "high" if high and (not low or p >= 0.5) else "low"
+    # Which tail it fired on. Under a one-sided rule the answer is the rule's
+    # own tail; under two_sided a threshold of 0.5 or below makes both sides
+    # true at once, so the exact centre is broken as "high".
+    if rule.tail == "upper":
+        side = "high"
+    elif rule.tail == "lower":
+        side = "low"
+    else:
+        side = "high" if p >= 0.5 else "low"
     return MetricFiring(
         metric=loc.metric,
         percentile=p,
@@ -934,15 +1024,48 @@ def _rate(k: int, n: int) -> float | None:
 # the continuous score the rule reads, and the AUC over it
 # --------------------------------------------------------------------------- #
 
+def metric_statistic(loc: Location, rule: Rule = DEFAULT_RULE) -> float | None:
+    """The quantity ``rule`` compares against its threshold, for one metric.
+
+    ``percentile`` under ``tail="upper"``, ``1 - percentile`` under ``"lower"``,
+    ``max(percentile, 1 - percentile)`` under ``"two_sided"`` — the three forms
+    of "fires when ``p >= t``, when ``p <= 1 - t``, or on either" written as one
+    comparison, ``statistic >= threshold``. :func:`_fire` calls this rather than
+    restating the comparison, and :func:`outlierness` maximises it, so the flag
+    and the ranking are the same arithmetic by construction. ``None`` when the
+    location carries no percentile.
+
+    This is deliberately **not** ``1 - two_sided_p``. The two agree only when
+    nothing in the reference ties the plan's value; ``two_sided_p`` is computed
+    inclusively (``2 * min(#{x <= v}, #{x >= v}) / n``) while the rule reads the
+    mid-rank percentile, so on any metric with ties — ``cut_edges``,
+    ``county_splits``, seat counts, and every partisan metric on a reference
+    holding duplicate plans — they are different numbers *and can rank two plans
+    in opposite orders*. Round 3 found the AUC round 2 called "the decisive
+    number" being computed over the inclusive statistic while the flag was
+    decided on the mid-rank one, so the ROC belonged to a rule nobody ships.
+    """
+    p = loc.percentile
+    if p is None:
+        return None
+    if rule.tail == "upper":
+        return float(p)
+    if rule.tail == "lower":
+        return 1.0 - float(p)
+    return max(float(p), 1.0 - float(p))
+
+
 def outlierness(
     locations: Mapping[str, Location], rule: Rule = DEFAULT_RULE
 ) -> float | None:
     """The continuous quantity ``rule`` thresholds, in ``[0, 1]``. ``None`` if unmeasurable.
 
-    ``1 - two_sided_p``, maximised over the metrics the rule is willing to read.
-    Under ``"any"`` — the default — thresholding this at ``1 - 2(1 - t)``
-    reproduces :func:`flag` exactly, so it is the rule's own statistic and not a
-    parallel scoring function invented for the plot.
+    :func:`metric_statistic`, maximised over the metrics the rule is willing to
+    read. Under ``"any"`` — the default — thresholding this at ``rule.threshold``
+    itself reproduces :func:`flag` exactly, so it is the rule's own statistic and
+    not a parallel scoring function invented for the plot. Under ``two_sided``
+    it runs on ``[0.5, 1]``, which is what a symmetric rule's statistic is; under
+    a one-sided rule on ``[0, 1]``.
 
     Two deliberate departures from :func:`flag`'s screening:
 
@@ -959,9 +1082,11 @@ def outlierness(
       ROC of a ``k_of_n`` rule needs a different score than this one.
 
     ``NEVER_FLAG`` and any ``"none"`` rule return ``None`` for every plan: they
-    read nothing, so they induce no ranking, and their AUC is undefined rather
-    than 0.5. :func:`auc` reports the constant-detector floor of 0.5 explicitly
-    instead of manufacturing it from a degenerate score.
+    read nothing, so they induce no ranking, and their statistic AUC is
+    undefined rather than 0.5 — a degenerate score is not manufactured to fill
+    the hole. ``ALWAYS_FLAG``, by contrast, reads *everything*: its statistic
+    AUC is the statistic's own, which is why 0.5 is not a floor on that number
+    and :func:`auc` says so.
     """
     if rule.combination == "none":
         return None
@@ -975,9 +1100,9 @@ def outlierness(
             continue
         if loc.trusted is False and rule.untrusted == "exclude":
             continue
-        if loc.two_sided_p is None:
+        score = metric_statistic(loc, rule)
+        if score is None:
             continue
-        score = 1.0 - float(loc.two_sided_p)
         if best is None or score > best:
             best = score
     return best
@@ -993,16 +1118,24 @@ def auc(scenarios: Iterable[Any], rule: Rule = DEFAULT_RULE) -> dict[str, Any]:
     planted ones. Round 2's shipped rule scored 0.25 and the number appeared in
     no gate, no report line and none of the five plots.
 
-    Why this and not accuracy: any constant score — always-flag, never-flag, or
-    any rule that fires on everything or nothing — scores exactly 0.5 here,
-    because every pair is a tie. A statistic a constant cannot beat is the only
-    kind worth putting beside a confusion matrix whose gates a constant ties.
+    **This is the AUC of the statistic, not of the detector, and it has no
+    constant-detector floor.** A rule whose *score* is constant would sit at 0.5
+    because every pair ties — but neither shipped constant is one of those:
+    ``ALWAYS_FLAG`` reads the same percentiles every rule reads and throws them
+    away at a threshold of 0.0, so its ``value`` is whatever the statistic is
+    worth on the set (1.0 on ``tests.calibrated_scenarios``), and ``NEVER_FLAG``
+    reads nothing and returns ``None``. The number a constant cannot beat is
+    ``decision_auc`` (:func:`_auc_with_decision`), which is exactly 0.5 for
+    both, and that is the one ``beats_baselines`` compares against 0.5. Round 3
+    asserted the floor for ``value`` and it is false; the assertion mattered
+    because :func:`report_lines` printed the floor beside it.
 
     Returns ``value`` plus everything needed to distrust it: the class counts
     actually scored, how many scenarios produced no score at all, the tie count,
-    and ``constant_baseline`` (0.5, stated rather than assumed). ``value`` is
-    ``None`` when either class has no scored member — a rate over no pairs is a
-    measurement that was not made.
+    ``coin_flip`` (0.5, stated rather than assumed) and ``constant_baseline``,
+    which is ``None`` with a note saying why the concept does not apply to this
+    number. ``value`` is ``None`` when either class has no scored member — a
+    rate over no pairs is a measurement that was not made.
     """
     rows = _scenarios(scenarios)
     pos: list[float] = []
@@ -1039,19 +1172,39 @@ def auc(scenarios: Iterable[Any], rule: Rule = DEFAULT_RULE) -> dict[str, Any]:
         "AUC < 0.5 means the ranking is inverted: neutral maps score as more "
         "outlying than planted ones"
         if value is not None and value < 0.5
-        else "AUC 0.5 is the constant-detector floor"
+        else "0.5 is the coin-flip value for a ranking. It is NOT the "
+        "constant-detector floor: always-flag reads this same statistic and "
+        "scores 1.0 on a separable set — decision_auc is the number both "
+        "constants sit at 0.5 on"
     )
     return {
         "value": value,
-        "constant_baseline": 0.5,
-        "beats_constant": None if value is None else value > 0.5,
+        "coin_flip": 0.5,
+        "constant_baseline": None,
+        "constant_baseline_note": (
+            "no constant-detector floor exists for this number: a constant "
+            "*decision* is not a constant *score*. always-flag reads the same "
+            "statistic every rule reads and scores whatever that statistic is "
+            "worth on the set — 1.0 where it separates the classes — so it can "
+            "tie or beat the shipped rule here. The 0.5 constant floor belongs "
+            "to decision_auc, which is reported beside this."
+        ),
+        "beats_coin_flip": None if value is None else value > 0.5,
         "n_positive_scored": len(pos),
         "n_null_scored": len(neg),
         "n_positive_unscored": unscored_pos,
         "n_null_unscored": unscored_neg,
         "n_pairs": pairs,
         "n_tied_pairs": ties,
-        "score": "max over readable metrics of (1 - two_sided_p)",
+        "score": (
+            "max over readable metrics of the statistic this rule thresholds: "
+            "max(percentile, 1 - percentile) under two_sided, percentile under "
+            "upper, 1 - percentile under lower. Thresholding it at "
+            "rule.threshold reproduces flag() under combination='any'. Not "
+            "1 - two_sided_p, which differs from it wherever the plan's value "
+            "is tied in the reference"
+        ),
+        "score_threshold": rule.threshold,
         "rule": rule.describe(),
         "note": note,
     }
@@ -1087,9 +1240,13 @@ def confusion_matrix(
 
     **No accuracy key and no F1**, for the reason they were banned in round 1: on
     a scenario set that is mostly nulls both constants post a respectable
-    accuracy. ``auc`` and ``youden_j`` are here instead, and are the opposite
-    case — both constants score exactly at their floor (0.5 and 0.0), so neither
-    can flatter one. See the module docstring.
+    accuracy. ``auc`` and ``youden_j`` are here instead. Two of the three numbers
+    they carry — ``auc["decision_auc"]`` and ``youden_j`` — are exactly 0.5 and
+    exactly 0.0 for both constants by construction, so neither can flatter one.
+    ``auc["value"]``, the AUC of the underlying statistic, **has no such floor**:
+    ``ALWAYS_FLAG`` sees the same statistic every rule sees and scores 1.0 on a
+    well-separated set. Round 3's docstring claimed the floor for all of it and
+    was wrong; see the module docstring.
 
     ``tpr`` and ``fpr`` are ``None`` when no case of the class was **resolved**.
     Not 0.0, not 1.0: a rate over no cases is a measurement that was not made.
@@ -1298,9 +1455,13 @@ def _beats_baselines(matrix: Mapping[str, Any]) -> dict[str, Any]:
     is informative:
 
     ``ranking``
-        ``auc > 0.5``. A rule whose AUC exceeds 0.5 has *some* threshold that
-        beats both constants, even if the threshold it currently uses does not.
-        Round 2's rule scored 0.25, so no threshold on its statistic would have.
+        ``auc["value"] > 0.5``. A rule whose statistic AUC exceeds 0.5 has
+        *some* threshold at which TPR > FPR, and therefore some threshold whose
+        ``decision_auc`` beats both constants' 0.5 — even if the threshold it
+        currently ships does not. Round 2's rule scored 0.25, so no threshold on
+        its statistic would have. The 0.5 compared against here is the coin-flip
+        value of a ranking, **not** a score either constant posts: always-flag
+        reads the same statistic and scores it at whatever it is worth.
     ``operating_point``
         ``youden_j > 0``, i.e. TPR > FPR at the threshold the rule actually
         ships. Both constants sit at exactly 0.
@@ -1327,7 +1488,11 @@ def _beats_baselines(matrix: Mapping[str, Any]) -> dict[str, Any]:
         "verdict": verdict,
         "ranking": {
             "auc": auc_value,
-            "constant_baseline": 0.5,
+            "coin_flip": 0.5,
+            "compared_against": (
+                "the coin-flip value of a ranking, not a constant detector's "
+                "score — see auc.constant_baseline_note"
+            ),
             "beats": ranking,
         },
         "operating_point": {
@@ -1615,6 +1780,14 @@ def report_lines(matrix: Mapping[str, Any], curve: Sequence[Mapping[str, Any]]) 
     had neither them nor the AUC, so a reader could work through the whole thing
     without learning that a detector flagging everything scored the same on the
     gates and that the shipped rule's ranking was inverted.
+
+    **Two AUC lines, not one.** Round 3 printed the statistic AUC annotated
+    "constant-detector floor 0.5", which is false for that number: always-flag's
+    statistic AUC is 1.0 wherever the statistic separates the classes, so the
+    line invited a reader to conclude a rule had beaten a constant it had in
+    fact tied. Both numbers are now printed, each with the floor that is
+    actually its own, and the baseline lines print the constants' statistic AUC
+    beside their decision AUC so the claim can be checked on the same page.
     """
     lines = [
         f"rule: {matrix['rule']['describe']}",
@@ -1648,10 +1821,16 @@ def report_lines(matrix: Mapping[str, Any], curve: Sequence[Mapping[str, Any]]) 
     auc_block = matrix.get("auc") or {}
     lines.append(
         f"AUC (planted vs null, on the rule's own statistic) = "
-        f"{_fmt(auc_block.get('value'))}  [constant-detector floor 0.5, "
-        f"reported, not gated]"
+        f"{_fmt(auc_block.get('value'))}  [coin flip 0.5; NOT a "
+        f"constant-detector floor — always-flag reads this same statistic, see "
+        f"the baselines' statistic AUC below; reported, not gated]"
     )
     lines.append(f"  {auc_block.get('note', '')}")
+    lines.append(
+        f"decision AUC (through this rule's operating point) = "
+        f"{_fmt(auc_block.get('decision_auc'))}  [both constant detectors score "
+        f"exactly 0.5 — this is the floor]"
+    )
     lines.append(
         f"Youden J = TPR - FPR = {_fmt(matrix.get('youden_j'))}  "
         "[both constant detectors score exactly 0.0]"
@@ -1663,7 +1842,8 @@ def report_lines(matrix: Mapping[str, Any], curve: Sequence[Mapping[str, Any]]) 
         for name, block in baselines.items():
             lines.append(
                 f"  {name:<12} TPR {_fmt(block['tpr'])}  FPR {_fmt(block['fpr'])}  "
-                f"J {_fmt(block['youden_j'])}  AUC {_fmt(block['auc'])}  "
+                f"J {_fmt(block['youden_j'])}  decision AUC {_fmt(block['auc'])}  "
+                f"statistic AUC {_fmt(block['statistic_auc'])}  "
                 f"min detectable shift "
                 f"{block['min_detectable_seat_shift'] if block['min_detectable_seat_shift'] is not None else 'none'}"
             )
@@ -1701,6 +1881,7 @@ __all__ = [
     "EXCLUDED",
     "UNRESOLVABLE",
     "BASELINE_RULES",
+    "metric_statistic",
     "outlierness",
     "auc",
     "COMBINATIONS",

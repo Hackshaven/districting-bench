@@ -385,3 +385,117 @@ coarse to express its own threshold (§1) — largely dissolves on a graph this 
    mode" is a statement about the approximation, not the in-force map.
 
 Neither caveat is resolved here, and both are stated rather than absorbed.
+
+---
+
+## Round 4 (Colorado, full) and Round 5 (unconfounding)
+
+### The ensemble is finally good
+
+| | Iowa (round 2) | **Colorado (round 4)** |
+| --- | --- | --- |
+| Draws | 806/1040, 2 failures | **12,000/12,000, 0 failures** |
+| Distinct plans | 177 (22%) | **11,706 (98%)** |
+| Split R-hat (cut edges) | 1.4738 | **1.0937** |
+| ESS | 11.7 | **187.5** |
+
+Every ensemble-quality problem that dominated rounds 1–3 is gone. The percentile
+floor, the coarse reference, the chain failures — all artifacts of a 99-node graph
+at a Karcher-tight ε. Split R-hat still misses the 1.00–1.01 band.
+
+### The gate "passed" on n = 1
+
+```
+tpr_at_3seat      target 0.95  value 1.0000  PASS   n=1     ci95 [0.207, 1.000]
+fpr_on_nulls      target 0.05  value 0.0000  PASS   n=24
+legal_compliance  target 1.0   value 1.0000  PASS   n=45
+split_rhat        target 1.01  value 1.0937  FAIL
+```
+
+**The scenario set contains exactly one 3-seat plant, and eight 2-seat plants all
+in the R direction.** TPR at 2 seats is 0.0. So the headline PASS rests on a single
+scenario whose confidence interval reaches down to 0.207.
+
+This is the fourth consecutive round in which a gate passed for a reason that is
+not detection. It is not a coincidence and it is not bad luck: **a gate computed on
+whatever ground truth happened to be produced will keep doing this.** The gate needs
+a minimum-positives precondition in the same way the percentile rule needed a
+minimum-reference precondition, and for exactly the same reason.
+
+### Round 5: the adversary wiring is genuinely fixed, and it is still not enough
+
+Round 3 met D-010 via `envelope_around_plan`, a function nothing called. That is now
+wired into the shipped path — `bench.run → AnchorPool.build → plant_cases →
+plant_gerrymander(shape_envelope=…)` with no fallback — and an independent critic
+confirmed the behaviour changed, not the docstring: on a fixed Iowa reference with
+fixed plant seeds, cut-edge AUC moved 0.767 (band) → 0.637 (matched).
+
+But the acceptance test, measured on **fresh plans from committed code** by an agent
+shown nothing any fixer wrote:
+
+| | AUC | |
+| --- | --- | --- |
+| Colorado | **0.746** | |
+| Iowa | **0.667** | |
+| Iowa, joint Mahalanobis | 0.525 [0.434, 0.616] | ≈ indistinguishable |
+| Iowa, best fitted combination | 0.654 | still separable |
+
+**`still_confounded = true`.** Round 2 was 1.000, round 3 was 0.890, round 5 is
+0.746 on the target state. Three rounds of genuine improvement that have not reached
+the bar. The joint Mahalanobis figure landing at 0.525 while the fitted combination
+sits at 0.654 says the leak is no longer in any single natural direction — it is
+still findable by a classifier allowed to fit.
+
+### The finding that ends the round
+
+> **No 3-seat plant exists in either state.**
+>
+> Iowa, 160 attempts: D+1 17/32, D+2 15/32, **D+3 0/16**, R+1 7/32, R+2 2/32, **R+3 0/16**
+> Colorado, 104 attempts: D+1 8/20, D+2 0/20, **D+3 0/12**, R+1 17/20, R+2 6/20, **R+3 0/12**
+
+D-013 states the gate at 3 seats because that is the smallest magnitude outside the
+2-seat null. Constrained to be *shape-typical* (D-010) and *legal*, the adversarial
+search reaches 3 seats **zero times out of 56 attempts across two states**.
+
+Round 3 asserted something like this and it was retracted, correctly, because
+collapsing yield is not evidence of an empty feasible set when an independent method
+produces counterexamples. This time the claim is narrower and better supported: it is
+about what *this* search reaches under *these* constraints, measured on fresh plans
+across both states and both directions. It is still not proof that no such plan
+exists — a stronger search, or one seeded differently, might find one.
+
+What it does establish is that **the gate and the ground truth are jointly
+unsatisfiable as currently specified.** The magnitude that is large enough to be
+detectable is larger than the magnitude the constrained adversary can build.
+
+### Also found, not yet fixed
+
+- **Colorado's enacted plan is not contiguous at VTD units** — district 4 comes in
+  two rook components. The D-direction baseline is therefore illegal by the
+  project's own `check_legality`, and the new baseline-legality refusal is scoped so
+  it cannot see it. This is a consequence of D-015's whole-VTD approximation.
+- **The FPR deflation survives at the metric level.** `Rule.resolvable` now correctly
+  demands both tails, but `flag()` under `combination="any"` still decides from the
+  eligible metrics alone, so a null with one expressible metric is answered from that
+  metric.
+- **`check_legality` hardcodes `whole_units_no_splits = True`** with a note that is
+  factually false on Colorado, whose units are VTDs.
+- **No regression guard on the wiring just fixed.** Nothing in the suite asserts the
+  shipped bench path passes an envelope to the search — the exact round-3 defect
+  could return green.
+- **D-010's acceptance number is computed nowhere in the repo.** The AUC tables live
+  in module docstrings, produced by code that was never committed. That is precisely
+  where round 3's bad evidence lived.
+
+### A process failure of mine, recorded
+
+I pushed commit `78bc1e3` with **five failing tests**. The state parameterization
+renamed the gate key to `tpr_at_3seat` while `tests/test_bench.py` still asserted
+`tpr_at_2seat`. I ran a targeted Iowa smoke test instead of the full suite and
+reported "Iowa still runs, firewall clean" — both true, and not the check that
+mattered. A critic found it, not me.
+
+The underlying defect was real rather than cosmetic: `summary_lines` raised
+`KeyError` on any report whose gate key differed from the configured state, so
+reading a round-3 Iowa artifact crashed the report. It now names the keys the report
+actually carries. Suite is green at 602.

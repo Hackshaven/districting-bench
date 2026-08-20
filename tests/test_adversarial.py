@@ -61,6 +61,8 @@ from evaluate.plan import load_adjacency as load_rook
 PROCESSED = Path("data/processed")
 HAVE_IOWA = (PROCESSED / "ia_units.csv").exists()
 iowa = pytest.mark.skipif(not HAVE_IOWA, reason="data/processed not built")
+HAVE_CO = (PROCESSED / "co_units.csv").exists()
+colorado = pytest.mark.skipif(not HAVE_CO, reason="Colorado layer not built")
 
 #: Iowa 2020, from docs/FEASIBILITY.md section 2 and the enacted plan.
 IA_IDEAL = 797_592.25
@@ -703,6 +705,138 @@ def test_an_envelope_around_one_plan_is_centred_on_that_plan_and_is_never_empty(
         G.envelope_around_plan(target, pool, adjacency, geometry, width=0)
     with pytest.raises(ValueError, match="no reference plans"):
         G.envelope_around_plan(target, [], adjacency, geometry)
+
+
+def test_the_matched_envelope_names_what_it_is_instead_of_calling_an_iqr_a_coverage():
+    """The round-3 mislabelling, as a regression test.
+
+    ``ShapeEnvelope`` had one numeric field, ``coverage``, standing for three
+    different quantities, and ``check_legality`` rendered all three as "the
+    central N% of the reference". An envelope built as ``target +/- 0.5 IQR``
+    was therefore reported to a reader of ``bench-results.json`` as covering the
+    central 50% of the neutral distribution, which is a different set, usually a
+    different width, and in no sense a coverage at all.
+    """
+    geometry = grid_geometry()
+    adjacency = grid_adjacency()
+    pool = grid_pool()
+    matched = G.envelope_around_plan(pool[3], pool, adjacency, geometry, width=0.5)
+
+    assert matched.kind == "matched"
+    assert matched.coverage is None, "an IQR half-width is not a coverage"
+    assert matched.width == 0.5
+    assert "interquartile" in matched.description
+    assert "central" not in matched.description
+
+    band = grid_envelope(geometry=geometry)
+    assert band.kind == "central_band"
+    assert band.description == f"the central 90% of {band.source}"
+
+    # and the rendering the artifact actually shows comes from one place
+    record = check_legality(
+        pool[3], adjacency, GRID_POPS, GRID_K, GRID_EPSILON,
+        shape_envelope=matched,
+        plan_shape_metrics=shape_metrics(pool[3], adjacency, geometry),
+    )
+    note = record.notes["compactness_within_neutral_envelope"]
+    assert "interquartile" in note and "central 50%" not in note
+
+
+def test_an_envelope_cannot_carry_a_parameter_that_does_not_apply_to_its_kind():
+    kwargs = dict(bounds={"cut_edges": (1.0, 2.0)}, reference_plans=1,
+                  reference_draws=1, measures=("cut_edges",), source="test")
+    with pytest.raises(ValueError, match="coverage"):
+        ShapeEnvelope(coverage=0.5, kind="matched", width=0.5, **kwargs)
+    with pytest.raises(ValueError, match="width"):
+        ShapeEnvelope(coverage=None, kind="matched", **kwargs)
+    with pytest.raises(ValueError, match="width"):
+        ShapeEnvelope(coverage=0.9, width=0.5, **kwargs)
+    with pytest.raises(ValueError, match="coverage"):
+        ShapeEnvelope(coverage=None, **kwargs)
+    with pytest.raises(ValueError, match="kind"):
+        ShapeEnvelope(coverage=None, kind="whatever", **kwargs)
+    floor = ShapeEnvelope(coverage=None, kind="one_sided_floor", **kwargs)
+    assert floor.description.startswith("no less compact than")
+
+
+def test_the_two_matched_constructors_are_one_implementation():
+    """``envelope_from_measurements`` is what the bench calls; it must not drift.
+
+    The bench has already measured every reference draw for the detector's own
+    percentiles, and re-measuring them inside this module costs 2.7 s per
+    Colorado plan. So the shipped path builds the envelope from columns rather
+    than from plans — and a second implementation of the same bound is exactly
+    how the two would come to disagree without anyone noticing.
+    """
+    geometry = grid_geometry()
+    adjacency = grid_adjacency()
+    pool = grid_pool()
+    target = pool[3]
+
+    from_plans = G.envelope_around_plan(target, pool, adjacency, geometry, width=0.5)
+    series = {
+        name: [shape_metrics(p, adjacency, geometry)[name] for p in pool]
+        for name in ENVELOPE_MEASURES
+    }
+    from_columns = G.envelope_from_measurements(
+        shape_metrics(target, adjacency, geometry), series, width=0.5,
+        reference_plans=len(pool), reference_draws=len(pool),
+    )
+    assert from_columns.bounds == pytest.approx(from_plans.bounds)
+    assert from_columns.kind == from_plans.kind == "matched"
+    assert from_columns.anchor == pytest.approx(
+        shape_metrics(target, adjacency, geometry)
+    )
+    with pytest.raises(ValueError, match="width"):
+        G.envelope_from_measurements({"cut_edges": 1.0}, series, width=0)
+    with pytest.raises(ValueError, match="no reference measurements"):
+        G.envelope_from_measurements({"cut_edges": 1.0}, {"cut_edges": []})
+
+
+def test_the_shipped_bench_path_plants_inside_a_matched_envelope_not_a_band():
+    """D-011's finding, closed: the instrument that works is the one that runs.
+
+    Round 3's independent acceptance check measured non-partisan AUC 0.890 on the
+    shipped path and found ``envelope_around_plan`` — which measures 0.52-0.56 —
+    exported in ``__all__`` and called from nowhere in ``src/``. This test lives
+    in the adversarial suite rather than the bench suite because the thing being
+    pinned is which of *this module's* two instruments ``detect.bench`` reaches
+    for; it needs no data files and no ensemble.
+    """
+    from detect import bench
+
+    plans = [dict(plan) for plan in grid_pool()]
+    adjacency = grid_adjacency()
+    geometry = grid_geometry()
+    measured = [shape_metrics(plan, adjacency, geometry) for plan in plans]
+    columns = {
+        name: [row[name] for row in measured] for name in ENVELOPE_MEASURES
+    }
+    pool = bench.AnchorPool.build(
+        plans, columns, n_draws=len(plans), n_distinct=len(plans), source="grid"
+    )
+    anchor = pool.draw(seed=11, k=GRID_K, limit=4)
+
+    assert anchor.envelope.kind == "matched", (
+        "the central band is the round-3 instrument and is reported, not run"
+    )
+    assert anchor.envelope.width == bench.MATCH_WIDTH
+    assert anchor.envelope.contains(measured[anchor.index]), (
+        "an envelope anchored on a draw contains that draw, so the search "
+        "starts feasible and the feasible set is never empty"
+    )
+    assert anchor.starts[0] == plans[anchor.index]
+    assert 1 <= len(anchor.starts) <= 4
+    for start in anchor.starts:
+        assert anchor.envelope.contains(
+            shape_metrics(start, adjacency, geometry)
+        ), "every start plan must satisfy the envelope it is handed with"
+
+    # The anchor is a function of the seed alone, drawn before the search runs,
+    # so no plant can be re-anchored onto whichever draw happened to work.
+    assert pool.draw(seed=11, k=GRID_K, limit=4).index == anchor.index
+    indices = {pool.draw(seed=s, k=GRID_K, limit=1).index for s in range(40)}
+    assert len(indices) > 1, "every plant must not share one anchor"
 
 
 def test_an_unsatisfiable_envelope_exhausts_the_search_rather_than_returning_a_plan():
@@ -1414,3 +1548,341 @@ def test_iowa_nulls_come_from_a_neutral_ensemble_and_look_biased(iowa_inputs):
         assert case.pool_size >= case.distinct_pool_size >= 1
     assert [c.selection_rank for c in cases] == [1, 2, 3, 4]
     assert abs(cases[0].seat_shift) >= abs(cases[-1].seat_shift)
+
+
+# --------------------------------------------------------------------------- #
+# the population bound is a constraint, not a score (round 4)
+# --------------------------------------------------------------------------- #
+#
+# Round 4's Colorado smoke run came back ``legal_compliance = 0.25`` and the
+# first guess was that the adversarial search had walked off its population
+# bound at VTD scale. Measured, it had not: all three planted plans in that run
+# were legal at the operating epsilon (the nine illegal cases were neutral
+# ReCom draws made at ``--quick``'s looser epsilon and read at the operating
+# one), and the planted plans came back with a **5-person spread on a 721,714
+# ideal**. The bound is hard and these tests are that claim as executable
+# checks, because "hard" is the difference between ground truth and an invalid
+# plan.
+#
+# What the same investigation *did* find is below it: the search's own starting
+# plan could not reach the working band on a 3,108-unit graph, so on Colorado
+# the seat phase never moved at all. That failure was silent and its symptom was
+# a message blaming the iteration budget.
+
+
+#: A ladder: two parallel paths, rung by rung, in two districts. Every unit is
+#: on the boundary, and moving any interior rung-unit out of its district cuts
+#: that district in half — so almost every candidate the population descent
+#: ranks highly is contiguity-illegal, and the few legal ones are the two ends.
+#: That is the Colorado situation in miniature: measured there, at the point the
+#: descent declared itself finished, 6,833–12,911 improving candidates remained
+#: and the first connectivity-legal one sat at rank 66, 71 and 72 on three
+#: seeds, just past an absolute probe cap of 60.
+LADDER_N = 100
+
+
+def ladder_adjacency() -> dict[str, list[str]]:
+    adjacency: dict[str, list[str]] = {}
+    for i in range(LADDER_N):
+        a, b = f"a{i:03d}", f"b{i:03d}"
+        adjacency[a] = [b] + ([f"a{i - 1:03d}"] if i else []) + (
+            [f"a{i + 1:03d}"] if i < LADDER_N - 1 else []
+        )
+        adjacency[b] = [a] + ([f"b{i - 1:03d}"] if i else []) + (
+            [f"b{i + 1:03d}"] if i < LADDER_N - 1 else []
+        )
+    return adjacency
+
+
+def ladder_pops() -> dict[str, int]:
+    """The heavy units are the *interior* ones, so they sort to the top.
+
+    The two legal moves — the ends of the a-rail — are worth less population
+    than the 98 illegal ones, so a best-improvement descent meets every illegal
+    candidate before it meets a legal one. Deliberate: it is what makes the
+    probe cap, rather than the descent's own logic, the thing under test.
+    """
+    pops = {}
+    for i in range(LADDER_N):
+        pops[f"a{i:03d}"] = 2 if i in (0, LADDER_N - 1) else 3
+        pops[f"b{i:03d}"] = 1
+    return pops
+
+
+def ladder_state():
+    adjacency = {u: tuple(sorted(n)) for u, n in ladder_adjacency().items()}
+    pops = ladder_pops()
+    plan = {u: (1 if u.startswith("a") else 2) for u in pops}
+    return G._State(plan, adjacency, pops, pops, pops, 2, None), pops
+
+
+def ladder_deviation(state, pops) -> float:
+    ideal = sum(pops.values()) / 2
+    return max(abs(t - ideal) for t in state.totals.values()) / ideal
+
+
+def test_an_absolute_probe_cap_reports_a_local_minimum_that_is_not_one():
+    """The Colorado bug, reproduced on 200 synthetic units in a tenth of a second.
+
+    With the round-3 cap — an absolute 60 — the descent stops with the two
+    districts 49.7% apart while a hundred improving moves are still available,
+    two of them legal. Nothing about that is a local minimum; it is the cap.
+    """
+    state, pops = ladder_state()
+    start = ladder_deviation(state, pops)
+    assert start > 0.49
+
+    G._descend_population(
+        state, sum(pops.values()) / 2, G._Counter(), None, None,
+        probe_fraction=0.0,  # the round-3 behaviour: cap = probes = 60
+    )
+    assert ladder_deviation(state, pops) == pytest.approx(start), (
+        "the absolute cap is supposed to freeze this descent; if it no longer "
+        "does, the fixture stopped reproducing the measured Colorado failure"
+    )
+
+    # ... and the moves it could not see were there all along.
+    cands, _ = G._population_candidates(state, sum(pops.values()) / 2)
+    improving = [c for c in cands if c[0] < -1e-9]
+    assert len(improving) > 60
+    legal_ranks = []
+    for rank, cand in enumerate(improving):
+        applied = G._apply_candidate(state, cand)
+        if applied is not None:
+            state.undo(applied)
+            legal_ranks.append(rank)
+    assert legal_ranks, "the fixture must leave a legal improving move available"
+    assert min(legal_ranks) >= 60, (
+        "the first legal move must sit past the absolute cap, or this test is "
+        "not testing the cap"
+    )
+
+
+def test_the_shipped_probe_cap_scales_with_the_candidate_list_and_gets_out():
+    """The same descent, same fixture, with the cap the module ships."""
+    state, pops = ladder_state()
+    ideal = sum(pops.values()) / 2
+    G._descend_population(state, ideal, G._Counter(), None, None)
+    assert ladder_deviation(state, pops) < 0.02, (
+        "the relative cap must let the descent reach the ends of the ladder"
+    )
+    for district, units in G.districts(state.plan).items():
+        assert G._connected(set(units), state.adj), (
+            f"district {district} was cut in half; the descent applied a move "
+            "whose contiguity check it should have failed"
+        )
+
+
+def test_the_relative_cap_leaves_a_small_graph_alone():
+    """Iowa's numbers must not move to fix a bug Iowa does not have.
+
+    On a 99-county graph the candidate list is a few hundred long, so the
+    fraction never reaches the floor and the cap is still exactly 60. Asserted
+    on the arithmetic rather than on a run, so that it holds for every state of
+    the search rather than for one.
+    """
+    assert G.DEFAULT_DESCENT_PROBES == 60
+    small = 267  # measured: Iowa's candidate list from a growth plan
+    assert int(G.DEFAULT_DESCENT_PROBE_FRACTION * small) < G.DEFAULT_DESCENT_PROBES
+    large = 27_835  # measured: Colorado's, from the same construction
+    assert int(G.DEFAULT_DESCENT_PROBE_FRACTION * large) > 1_000
+
+
+def test_reusing_one_enumeration_never_applies_a_move_that_went_stale():
+    """The repricing that makes enumeration reuse safe.
+
+    One candidate list is used for many moves, and a move invalidates its
+    neighbours' recorded costs. ``_live_cost`` reprices against the live totals;
+    this asserts it prices an invalidated candidate at zero rather than at the
+    cost it had when the list was built.
+    """
+    state, pops = ladder_state()
+    ideal = sum(pops.values()) / 2
+    cands, _ = G._population_candidates(state, ideal)
+    move = next(c for c in cands if c[1] == "move" and c[2] == "a000")
+    assert move[0] < 0
+    assert G._live_cost(state, move, ideal) == pytest.approx(move[0])
+
+    applied = G._apply_candidate(state, move)
+    assert applied is not None
+    # a000 now belongs to district 2, so the recorded candidate is meaningless.
+    assert G._live_cost(state, move, ideal) == 0.0
+
+
+def test_the_repair_phase_returns_only_plans_inside_the_band_or_nothing():
+    """Question three, executed: the bound is enforced, not scored.
+
+    ``_repair`` records a candidate plan only when its excess over the band is
+    exactly zero. Handed a state it cannot tighten — the band here is one
+    person on a 900-person total, and the units are 30 to 110 persons — it must
+    return ``None`` rather than the best plan it saw.
+    """
+    adjacency = {u: tuple(sorted(n)) for u, n in path_adjacency().items()}
+    plan = brute_force_plans()[0]
+    state = G._State(plan, adjacency, PATH_POPS, PATH_DEM, PATH_REP, PATH_K, None)
+    seats = state.seats()
+    impossible = 1.0  # persons
+    assert G._repair(state, random.Random(0), impossible, seats, 8, G._Counter()) is None
+
+    ideal = sum(PATH_POPS.values()) / PATH_K
+    band = PATH_EPSILON * ideal
+    found = G._repair(
+        G._State(plan, adjacency, PATH_POPS, PATH_DEM, PATH_REP, PATH_K, None),
+        random.Random(0), band, seats, 8, G._Counter(),
+    )
+    if found is not None:
+        totals: dict[int, int] = {}
+        for unit, district in found[1].items():
+            totals[district] = totals.get(district, 0) + PATH_POPS[unit]
+        assert max(abs(t - ideal) for t in totals.values()) <= band
+
+
+@pytest.mark.parametrize("seed", [11, 22, 33, 44, 55])
+def test_every_returned_plan_is_inside_the_band_at_every_seed(seed):
+    """No seed may produce a plan outside epsilon. One counterexample is a bug.
+
+    ``maximize_seats`` asserts this on the way out, so the test is really that
+    the assertion is reachable and never fires — the deviation is recomputed
+    here from the plan rather than read off the record it is checking.
+    """
+    result = maximize_on_grid("D", seed=seed)
+    ideal = sum(GRID_POPS.values()) / GRID_K
+    totals: dict[int, int] = {}
+    for unit, district in result.plan.items():
+        totals[district] = totals.get(district, 0) + GRID_POPS[unit]
+    assert max(abs(t - ideal) for t in totals.values()) <= GRID_EPSILON * ideal
+    assert result.legality.checks["population_within_epsilon"]
+    assert result.legal
+
+
+def test_a_restart_frozen_outside_the_working_band_says_so():
+    """The failure that was silent, and the message that blamed the budget.
+
+    The seat phase accepts a move only if the state it lands in has zero excess
+    over the working band, so a restart that begins outside that band can take
+    no move short of one that closes the whole gap. On Colorado every restart
+    began there, the annealer ran its full budget without moving, and the
+    exhaustion message said the budget was the constraint. It must name the
+    real cause instead.
+    """
+    lopsided = {u: (1 if u in PATH_UNITS[:2] else 2) for u in PATH_UNITS}
+    with pytest.raises(SearchExhausted) as excinfo:
+        maximize_seats(
+            "D", path_adjacency(), PATH_POPS, PATH_DEM, PATH_REP, 2, 0.01, 5,
+            2_000, restarts=2, work_epsilon=0.02,
+            start_plans=[lopsided],
+        )
+    message = str(excinfo.value)
+    assert "OUTSIDE the working band" in message
+    assert "2 of 2 restart(s)" in message
+    assert "start_plans" in message
+
+
+def test_plant_refuses_to_measure_a_magnitude_from_an_illegal_baseline():
+    """A shift from an unlawful plan is not a magnitude, it is a number.
+
+    ``_neutral_reference`` returns the most balanced plan it reached rather than
+    raising when it cannot reach the band — correct for a caller that only wants
+    a starting point, and not something ``plant_gerrymander`` may accept
+    silently, because the seat shift it plants is measured *from* that plan.
+    ``None`` would be the wrong answer too: that means "the magnitude was not
+    reached", and this is not that.
+    """
+    with pytest.raises(SearchExhausted) as excinfo:
+        plant_gerrymander(
+            "D", 1, path_adjacency(), PATH_POPS, PATH_DEM, PATH_REP,
+            PATH_K, 1e-9, 3, 2_000, restarts=2, work_epsilon=0.6,
+        )
+    message = str(excinfo.value)
+    assert "neutral reference" in message
+    assert "population_within_epsilon" in message
+    assert "baseline_plan=" in message
+
+
+@colorado
+def test_colorado_the_default_start_reaches_the_band_at_vtd_scale():
+    """The regression that matters: 3,108 units, not 99.
+
+    Measured before the fix, on three seeds: a growth plan at 0.52-0.54 of
+    ideal, and the descent stalling at 0.166, 0.485 and 0.491 — every one of
+    them outside even the 10% working band, let alone Colorado's operating
+    epsilon of 1e-2. After it, the same three seeds reach 3e-6, 5e-6 and 9e-5.
+
+    This is the slowest test in the file and it is worth its seconds: it is the
+    only place the search is exercised on a precinct-scale graph, and every
+    constant it depends on was sized on a county-scale one.
+    """
+    adjacency = load_rook(PROCESSED / "co_adjacency.json")
+    pops = load_populations(PROCESSED / "co_units.csv")
+    assert len(adjacency) == 3_108
+    adj = {u: tuple(sorted(adjacency[u])) for u in adjacency}
+    units = sorted(adj)
+    k = 8
+    ideal = sum(pops.values()) / k
+    epsilon = 1e-2
+
+    plan = G._neutral_reference(
+        adj, pops, units, k, epsilon * ideal, G.DEFAULT_WORK_EPSILON * ideal,
+        random.Random(1000), G._Counter(), tighten=False,
+    )
+    record = check_legality(plan, adjacency, pops, k, epsilon)
+    assert record.checks["contiguous_on_rook_graph"]
+    assert record.max_deviation_fraction <= G.DEFAULT_WORK_EPSILON, (
+        "the seat phase cannot move from a start outside the working band, so "
+        "a start plan that does not reach it makes the whole search inert"
+    )
+    assert record.passed, (
+        "measured, the descent reaches 3e-6 to 9e-5 of ideal on this graph — "
+        "well inside epsilon=1e-2 — so anything short of legal here is a "
+        "regression, not a tolerance to widen"
+    )
+
+
+def test_a_reused_candidate_whose_unit_lost_its_last_neighbour_is_refused():
+    """The bug enumeration reuse introduced, pinned so it cannot come back.
+
+    ``_apply_candidate`` checks that the *source* district survives losing the
+    unit. For a plain move it does not check that the unit still touches the
+    destination, because a freshly enumerated candidate always did. Reuse breaks
+    that.
+
+    The six units below are the smallest graph that separates the two checks.
+    ``x`` reaches district 2 only through ``c``; once ``c`` has moved to
+    district 1, district 1 is still connected without ``x`` (via ``a-e-c``), so
+    the source check passes — and the move would leave district 2 as ``{d, x}``
+    with nothing joining them.
+
+    ``test_colorado_the_default_start_reaches_the_band_at_vtd_scale`` caught this
+    on the real graph, on contiguity. This is the same failure in six units, so
+    it fails in milliseconds and says what it is.
+    """
+    adjacency = {
+        "a": ("b", "e", "x"),
+        "b": ("a",),
+        "e": ("a", "c"),
+        "x": ("a", "c"),
+        "c": ("d", "e", "x"),
+        "d": ("c",),
+    }
+    pops = {unit: 10 for unit in adjacency}
+    plan = {"a": 1, "b": 1, "e": 1, "x": 1, "c": 2, "d": 2}
+    state = G._State(plan, adjacency, pops, pops, pops, 2, None)
+    ideal = sum(pops.values()) / 2
+    assert G._connected(state.members[1], adjacency)
+    assert G._connected(state.members[2], adjacency)
+
+    cands, _ = G._population_candidates(state, ideal)
+    move_x = next(c for c in cands if c[1] == "move" and c[2] == "x")
+    move_c = next(c for c in cands if c[1] == "move" and c[2] == "c")
+    assert G._live_cost(state, move_x, ideal) == pytest.approx(move_x[0])
+
+    assert G._apply_candidate(state, move_c) is not None
+    assert state.plan == {"a": 1, "b": 1, "e": 1, "x": 1, "c": 1, "d": 2}
+
+    # x no longer touches district 2 at all, so the recorded candidate is void.
+    assert G._live_cost(state, move_x, ideal) == 0.0
+
+    # And this is what accepting it would have produced: the source check
+    # passes, and district 2 comes back in two pieces as a "legal" plan.
+    assert G._apply_candidate(state, move_x) is not None
+    assert not G._connected(state.members[2], adjacency)

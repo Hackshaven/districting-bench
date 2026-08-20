@@ -67,8 +67,18 @@ where it matters — at a tie, i.e. on the discrete metrics (``cut_edges``,
 discrete metric ``p_below`` alone reports a plan sitting on the ensemble's modal
 value as extreme-low and ``p_at_or_below`` reports the same plan as extreme-high.
 :attr:`Location.two_sided_p` is ``2 * min(#{x <= v}, #{x >= v}) / n``, clipped to
-1 — the tail probability a two-sided decision rule reads, computed inclusively so
-that ties count *against* calling a plan extreme.
+1 — a two-sided tail probability computed **inclusively**, so that ties count
+*against* calling a plan extreme.
+
+It is reported, and it is **not** the statistic ``confusion.Rule`` thresholds.
+The rule reads the mid-rank ``percentile``: it fires when
+``max(percentile, 1 - percentile) >= threshold``
+(``confusion.metric_statistic``). The two agree wherever no ensemble draw ties
+the plan's value and disagree wherever one does — on the same location they can
+even rank two plans in opposite orders, which is how round 3 found the bench's
+AUC being computed over a statistic no decision used. Earlier text here called
+this "the tail probability a two-sided decision rule reads"; that was the claim
+that made the mix-up easy to miss, and it is withdrawn.
 
 What a percentile rests on — resolution, not just count
 ------------------------------------------------------

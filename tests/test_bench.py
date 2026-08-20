@@ -401,12 +401,12 @@ def test_the_confusion_block_matches_the_scenarios_it_was_built_from(quick_repor
 @iowa
 def test_the_gates_block_has_all_four_gates_in_schema_shape(quick_report):
     gates = quick_report["gates"]
-    for key in ("tpr_at_2seat", "fpr_on_nulls", "split_rhat", "legal_compliance"):
+    for key in (bench.gate_key(), "fpr_on_nulls", "split_rhat", "legal_compliance"):
         assert key in gates
         for field in ("target", "value", "pass"):
             assert field in gates[key]
         assert gates[key]["pass"] in (True, False, None)
-    assert gates["tpr_at_2seat"]["target"] == C.TPR_GATE
+    assert gates[bench.gate_key()]["target"] == C.TPR_GATE
     assert gates["fpr_on_nulls"]["target"] == C.FPR_GATE
     assert gates["split_rhat"]["target"] == bench.RHAT_GATE
 
@@ -415,7 +415,7 @@ def test_the_gates_block_has_all_four_gates_in_schema_shape(quick_report):
 def test_the_gates_read_the_rates_they_claim_to_read(quick_report):
     gates, conf = quick_report["gates"], quick_report["confusion"]
     assert gates["fpr_on_nulls"]["value"] == conf["fpr_on_nulls"]
-    assert gates["tpr_at_2seat"]["value"] == conf["tpr_at_2seat"]
+    assert gates[bench.gate_key()]["value"] == conf[bench.gate_key()]
     if gates["fpr_on_nulls"]["value"] is not None:
         assert gates["fpr_on_nulls"]["pass"] == (
             gates["fpr_on_nulls"]["value"] <= C.FPR_GATE
@@ -906,7 +906,7 @@ def test_the_gates_block_says_whether_it_is_meaningful(quick_report):
     assert qual["size"] == "quick"
     assert qual["reasons"], "an unmeaningful verdict has to say why"
     assert "NOT MEANINGFUL" in qual["note"]
-    for key in ("tpr_at_2seat", "fpr_on_nulls", "split_rhat", "legal_compliance"):
+    for key in (bench.gate_key(), "fpr_on_nulls", "split_rhat", "legal_compliance"):
         assert quick_report["gates"][key]["meaningful"] is False
         assert quick_report["gates"][key]["meaningful_note"] == qual["note"]
 
@@ -962,7 +962,7 @@ _MINIMAL_REPORT = json.dumps({
     },
     "confusion": {},
     "gates": {
-        "tpr_at_2seat": {"target": 0.95, "value": 1.0, "pass": True},
+        bench.gate_key(): {"target": 0.95, "value": 1.0, "pass": True},
         "fpr_on_nulls": {"target": 0.05, "value": 0.0, "pass": True},
         "split_rhat": {"target": 1.01, "value": 1.0, "pass": True},
         "legal_compliance": {"target": 1.0, "value": 1.0, "pass": True,

@@ -131,6 +131,40 @@ The gate is not moved and no threshold is tuned; it fails, and
 :class:`Size` carries the costs, ``gates.split_rhat.trend`` carries this run's own
 version of the measurement, and nothing here was sized to make the gate pass.
 
+One more, added in round 4: the ground truth's shape constraint is now the
+instrument that works
+---------------------------------------------------------------------------
+
+Round 3 constrained the planted search to a **central quantile band** of the
+neutral ensemble's compactness distribution, and an independent measurement — an
+agent that saw none of the implementation and regenerated plans from the
+committed code — put the result at non-partisan AUC **0.890**, against D-010's
+target of 0.5. The same module exported ``envelope_around_plan``, which that
+measurement scored at 0.52-0.56, in ``__all__`` and called it from nowhere in
+``src/``: the good instrument was in the box and the shipped path used the other
+one.
+
+:class:`AnchorPool` closes that. Every plant is now built inside its own
+envelope, anchored on one independently drawn neutral plan and ``MATCH_WIDTH``
+interquartile ranges wide, and the anchor is drawn from a seed that knows nothing
+about the outcome. The band is still computed and still in the artifact, under
+``diagnostics.plant_envelope.band_comparison``, because comparing the two
+instruments on one reference is the measurement — but it is no longer what the
+search runs inside. The reason a band cannot work, stated so it can be checked:
+inside a band the seat objective is near-monotone in raggedness, because
+raggedness is what buys seats, so the plants pile against the band's ceiling and
+their marginal is a point mass at the edge of the neutral one rather than a
+sample of it.
+
+**The cost is yield and it is reported, never traded away.** A matched envelope
+bounds five measures around one draw, and three of them cannot be maintained
+incrementally, so a repaired plan is checked against them only at the end and may
+be rejected. ``diagnostics.planting_attempts`` records every attempt with the
+anchor it drew, and ``diagnostics.achievable_range`` reports the yield per
+magnitude. A magnitude nothing reached is published as a magnitude nothing
+reached; it is never retried from a friendlier anchor and the constraint is never
+loosened to keep the yield.
+
 Determinism
 -----------
 
@@ -326,6 +360,38 @@ GATE_EPSILON = EPSILON
 #: largest line in the budget. ``diagnostics.plant_envelope.matches_module_default``
 #: reports whether the two are still the same number.
 PLANT_SHAPE_COVERAGE = 0.90
+
+#: **VALUE.** The half-width, in reference interquartile ranges, of the envelope
+#: each plant is actually built inside (``gerrymander.DEFAULT_MATCH_WIDTH``).
+#: This is the constraint the shipped path now runs; :data:`PLANT_SHAPE_COVERAGE`
+#: above is retained only as the reported comparison, because the band it
+#: describes is the instrument round 3 measured at AUC 0.89 and the frontier
+#: against it is the finding.
+#:
+#: **Why the search anchors on one draw instead of on the ensemble.** Both are
+#: calibrated from the neutral ensemble and neither is a hand-picked constant, so
+#: the choice is not about provenance; it is about what D-010 asks for. D-010
+#: asks that the planted plans be *indistinguishable* from neutral maps on
+#: non-partisan metrics, which is a statement about two distributions, not about
+#: a feasible set. A central band is a feasible set: inside it the search's
+#: objective is very nearly monotone in raggedness, because raggedness is what
+#: buys seats, so every plant ends up against the band's upper edge and the
+#: planted marginal is a point mass at the ceiling of the neutral one. That is
+#: separable at AUC ~0.9 no matter how the band's width is set — measured in
+#: round 3's frontier, where tightening the band bought separability only by
+#: destroying yield. Anchoring each plant on an independently drawn neutral plan
+#: makes the planted marginal the neutral marginal convolved with a bounded
+#: perturbation: the plants inherit the reference's own spread instead of
+#: piling at its edge, which is what AUC 0.5 requires.
+#:
+#: **The cost, named.** The perturbation is bounded but not zero, so the planted
+#: distribution is the neutral one *blurred* by up to ``MATCH_WIDTH`` IQRs, which
+#: inflates its variance slightly. A width of 0 would remove even that, and would
+#: also demand that the planted plan match the anchor's shape exactly on five
+#: measures, which is unsatisfiable. So the width trades a small variance
+#: inflation against feasibility, and it is a `VALUE` choice for the same reason
+#: the coverage was: nobody can derive it.
+MATCH_WIDTH = G.DEFAULT_MATCH_WIDTH
 
 #: The null strata drawn, in report order, and the subset the FPR gate pools.
 #: See :func:`null_cases` for the argument; ``seat_outcome`` is drawn, scored
@@ -669,16 +735,16 @@ def plant_envelope(
     constraint that stops the bench from measuring the search's fingerprint
     instead of the gerrymander.
 
-    **This is the module default and not a matched envelope.**
-    ``gerrymander.calibrate_shape_envelope`` documents the stronger construction
-    — a ``centre`` drawn per plant from ``U(0, 1)`` with a narrow coverage, which
-    makes the planted marginal a sample of the neutral one rather than a set
-    piled against the band's ragged edge — and measures a cut-edge classifier
-    still separating a *central* band at AUC 0.91. That construction needs an
-    arbitrary quantile of the reference per plant, and the only quantiles
-    available without re-measuring every draw are ``p05`` and ``p95``. So this is
-    the weaker constraint, it is named as the weaker constraint, and
-    ``diagnostics.plant_envelope`` reports the bounds it actually used.
+    **Since round 4 this is REPORTED and is not what the search runs inside.**
+    It was the round-3 shipped constraint, and an independent measurement put the
+    planted plans it produces at non-partisan AUC 0.89 against the neutral
+    ensemble (D-011): a central band is a feasible set, and the seat objective is
+    near-monotone in raggedness inside it, so every plant lands against the
+    band's upper edge. :class:`AnchorPool` replaced it with one matched envelope
+    per plant. The band stays in the artifact under
+    ``diagnostics.plant_envelope.band_comparison`` because the comparison between
+    the two instruments on the same reference is the measurement, and because a
+    reader of round 3's numbers needs to see what changed.
 
     ``None`` when the reference has no draws to calibrate from.
     """
@@ -777,13 +843,13 @@ def compactness_floor(
         else:  # larger is less compact: bound above
             bounds[name] = (-math.inf, max([dist.maximum] + others))
     return G.ShapeEnvelope(
-        coverage=1.0,
+        coverage=None,
+        kind="one_sided_floor",
         bounds=bounds,
         reference_plans=n_distinct,
         reference_draws=n_draws,
         measures=G.ENVELOPE_MEASURES,
         source=source,
-        centre=0.5,
     )
 
 
@@ -821,6 +887,155 @@ def _inside(
     return out
 
 
+@dataclass(frozen=True)
+class Anchor:
+    """One plant's matched envelope, the neutral draw it is anchored on, and its starts."""
+
+    index: int
+    plan: dict
+    envelope: G.ShapeEnvelope
+    starts: list[dict]
+    metrics: dict[str, float]
+
+    def block(self) -> dict[str, Any]:
+        """What goes in the scenario's provenance, so the anchor is checkable."""
+        return {
+            "reference_draw_index": self.index,
+            "plan_digest": O.plan_digest(self.plan),
+            "shape_metrics": dict(self.metrics),
+            "bounds": {
+                name: {"at_least": low, "at_most": high}
+                for name, (low, high) in sorted(self.envelope.bounds.items())
+            },
+            "start_plans": len(self.starts),
+        }
+
+
+@dataclass(frozen=True)
+class AnchorPool:
+    """The reference draws a plant's shape envelope may be anchored on (D-010).
+
+    **This is the shipped constraint since round 4, and the change is the round's
+    primary fix.** Round 3 shipped the central-band envelope of
+    :func:`plant_envelope`, measured it at non-partisan AUC 0.89, and left the
+    instrument that reaches 0.5 — ``gerrymander.envelope_around_plan`` — exported
+    and called from nowhere in ``src/``. The band is retained here as the
+    reported comparison and is no longer what the search runs inside.
+
+    :meth:`draw` picks one reference draw per plant, **uniformly over draws
+    rather than over distinct plans**, and builds
+    ``gerrymander.envelope_from_measurements`` around it. Draw weight is the
+    choice, not distinct-plan weight, because the distribution a plant has to be
+    a sample of is the one the detector's percentiles are taken over, and those
+    are taken over draws (``outlier`` reads the columns as sampled). A ReCom
+    chain repeats plans, so the two weightings differ materially: measured on
+    Iowa, the median cut-edge count is 44 over 24,247 draws and 49 over the 2,217
+    distinct plans among them.
+
+    The anchor is drawn **before** the search runs and from a seed that knows
+    nothing about the outcome, so no anchor is chosen for having worked. A
+    magnitude that is unreachable from a given anchor is recorded as a failure of
+    that attempt; it is not retried from a friendlier one, because retrying until
+    a plant lands is exactly how a yield collapse gets hidden.
+    """
+
+    plans: tuple
+    columns: Mapping[str, Sequence[Any]]
+    series: dict[str, list[float]]
+    eligible: tuple[int, ...]
+    n_draws: int
+    n_distinct: int
+    source: str
+    width: float = MATCH_WIDTH
+
+    @classmethod
+    def build(
+        cls,
+        plans: Sequence[Mapping[str, int]],
+        columns: Mapping[str, Sequence[Any]],
+        *,
+        n_draws: int,
+        n_distinct: int,
+        source: str,
+        width: float = MATCH_WIDTH,
+    ) -> "AnchorPool | None":
+        """``None`` when no reference draw carries all five measures."""
+        series = {
+            name: [float(v) for v in columns.get(name, ()) if v is not None]
+            for name in G.ENVELOPE_MEASURES
+        }
+        if any(not values for values in series.values()):
+            return None
+        eligible = tuple(
+            i
+            for i in range(len(plans))
+            if all(
+                i < len(columns.get(name, ())) and columns[name][i] is not None
+                for name in G.ENVELOPE_MEASURES
+            )
+        )
+        if not eligible:
+            return None
+        return cls(
+            plans=tuple(dict(p) for p in plans),
+            columns=columns,
+            series=series,
+            eligible=eligible,
+            n_draws=int(n_draws),
+            n_distinct=int(n_distinct),
+            source=source,
+            width=float(width),
+        )
+
+    def draw(self, seed: int, k: int, limit: int) -> Anchor:
+        """One anchor, its envelope, and up to ``limit`` feasible start plans.
+
+        The anchor's own plan is always the first start, so the search begins
+        feasible by construction — an envelope built around a plan cannot be
+        empty, which is the property a narrow quantile window does not have. The
+        remaining starts are other reference draws that happen to fall inside the
+        same envelope; they add restart diversity and cost nothing, since the
+        test is read off columns already measured.
+        """
+        index = random.Random(seed).choice(self.eligible)
+        metrics = {
+            name: float(self.columns[name][index]) for name in G.ENVELOPE_MEASURES
+        }
+        envelope = G.envelope_from_measurements(
+            metrics,
+            self.series,
+            width=self.width,
+            source=self.source,
+            reference_plans=self.n_distinct,
+            reference_draws=self.n_draws,
+        )
+        anchor_plan = dict(self.plans[index])
+        starts = [anchor_plan]
+        anchor_key = ensemble.canonical(anchor_plan, k)
+        seen = {anchor_key}
+        for i in self.eligible:
+            if len(starts) >= limit:
+                break
+            if i == index:
+                continue
+            row = {name: float(self.columns[name][i]) for name in G.ENVELOPE_MEASURES}
+            if not envelope.contains(row):
+                continue
+            plan = dict(self.plans[i])
+            key = ensemble.canonical(plan, k)
+            if key in seen:
+                continue
+            seen.add(key)
+            starts.append(plan)
+        return Anchor(
+            index=index,
+            plan=anchor_plan,
+            envelope=envelope,
+            starts=starts,
+            metrics=metrics,
+        )
+
+
 def _in_gate_sample(case: "Case") -> bool:
     """Whether this case counts toward the gate rates. Planted always; nulls by stratum."""
     if case.kind != "null":
@@ -842,8 +1057,11 @@ def _envelope_block(envelope: G.ShapeEnvelope | None, kind: str) -> dict[str, An
     return {
         "calibrated": True,
         "kind": kind,
+        "construction": envelope.kind,
+        "description": envelope.description,
         "coverage": envelope.coverage,
-        "centre": envelope.centre,
+        "width_iqr": envelope.width,
+        "centre": envelope.centre if envelope.kind == "central_band" else None,
         "bounds": bounds,
         "reference_draws": envelope.reference_draws,
         "reference_plans": envelope.reference_plans,
@@ -1105,28 +1323,13 @@ def pick_max_dem_plan(plans: Sequence[Mapping[str, int]], inputs: Inputs) -> dic
     return best
 
 
-def _starts(starts: Sequence[Mapping[str, int]], cell: int, restarts: int) -> list[dict] | None:
-    """The start plans this cell's restarts begin from, rotated so cells differ.
-
-    ``maximize_seats`` walks ``start_plans`` round-robin across its restarts, so
-    handing every cell the same list would start every search from the same four
-    neutral plans. The rotation is by cell index and is therefore deterministic.
-    """
-    if not starts:
-        return None
-    offset = (cell * max(restarts, 1)) % len(starts)
-    ordered = list(starts[offset:]) + list(starts[:offset])
-    return [dict(plan) for plan in ordered]
-
-
 def plant_cases(
     inputs: Inputs,
     baselines: Mapping[str, dict],
     master_seed: int,
     round_number: int,
     size: Size,
-    envelope: G.ShapeEnvelope | None = None,
-    starts: Sequence[Mapping[str, int]] = (),
+    anchors: "AnchorPool | None" = None,
 ) -> tuple[list[Case], list[dict]]:
     """Planted gerrymanders across the achievable seat-shift range, both directions.
 
@@ -1140,6 +1343,15 @@ def plant_cases(
     The probe magnitudes exist for exactly that reason. Nothing is retried and no
     near miss is relabelled — ``plant_gerrymander`` guarantees
     ``realized - baseline == seat_shift`` on everything it returns.
+
+    ``anchors`` supplies the shape constraint (D-010), one **matched envelope per
+    plant** anchored on an independently drawn neutral plan; see
+    :class:`AnchorPool` for why the anchor is a draw rather than a band. Each
+    attempt records the anchor it was given whether or not the search reached the
+    magnitude, so the yield at each magnitude is a measurement of the constraint
+    rather than of which anchors happened to be lucky. ``None`` runs the
+    unconstrained round-2 search, which is kept reachable because the comparison
+    is the frontier result.
     """
     cases: list[Case] = []
     attempts: list[dict] = []
@@ -1153,11 +1365,20 @@ def plant_cases(
             if size.probe_replicates:
                 cells.append((party, baseline_id, magnitude, size.probe_replicates))
 
-    for cell, (party, baseline_id, magnitude, replicates) in enumerate(cells):
+    for party, baseline_id, magnitude, replicates in cells:
         baseline = baselines[baseline_id]
         for index in range(replicates):
             purpose = _purpose(round_number, f"plant/{party}/{magnitude}")
             seed = seeds.derive(master_seed, purpose, index)
+            anchor = (
+                None if anchors is None
+                else anchors.draw(
+                    seeds.derive(master_seed, purpose + "/anchor", index),
+                    K,
+                    max(size.restarts, 1),
+                )
+            )
+            envelope = None if anchor is None else anchor.envelope
             started = time.perf_counter()
             result = G.plant_gerrymander(
                 party,
@@ -1175,7 +1396,7 @@ def plant_cases(
                 restarts=size.restarts,
                 shape_envelope=envelope,
                 geometry=None if envelope is None else inputs.geometry,
-                start_plans=_starts(starts, cell, size.restarts),
+                start_plans=None if anchor is None else [dict(p) for p in anchor.starts],
             )
             seconds = time.perf_counter() - started
             case_id = f"gerry_{party.lower()}_{magnitude}seat_{index:02d}"
@@ -1186,7 +1407,8 @@ def plant_cases(
                 "derivation": "generate.seeds.derive(master_seed, purpose, index)",
                 "built_by": "adversarial.gerrymander.plant_gerrymander",
                 "baseline": baseline_id,
-                "shape_envelope": "plant_envelope" if envelope is not None else None,
+                "shape_envelope": None if anchor is None else "matched",
+                "shape_anchor": None if anchor is None else anchor.block(),
             }
             attempts.append(
                 {
@@ -1196,6 +1418,7 @@ def plant_cases(
                     "intended_seat_shift": magnitude,
                     "seed": seed,
                     "reached": result is not None,
+                    "shape_anchor_draw": None if anchor is None else anchor.index,
                 }
             )
             if result is None:
@@ -1958,14 +2181,20 @@ def _floor_from_report(report: Mapping[str, Any]) -> G.ShapeEnvelope | None:
         )
         for name, row in block["bounds"].items()
     }
+    # ``construction`` carries the kind; a report written before round 4 has no
+    # such key and its floor was published as a coverage-1.0 band, so read that
+    # shape rather than refusing to verify an older artifact.
+    kind = block.get("construction", "central_band")
     return G.ShapeEnvelope(
-        coverage=block["coverage"],
+        coverage=block["coverage"] if kind == "central_band" else None,
+        kind=kind,
+        width=block.get("width_iqr") if kind == "matched" else None,
         bounds=bounds,
         reference_plans=block["reference_plans"],
         reference_draws=block["reference_draws"],
         measures=tuple(block["measures"]),
         source=block["source"],
-        centre=block["centre"],
+        centre=block.get("centre") if kind == "central_band" else 0.5,
     )
 
 
@@ -2047,8 +2276,17 @@ def run(
         f"round {round_number} reference ensemble: {len(ens.plans)} draws, "
         f"{ens.distinct_plans} distinct, epsilon={size.epsilon:g}"
     )
+    # The band is the reported comparison, not the search constraint: round 3
+    # shipped it and measured non-partisan AUC 0.89 against it (D-011).
     envelope = plant_envelope(
         columns, n_draws=len(ens.plans), n_distinct=ens.distinct_plans, source=source
+    )
+    anchors = AnchorPool.build(
+        ens.plans,
+        columns,
+        n_draws=len(ens.plans),
+        n_distinct=ens.distinct_plans,
+        source=source,
     )
     review_metrics = plan_metrics(inputs.enacted, inputs)
     starts = _inside(ens.plans, columns, envelope, K)
@@ -2060,7 +2298,7 @@ def run(
     }
     started = time.perf_counter()
     planted, attempts = plant_cases(
-        inputs, baselines, master_seed, round_number, size, envelope, starts
+        inputs, baselines, master_seed, round_number, size, anchors
     )
     timing["planting_seconds"] = time.perf_counter() - started
     timing["plant_seconds"] = {case.id: case.seconds for case in planted}
@@ -2076,10 +2314,10 @@ def run(
         n_draws=len(ens.plans),
         n_distinct=ens.distinct_plans,
         source=(
-            "the one-sided floor of bench.compactness_floor, calibrated on "
+            "the neutral draws of "
             + source
-            + f", on this round's {len(nulls)} null cases, and on the enacted "
-            "CD118 plan"
+            + f", this round's {len(nulls)} null cases, and the enacted CD118 "
+            "plan (bench.compactness_floor)"
         ),
     )
     started = time.perf_counter()
@@ -2126,6 +2364,7 @@ def run(
         gate_block=gate_block,
         matrix_all=matrix_all,
         envelope=envelope,
+        anchors=anchors,
         floor=floor,
         starts=starts,
         jobs=jobs,
@@ -2473,17 +2712,44 @@ def assemble(**kw) -> dict[str, Any]:
                 ),
             },
             "plant_envelope": {
-                **_envelope_block(kw["envelope"], "search constraint, two-sided"),
+                "kind": "matched" if kw["anchors"] is not None else None,
+                "calibrated": kw["anchors"] is not None,
+                "width_iqr": MATCH_WIDTH,
+                "anchor_selection": (
+                    "one reference draw per plant, uniform over draws (not over "
+                    "distinct plans), seeded from "
+                    "seeds.derive(master_seed, purpose + '/anchor', index) and "
+                    "drawn before the search runs"
+                ),
+                "anchor_pool_draws": (
+                    None if kw["anchors"] is None else len(kw["anchors"].eligible)
+                ),
+                "source": None if kw["anchors"] is None else kw["anchors"].source,
+                "measures": list(G.ENVELOPE_MEASURES),
+                "per_plant_bounds_in": "scenarios[].provenance.shape_anchor",
                 "role": (
                     "the shape bounds adversarial.gerrymander's search may not "
-                    "leave (D-010). Weaker than the matched envelope that module "
-                    "documents; see bench.plant_envelope"
+                    "leave (D-010), one envelope per plant anchored on a neutral "
+                    "draw. This is what the search ran inside; see "
+                    "bench.AnchorPool for why an anchor rather than a band"
                 ),
-                "matches_module_default": (
-                    PLANT_SHAPE_COVERAGE == G.DEFAULT_SHAPE_COVERAGE
-                ),
-                "module_default_coverage": G.DEFAULT_SHAPE_COVERAGE,
-                "start_plans_available": len(kw["starts"]),
+                "band_comparison": {
+                    **_envelope_block(
+                        kw["envelope"], "round-3 search constraint, two-sided"
+                    ),
+                    "role": (
+                        "REPORTED, NOT USED as the search constraint. This is the "
+                        "central band round 3 shipped and an independent check "
+                        "measured at non-partisan AUC 0.89 (D-011). It is kept in "
+                        "the artifact so the two instruments can be compared on "
+                        "the same reference"
+                    ),
+                    "matches_module_default": (
+                        PLANT_SHAPE_COVERAGE == G.DEFAULT_SHAPE_COVERAGE
+                    ),
+                    "module_default_coverage": G.DEFAULT_SHAPE_COVERAGE,
+                    "start_plans_inside_the_band": len(kw["starts"]),
+                },
             },
             "planting_attempts": kw["attempts"],
             "achievable_range": _achievable(kw["attempts"]),
@@ -2618,7 +2884,12 @@ def _achievable(attempts: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         }
     out["note"] = (
         "measured, not assumed: a magnitude with 0 reached of n attempted is a "
-        "statement about what is legally constructible from that baseline"
+        "statement about what this search, at this budget, could build from that "
+        "baseline INSIDE the matched shape envelope (D-010). Three things it is "
+        "not: a proof that no such plan exists, a property of the state alone, or "
+        "a reason to loosen the envelope. Round 3 read a yield of 0/24 as "
+        "evidence that shape-typical gerrymanders did not exist on Iowa and had "
+        "to retract it — the neutral sampler was producing them all along"
     )
     return out
 
@@ -2907,8 +3178,23 @@ def summary_lines(report: Mapping[str, Any]) -> list[str]:
         )
     lines.append("")
     lines.append("gates:")
-    for key in (gate_key(), "fpr_on_nulls", "split_rhat", "legal_compliance"):
-        gate = report["gates"][key]
+    # The TPR gate's key carries the magnitude it was measured at, so a report
+    # written under a different state -- or an earlier round at a different
+    # magnitude -- simply does not have the key this configuration expects. That
+    # is information, not a crash: say the gate is absent and name the keys the
+    # report does carry, so a reader can see it was measured at another magnitude.
+    tpr_keys = [k for k in report["gates"] if k.startswith("tpr_at_")]
+    ordered = (tpr_keys or [gate_key()]) + [
+        "fpr_on_nulls", "split_rhat", "legal_compliance"
+    ]
+    for key in ordered:
+        gate = report["gates"].get(key)
+        if gate is None:
+            lines.append(
+                f"  {key:<18} ABSENT — this report carries "
+                f"{sorted(report['gates']) if not tpr_keys else tpr_keys}"
+            )
+            continue
         verdict = {True: "PASS", False: "FAIL", None: "NOT MEASURED"}[gate["pass"]]
         extra = ""
         if key == "legal_compliance":

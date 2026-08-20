@@ -1068,9 +1068,10 @@ def test_rule_resolution_requirements_are_derived_from_the_threshold():
 def inverted_scenarios() -> list[C.Scenario]:
     """Two plants the rule ranks below two nulls. AUC 0.25 — round 2's number.
 
-    ``outlierness`` is ``2p - 1`` on the high side, so percentiles 0.95 / 0.50
-    for the plants and 0.75 / 0.975 for the nulls put exactly one of the four
-    pairs the right way round.
+    ``outlierness`` is ``max(p, 1 - p)`` — the quantity the rule compares
+    against its threshold — so percentiles 0.95 / 0.50 for the plants and
+    0.75 / 0.975 for the nulls put exactly one of the four pairs the right way
+    round.
     """
     return [
         scenario("g_a", "planted", 0.950, shift=2, party="R"),
@@ -1084,8 +1085,9 @@ def test_auc_below_half_means_the_ranking_is_inverted():
     """The decisive round-2 number, now a first-class output."""
     block = C.auc(inverted_scenarios())
     assert block["value"] == pytest.approx(0.25)
-    assert block["beats_constant"] is False
-    assert block["constant_baseline"] == 0.5
+    assert block["beats_coin_flip"] is False
+    assert block["coin_flip"] == 0.5
+    assert block["constant_baseline"] is None      # no such floor on this number
     assert block["n_pairs"] == 4
     assert "ranking is inverted" in block["note"]
 
@@ -1289,3 +1291,208 @@ def test_an_inverted_ranking_settles_the_baseline_verdict_on_its_own():
     matrix = C.confusion_matrix(scenarios)
     assert matrix["auc"]["value"] < 0.5
     assert matrix["beats_baselines"]["verdict"] is False
+
+
+# --------------------------------------------------------------------------- #
+# round-3 finding: `Rule.resolvable` ORed the two tails
+# --------------------------------------------------------------------------- #
+
+def one_tailed_reference() -> list[float]:
+    """200 draws whose minimum is tied 8 times and whose maximum is unique.
+
+    At ``t = 0.99`` the high tail is expressible (the largest interior mid-rank
+    percentile is 1 - 0.5/200 = 0.9975 >= 0.99) and the low tail is not
+    (the smallest is 0.5 * 8 / 200 = 0.02 > 0.01). A reference can be this
+    lopsided for an ordinary reason: ReCom repeats plans, and repeats at one
+    extreme of a column are not repeats at the other.
+    """
+    return [0.0] * 8 + [float(i) for i in range(1, 193)]
+
+
+#: Only expressibility is under test in this section; the distinct-plan and ESS
+#: floors have their own tests above and are satisfied here by construction.
+EXPRESSIBILITY_ONLY = dict(min_distinct=1, min_ess=1.0)
+
+
+def test_a_two_sided_rule_needs_both_tails_expressible():
+    """The round-3 bug: one expressible tail declared the whole rule resolvable.
+
+    The low-tail plan sits at mid-rank percentile 0.02, exactly the smallest the
+    column can state, and 0.99 asks for 0.01. Before the fix ``resolvable``
+    returned ``None`` because the *high* tail happened to reach 0.99, and the
+    plan was answered ``flagged=False`` — a measurement the arithmetic could not
+    make, on the tail the reference provably cannot express.
+    """
+    column = one_tailed_reference()
+    low = O.locate(None, {"m": column}, {"m": 0.0})["m"]
+    dist = low.distribution
+    assert dist.max_interior_percentile == pytest.approx(1 - 0.5 / 200)   # 0.9975
+    assert dist.min_interior_percentile == pytest.approx(0.02)
+    assert dist.max_interior_percentile >= 0.99                          # high: yes
+    assert dist.min_interior_percentile > 0.01                           # low:  no
+
+    rule = C.Rule(threshold=0.99, **EXPRESSIBILITY_ONLY)
+    assert rule.tail_expressibility(low) == {"high": True, "low": False}
+
+    decision = C.flag({"m": low}, rule)
+    assert decision.flagged is None                    # was False before the fix
+    why = dict(decision.unresolvable)["m"]
+    assert "low tail" in why and "'two_sided'" in why
+    assert "[0.02, 0.9975]" in why                     # both attained bounds named
+    assert "Rule(tail='upper')" in why                 # and the remedy named
+
+
+def test_a_one_sided_rule_declared_in_advance_is_resolvable_on_the_live_tail():
+    """The narrowing is available — to a caller, never to the reference.
+
+    ``tail="upper"`` fires on the expressible tail and resolves; ``tail="lower"``
+    asks for the dead one and abstains. Which of those a run uses is a logged
+    rule parameter, not a property of the ensemble's tie multiplicities.
+    """
+    column = one_tailed_reference()
+    high = O.locate(None, {"m": column}, {"m": 191.5})["m"]
+    low = O.locate(None, {"m": column}, {"m": 0.0})["m"]
+
+    upper = C.Rule(threshold=0.99, tail="upper", **EXPRESSIBILITY_ONLY)
+    assert upper.fires_on == ("high",)
+    assert upper.resolvable(high) is None
+    assert C.flag({"m": high}, upper).flagged is True
+    assert C.flag({"m": low}, upper).flagged is False       # read, and not extreme
+
+    lower = C.Rule(threshold=0.99, tail="lower", **EXPRESSIBILITY_ONLY)
+    assert lower.fires_on == ("low",)
+    assert C.flag({"m": low}, lower).flagged is None
+    assert "low tail" in dict(C.flag({"m": low}, lower).unresolvable)["m"]
+
+    # and the rule that was actually shipped abstains on both, because it claims
+    # both tails and only owns one.
+    two_sided = C.Rule(threshold=0.99, **EXPRESSIBILITY_ONLY)
+    assert C.flag({"m": high}, two_sided).flagged is None
+    assert C.flag({"m": low}, two_sided).flagged is None
+
+
+def test_the_one_tail_bug_deflated_fpr_and_the_fix_restores_the_abstention():
+    """Why it mattered: those silent ``False``\\ s were counted as true negatives.
+
+    Six nulls in the inexpressible tail. Pre-fix they were ``tn`` and the FPR
+    gate read 0.0000 over them; post-fix they are ``unresolved_null``, ``fpr``
+    is ``None`` (no null was resolved), and ``fpr_bounds["upper"]`` — the number
+    the gate reads — is 1.0. A rule that cannot look has not passed anything.
+    """
+    column = one_tailed_reference()
+    low = O.locate(None, {"m": column}, {"m": 0.0})["m"]
+    nulls = [
+        C.Scenario(id=f"n{i}", kind="null", locations={"m": low})
+        for i in range(6)
+    ]
+    rule = C.Rule(threshold=0.99, **EXPRESSIBILITY_ONLY)
+    matrix = C.confusion_matrix(nulls, rule)
+    assert matrix["tn"] == 0 and matrix["fp"] == 0
+    assert matrix["unresolved_null"] == 6
+    assert matrix["fpr"] is None
+    assert matrix["fpr_bounds"]["upper"] == 1.0
+
+    blocks = C.gates(nulls, rule)
+    assert blocks["fpr_on_nulls"]["pass"] is not True
+    assert blocks["coverage"]["value"] == 0.0
+
+
+# --------------------------------------------------------------------------- #
+# round-3 finding: `outlierness` was not the statistic the rule thresholds
+# --------------------------------------------------------------------------- #
+
+def test_outlierness_is_the_quantity_the_rule_compares_against_its_threshold():
+    """``max(p, 1 - p)`` under two_sided, and thresholding it reproduces ``flag``.
+
+    ``1 - two_sided_p`` — what this returned before — is computed inclusively
+    and disagrees with the mid-rank percentile the rule reads wherever the
+    plan's value is tied in the reference.
+    """
+    column = one_tailed_reference()
+    tied = O.locate(None, {"m": column}, {"m": 0.0})["m"]        # 8 ties
+    assert tied.percentile == pytest.approx(0.02)
+    assert tied.two_sided_p == pytest.approx(0.08)               # inclusive
+    rule = C.Rule(threshold=0.99, **EXPRESSIBILITY_ONLY)
+    assert C.metric_statistic(tied, rule) == pytest.approx(0.98)  # mid-rank
+    assert C.outlierness({"m": tied}, rule) == pytest.approx(0.98)
+    assert 1.0 - tied.two_sided_p == pytest.approx(0.92)          # the old value
+
+    # thresholding the statistic at the rule's own threshold reproduces flag()
+    for value in (0.0, 100.0, 186.5, 191.5, 200.0):
+        loc = O.locate(None, {"m": column}, {"m": value})["m"]
+        for tail in ("two_sided", "upper", "lower"):
+            r = C.Rule(threshold=0.95, tail=tail, require_expressible=False,
+                       **EXPRESSIBILITY_ONLY)
+            fired = C.flag({"m": loc}, r).flagged
+            assert fired == (C.outlierness({"m": loc}, r) >= r.threshold), (
+                value, tail
+            )
+
+
+def test_the_old_score_ranked_two_plans_the_opposite_way_from_the_rule():
+    """The AUC round 2 called decisive was over a statistic the rule does not use.
+
+    A tied-bottom plant at mid-rank 0.02 is more extreme than an untied null at
+    0.97 *by the rule* (0.98 > 0.97) and less extreme by ``1 - two_sided_p``
+    (0.92 < 0.94). One pair, so the AUC is 1.0 one way and 0.0 the other.
+    """
+    column = one_tailed_reference()
+    plant = O.locate(None, {"m": column}, {"m": 0.0})["m"]        # p = 0.02
+    null = O.locate(None, {"m": column}, {"m": 186.5})["m"]       # p = 0.97
+    rule = C.Rule(threshold=0.99, **EXPRESSIBILITY_ONLY)
+
+    assert C.outlierness({"m": plant}, rule) > C.outlierness({"m": null}, rule)
+    old_plant = 1.0 - plant.two_sided_p
+    old_null = 1.0 - null.two_sided_p
+    assert old_plant < old_null                                  # the inversion
+
+    scenarios = [
+        C.Scenario(id="p", kind="planted", locations={"m": plant},
+                   intended_seat_shift=3),
+        C.Scenario(id="n", kind="null", locations={"m": null}),
+    ]
+    block = C.auc(scenarios, rule)
+    assert block["value"] == pytest.approx(1.0)                  # was 0.0
+    assert block["score_threshold"] == 0.99
+    assert "1 - two_sided_p" in block["score"]
+
+
+# --------------------------------------------------------------------------- #
+# round-3 finding: the "both constants score at their floor" claim was false
+# --------------------------------------------------------------------------- #
+
+def test_the_statistic_auc_has_no_constant_detector_floor():
+    """Always-flag reads the same statistic and scores 1.0 on it, not 0.5.
+
+    The floor belongs to ``decision_auc`` and to ``youden_j``. The old docstring
+    claimed it for the statistic AUC as well, and ``report_lines`` printed
+    "constant-detector floor 0.5" next to a number the constant had just tied at
+    1.0.
+    """
+    scenarios = calibrated_scenarios()
+    shipped = C.confusion_matrix(scenarios)
+    always = C.confusion_matrix(scenarios, C.ALWAYS_FLAG, with_baselines=False)
+
+    assert shipped["auc"]["value"] == pytest.approx(1.0)
+    assert always["auc"]["value"] == pytest.approx(1.0)          # tied, not floored
+    assert shipped["auc"]["constant_baseline"] is None
+    assert "no constant-detector floor" in shipped["auc"]["constant_baseline_note"]
+
+    # the floor that is real
+    assert always["auc"]["decision_auc"] == pytest.approx(0.5)
+    assert always["youden_j"] == pytest.approx(0.0)
+
+
+def test_report_lines_print_each_auc_with_the_floor_that_is_actually_its_own():
+    scenarios = calibrated_scenarios()
+    matrix = C.confusion_matrix(scenarios)
+    lines = C.report_lines(matrix, C.detection_curve(scenarios))
+    statistic = next(l for l in lines if l.startswith("AUC (planted vs null"))
+    decision = next(l for l in lines if l.startswith("decision AUC"))
+    assert "1.0000" in statistic
+    assert "NOT a constant-detector floor" in statistic
+    assert "coin flip 0.5" in statistic
+    assert "0.8500" in decision
+    assert "both constant detectors score exactly 0.5" in decision
+    # and the constants' own statistic AUC is on the page, so the claim is checkable
+    assert any("statistic AUC 1.0000" in l for l in lines if "always-flag" in l)

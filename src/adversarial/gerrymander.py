@@ -36,76 +36,174 @@ not pass. Asserted, not assumed.
 The shape envelope
 ------------------
 
-:func:`calibrate_shape_envelope` takes neutral ensemble draws and returns the
-central ``coverage`` interval of their own distribution on five non-partisan
-measures (cut edges, Polsby-Popper, Reock, Schwartzberg, convex hull). Passing
-that envelope to :func:`maximize_seats` confines the search to it: two of the
-five are maintained exactly and incrementally so they can be enforced on every
-accepted move, and all five are re-measured through ``evaluate.compactness`` on
-the finished plan before it is returned.
+There are two constructions and they are not interchangeable. Both are
+calibrated from the neutral ensemble rather than from a hand-picked constant, so
+"inside the envelope" means what the detector means by "not an outlier"; they
+differ in what they are calibrated *to*.
 
-The envelope is *calibrated from the ensemble*, never from a hand-picked
-constant, so "inside the envelope" means the same thing the detector means by
-"not an outlier". ``coverage`` is the one number a human has to choose and it is
-a `VALUE` choice; :data:`DEFAULT_SHAPE_COVERAGE` documents what is being chosen.
+:func:`calibrate_shape_envelope` returns the **central ``coverage`` band** of the
+reference's own distribution on five non-partisan measures (cut edges,
+Polsby-Popper, Reock, Schwartzberg, convex hull). It is a feasible set.
 
-The cost is real and it is the interesting part. Constraining the search removes
-plans from its reach, so the achievable seat shift is a function of the
-coverage, and that frontier — how much gerrymandering hides inside the
-traditional criteria — is a result in its own right rather than a tuning knob.
+:func:`envelope_around_plan` — and :func:`envelope_from_measurements`, which is
+the same bound built from columns a caller has already measured — returns bounds
+**anchored on one neutral draw**, ``target +/- width * IQR`` per measure. It is a
+match to a particular plan.
 
-Measured on Iowa against a 24,247-draw ReCom reference (12 chains x 2,200 steps
-at epsilon=2e-4), planting a 1- or 2-seat D shift from the enacted plan. "AUC"
-separates the planted plans from the neutral draws using **only** the five
-non-partisan measures; 0.5 is indistinguishable, 1.0 is a compactness screen
-that works perfectly:
+Passing either to :func:`maximize_seats` confines the search: two of the five
+measures are maintained exactly and incrementally so they can be enforced on
+every accepted move, and all five are re-measured through
+``evaluate.compactness`` on the finished plan before it is returned.
 
-=========================== ============ ============= ==============
-envelope                     2-seat yield AUC cut edges AUC all five
-                                                        (Mahalanobis)
-=========================== ============ ============= ==============
-none (round 2)               6 of 6        **1.00**      **1.00**
-band, coverage 1.00          6 of 6        0.96          0.97
-band, coverage 0.99          6 of 6        0.96          0.89
-band, coverage 0.95          6 of 6        0.93          0.80
-band, coverage 0.90          6 of 6        0.84          0.67
-band, coverage 0.75          5 of 6        0.65          0.46
-band, coverage 0.50          1 of 6 (*)    0.50          0.10
-:func:`envelope_around_plan` 5 of 12       **0.44**      **0.52**
-=========================== ============ ============= ==============
+**The band does not work and the reason is structural, not a matter of its
+width.** Inside a band the seat objective is very nearly monotone in raggedness,
+because raggedness is what buys seats, so every planted plan ends up against the
+band's upper edge: the planted marginal becomes a point mass at the ceiling of
+the neutral one rather than a sample of it. Tightening the band moves the
+ceiling without changing that, which is what round 3's frontier measured — yield
+fell 32/32 to 0/24 while separability never reached 0.5 (docs/progress.md). An
+independent measurement of the shipped round-3 path, by an agent that saw none of
+the implementation, put it at **AUC 0.890**.
 
-(*) 4 of 6 once the budget is raised to 60,000 iterations and 8 restarts: the
-tight bands cost search effort, not feasibility. Feasibility is not in doubt at
-any coverage — 1,593 of the reference's own draws sit inside the coverage-0.50
-envelope *and* win the Democrats two seats.
+Anchoring on a draw cannot be empty (the draw is in it) and gives the planted
+plans the reference's own spread. Since round 4 that is what ``detect.bench``
+ships, one envelope per plant, the anchor drawn uniformly over reference *draws*
+before the search runs.
 
-**The band is not enough and the last row is why.** A central band still lets
-the search pile every planted plan against its ragged edge, because raggedness
-is what buys seats; only anchoring the envelope on a *particular neutral draw*
-makes the planted plans' shape distribution a sample of the neutral one. The
-five AUCs there are 0.44, 0.39, 0.59, 0.59, 0.46 and the joint one 0.52, every
-95% interval covering 0.5 (n=15 planted plans, Hanley-McNeil). That is the
-configuration to plant with; the band remains the cheaper screen and the honest
-comparison.
+Measured for round 4 on a 1,664-draw ReCom reference (8 chains x 250 at
+epsilon=2e-4, 369 distinct, 2 chain failures), planting 1-, 2- and 3-seat shifts
+in both directions at 40,000 iterations x 4 restarts. "AUC" separates the 18
+planted plans from the 1,664 neutral draws using **only** the five non-partisan
+measures; 0.5 is indistinguishable, 1.0 is a compactness screen that works
+perfectly:
 
-Two findings that fall out of the frontier and belong to Iowa, not to the code:
+============================ ================================= ==============
+Iowa, matched at width 0.5    per measure                        joint
+                                                                 (Mahalanobis)
+============================ ================================= ==============
+cut edges                     0.622                              **0.489**
+Polsby-Popper                 0.422                              95% CI
+Reock                         0.476                              0.356-0.622
+Schwartzberg                  0.577
+convex hull                   0.406
+============================ ================================= ==============
 
-* **The 3-seat plan cannot be built inside the envelope at all.** Three D seats
-  is the arithmetic ceiling and the only magnitude outside the neutral
-  *seat* distribution — and the search reaches it only unconstrained, at 84 cut
-  edges against a neutral range of 39-64 (200,000 iterations x 12 restarts;
-  every coverage from 1.00 down failed at the same budget). In Iowa the only
-  gerrymander big enough to be visible in the seat count is also one a
-  compactness screen catches.
-* **At 2 seats the classes genuinely overlap.** 47% of neutral draws already
-  give the Democrats two seats. Conditioned on that outcome — planted 2-seat
-  plans against the 11,321 neutral draws that also win two — the coverage-0.90
-  plants are indistinguishable from them on the detector's own metrics as well:
-  AUC 0.53 on efficiency gap, 0.57 on mean-median. The target-matched plants
-  sit at efficiency-gap percentiles 0.16-0.94 of the full reference, nowhere
-  near a 0.99 tail. **No percentile-tail detector can reach TPR 0.95 at a
-  2-seat shift in Iowa**, and that is a fact about the state and the magnitude
-  rather than a defect in any rule.
+The joint interval covers 0.5 and the worst single measure is 0.62. The band
+was re-measured beside it on the *same* reference, budget and seeds, so the
+comparison is like-for-like rather than against round 3's differently-sized run:
+
+=========================== =========== =========== =========== ===========
+same reference, same seeds   Iowa band   Iowa        Colorado    Colorado
+                                         matched     band        matched
+=========================== =========== =========== =========== ===========
+cut edges                    **0.880**   0.622       **0.939**   0.761
+Polsby-Popper                0.214       0.422       0.282       0.385
+Reock                        0.282       0.476       0.695       0.338
+Schwartzberg                 0.800       0.577       0.798       0.640
+convex hull                  0.245       0.406       0.395       0.475
+joint (Mahalanobis)          0.696       **0.489**   0.569       **0.529**
+plants reached               21 of 48    18 of 48    4 of 24     8 of 24
+=========================== =========== =========== =========== ===========
+
+On Iowa the matched envelope costs 3 plants of 48 and takes the best single
+screen from 0.88 to 0.62. **On Colorado it costs nothing at all** — it doubles
+the yield, 8 of 24 against 4 of 24, while taking the best screen from 0.94 to
+0.76 — because a band that must hold on five correlated measures at once is a
+much smaller feasible set than an envelope around a plan that is already in it.
+The band's Iowa figure here, 0.88 on cut edges, is the same finding an
+independent measurement reported as 0.890 for the round-3 shipped path. **Yield is what it costs**, and
+it is reported rather than traded away: of 8 attempts per cell, D +1 3, D +2 6,
+D +3 **0**; R +1 6, R +2 3, R +3 **0** (R measured from the ensemble's most
+Democratic draw, which is the only baseline giving R headroom in Iowa).
+
+**The obvious way this construction could still leak, checked.** Only 18 of 48
+attempts reached their magnitude, so the planted set is anchored on a *surviving*
+subset of the reference — and if the search only succeeded from unusually ragged
+anchors, the anchoring would be laundering the same bias through a different
+door. Comparing the 18 surviving anchors against all 1,664 reference draws on
+the five measures gives AUC 0.523, 0.494, 0.451, 0.499, 0.443 and a joint 0.537,
+every 95% interval covering 0.5. The anchors that worked are shape-typical, so
+the yield is not buying separability back.
+
+**The 3-seat magnitude is out of reach inside a matched envelope on Iowa, and
+that is the finding, not a reason to loosen the envelope.** Three D seats is
+Iowa's arithmetic ceiling and the plan is razor thin — three districts at 50.17%,
+50.07% and 50.12% — so the legal region around it is tiny, and the unconstrained
+search needs roughly 200,000 iterations x 12 restarts to find it at all, at 84
+cut edges against a neutral range of 39-64. D-013 states Iowa's detection gate at
+a 3-seat magnitude because the neutral seat distribution spans 2. So on Iowa the
+only magnitude the gate can be stated at is one this adversary cannot reach while
+staying shape-typical. Note what that is and is not: it is a statement about this
+search at this budget in this state, **not** a proof that no such plan exists.
+Round 3 made exactly that inference from a yield of 0/24 and had to retract it,
+because the neutral sampler had been producing counterexamples in the same
+artifact all along.
+
+Colorado: the same instrument, a second geography
+-------------------------------------------------
+
+The envelope was calibrated on Iowa's 99 counties, so nothing above transfers
+until it is re-measured. Round 4 measured it on Colorado — 3,108 VTDs, 8
+districts, epsilon=1e-2 — against a 720-draw reference (6 chains x 120, 708
+distinct, no chain failures), 4 replicates per cell, same 40,000 x 4 budget:
+
+=========================== ============= ======================= ===========
+measure                      Iowa (n=18)   Colorado, all (n=8)     Colorado at
+                                                                   3 seats (4)
+=========================== ============= ======================= ===========
+cut edges                    0.622         **0.761** (0.57-0.96)   0.663
+Polsby-Popper                0.422         0.385                   0.509
+Reock                        0.476         0.338                   0.424
+Schwartzberg                 0.577         0.640                   0.554
+convex hull                  0.406         0.475                   0.535
+joint (Mahalanobis)          **0.489**     **0.529** (0.33-0.73)   **0.332**
+=========================== ============= ======================= ===========
+
+Yield, 4 attempts per cell: D +1 **1**, D +2 0, D +3 0; R +1 1, R +2 2, R +3
+**4 of 4**. Two things in that row are worth more than the AUCs.
+
+* **Colorado's gate magnitude is reachable and Iowa's is not.** D-013 states both
+  states' gates at 3 seats, and on Colorado the search plants a 3-seat shift on
+  every attempt while staying shape-typical — the joint AUC on those four plans
+  is 0.332 (95% CI 0.100-0.563) and no single measure's interval excludes 0.5.
+  This is the first round in which ground truth exists at the magnitude the gate
+  is stated at.
+* **The easy direction is R, and that is geography.** A 3-seat R shift means
+  packing Democrats out of three districts, and Democratic votes in Colorado are
+  already concentrated in Denver and Boulder; going the other way — 6, 7 or 8 D
+  seats of 8 — means spreading them, which this search reached once in twelve
+  attempts. A generator whose yield is that asymmetric produces a confusion
+  matrix dominated by one direction, and the direction is reported per case
+  rather than pooled.
+
+**The residual leak, and exactly where it comes from.** Colorado's cut-edge AUC
+is 0.761 and its 95% interval does not cover 0.5, so a cut-edge screen still has
+signal there. Measuring each plant's position inside *its own* envelope, in
+units of the half-width, says why: on Colorado the plants sit at +0.96 of the
+cut-edge ceiling on average (min +0.91, max +0.99), and on Iowa at +0.41. The
+seat objective is still monotone in raggedness, so the search still runs to a
+ceiling — anchoring moved the ceiling from a fixed quantile of the ensemble to a
+per-plant one, which is what turns a point mass into a distribution, but it does
+not remove the offset. The size of the residual is therefore
+``width * IQR * (fraction of ceiling reached)``, and Colorado's cut-edge IQR is
+103.5 edges against Iowa's 6.0 — the same construction leaks about seventeen
+times more absolute raggedness on the larger graph.
+
+That is a measurement and not a knob. Reducing :data:`DEFAULT_MATCH_WIDTH` would
+shrink the residual and the yield together, and choosing it by which value makes
+the acceptance test pass is precisely the move this project does not make. The
+construction that would remove the offset without touching the width — bounding
+each measure on the side the search runs toward, so the ceiling *is* the anchor's
+own value — is a change of instrument rather than of a threshold, and it belongs
+in a round that can measure it independently rather than in this one's report.
+
+At 2 seats the classes genuinely overlap on the partisan metrics too. 43% of
+Iowa's neutral draws already give the Democrats two seats, and conditioned on
+that outcome the plants are indistinguishable from the neutral draws that also
+win two: AUC 0.53 on efficiency gap, 0.57 on mean-median, at efficiency-gap
+percentiles 0.16-0.94 of the full reference, nowhere near a 0.99 tail. **No
+percentile-tail detector can reach TPR 0.95 at a 2-seat shift in Iowa**, and that
+is a fact about the state and the magnitude rather than a defect in any rule.
 
 Baselines: a shift is a difference, so say what from
 ----------------------------------------------------
@@ -188,6 +286,103 @@ A working band is needed because the tight band and the county granularity are
 incompatible for single moves; optimising seats directly at ``epsilon`` finds
 almost no legal states to move between.
 
+The population bound is a constraint, not a score — and the Colorado scare
+--------------------------------------------------------------------------
+
+Round 4's first Colorado run reported ``legal_compliance = 0.25`` and the
+obvious reading was that this search had walked off its population bound at VTD
+scale. Measured, it had not. All three planted plans in that run were legal at
+the operating epsilon; the nine illegal cases were **neutral ReCom draws** made
+at ``--quick``'s looser epsilon and read at the operating one. On Iowa's quick
+runs the same gate reads 0.00 to 0.083 and planted plans *are* among the
+failures, so Colorado was the better-behaved state, not the worse one.
+
+The bound is hard here and it is hard in one place: ``_repair`` records a
+candidate only when its excess over the band is exactly zero, so it returns
+``None`` rather than the best plan it saw, and ``maximize_seats`` re-checks the
+winner through :func:`check_legality` and raises rather than return it. The one
+place the bound used to be soft was the **baseline** a magnitude is measured
+from: :func:`plant_gerrymander` built its own neutral reference and never
+checked it, so a shift could be measured from a plan that was not a lawful
+districting. It now refuses.
+
+The deviation trajectory through one Colorado plant (D +1, 3,108 VTDs, k=8,
+epsilon=1e-2, ideal 721,714, baseline the enacted plan):
+
+============================== ================== =====================
+stage                           max |dev| / ideal   spread (persons)
+============================== ================== =====================
+start plan (balance phase)      2.4e-06             3
+end of seat phase (band 0.10)   0.0618              86,889
+after repair                    1.0e-06             **1**
+--- for comparison ---
+enacted plan, as whole VTDs     0.00857             9,995
+epsilon=1e-2 permits            0.01                up to 14,434
+============================== ================== =====================
+
+The search walks off the bound on purpose, into the working band, and walks
+back. **What it walks back to is 8,000 times tighter than Colorado's operating
+epsilon and 10,000 times tighter than the enacted plan's own VTD
+approximation.** So on Colorado the population constraint is not binding on this
+adversary at any magnitude: epsilon=1e-2 is a concession to representing the
+*enacted* plan in whole VTDs (docs/DECISIONS.md D-015), and the adversary never
+comes near it. Any Colorado result about what a gerrymander can achieve "inside
+the legal population bound" is really a result about the other constraints.
+
+The frontier, and the counterexample sitting next to it
+-------------------------------------------------------
+
+Colorado, epsilon=1e-2, baseline the enacted plan as whole VTDs (5D-3R), 12,000
+iterations x 3 restarts, **no shape envelope** — so these are an upper bound on
+what a shape-matched adversary could reach, not the bench's own yield:
+
+========== ========= =============== ============ ======================
+direction   asked     reached          spread       max |dev| / ideal
+========== ========= =============== ============ ======================
+D           +1        yes, 6D-2R       1 person     1.04e-06
+D           +2        yes, 7D-1R       1 person     1.04e-06
+D           +3        no (8 of 8)      --           --
+R           +1..+3    no               --           --
+open-ended  D         **7 of 8**       1 person     1.04e-06
+open-ended  R         **3 of 8**       1 person     1.04e-06
+========== ========= =============== ============ ======================
+
+Every plan that reached its magnitude came back at a **one-person spread**. The
+bound permits 14,434. It is not the constraint; it was never the constraint.
+
+The open-ended R run reproduces Iowa's finding in a state chosen because Iowa's
+version of it was thought to be an Iowa problem: the R ceiling *is* the enacted
+plan's own R count, so the achievable R shift is zero, and
+``seat_ceiling_at_work_epsilon`` is 3 as well — the seat phase never saw a
+four-R structure even inside the 10% working band, in 74,911 evaluated moves.
+
+**And that is where this stops being a claim about Colorado.** Four R seats
+means four D seats, and the neutral ReCom ensemble at the same epsilon produces
+four-D plans in 83 of 720 draws (11.5%, docs/progress.md). Legal plans at the
+magnitude the R search could not reach exist, in this project, in the same
+artifact. So the right reading of "R +1 not reached" is *this search, at this
+budget, from this baseline, failed* — not that the feasible set is empty. Round
+3 made exactly the opposite inference from a yield of zero and had to retract
+it; the difference here is that the counterexample was looked for.
+
+The 8-of-8 D case has no such counterexample and is not claimed either way:
+Colorado is 56.9% D two-party, so eight majority-D districts are not
+arithmetically excluded, and the search's seventh seat already sits at 50.03%.
+
+Getting there needed a fix, and the fix is a scale story
+--------------------------------------------------------
+
+Before round 4 the balance phase could not reach the working band on Colorado at
+all: growth plans start at 0.52-0.54 of ideal and the descent stalled at 0.166,
+0.485 and 0.491 on three seeds. A start outside the working band freezes the
+seat phase completely — it accepts a move only into a state with zero excess —
+so ``maximize_seats`` ran its whole budget without moving and then blamed the
+iteration budget in its exhaustion message. The cause was an absolute probe cap
+of 60 sized on Iowa's 99 counties; see :func:`_descend_population` for the
+measurement and the table. Nothing in the shipped bench path hit it, because the
+bench supplies ``start_plans`` from the neutral ensemble, which is exactly the
+kind of accident that hides a broken default until someone calls it.
+
 Firewall
 --------
 
@@ -224,6 +419,7 @@ __all__ = [
     "achievable_seats",
     "calibrate_shape_envelope",
     "envelope_around_plan",
+    "envelope_from_measurements",
     "shape_metrics",
     "PARTIES",
     "ENVELOPE_MEASURES",
@@ -249,6 +445,46 @@ DEFAULT_REPAIR_ROUNDS = 60
 DEFAULT_KEEP_PER_LEVEL = 6
 DEFAULT_SIGMOID = 0.03
 DEFAULT_SURROGATE_WEIGHT = 0.5
+
+# --- the population descent's two budgets, and why one of them is a fraction --
+#
+# Both were absolute constants until round 4, and both were sized on Iowa's
+# 99-county graph. Measured on Colorado's 3,108 VTDs they made the descent
+# report a local minimum that was not one, which is the whole of the Colorado
+# failure described in _descend_population's docstring.
+#
+# DEFAULT_DESCENT_PROBES is the floor. DEFAULT_DESCENT_PROBE_FRACTION is what
+# makes the cap scale: the candidate list grows with the boundary, and the
+# fraction of its head that a fixed 60 covers shrinks as the graph grows. On
+# Iowa the *cap* never moves (5% of ~267 candidates is 13, below the floor of
+# 60), so no Iowa result changes because of it; on Colorado 5% of ~28,000 is
+# ~1,400, and the first connectivity-legal improving move measured at the stall
+# sat at rank 66-72.
+DEFAULT_DESCENT_PROBES = 60
+DEFAULT_DESCENT_PROBE_FRACTION = 0.05
+# How many moves one candidate enumeration may be reused for. Enumerating costs
+# 79.8 ms on Colorado against 0.5 ms on Iowa -- 26,848 of Colorado's 27,835
+# candidates are boundary swaps, which is O(|boundary|^2) -- while a single
+# probe costs 0.33 ms. Rebuilding the list for every move is what made a
+# working descent unaffordable rather than merely slow: measured, 46-196 s per
+# call against 5-11 s when the list is reused. Each candidate's cost is
+# repriced against the live district totals, and rechecked against the live
+# plan, before it is applied -- see _live_cost, which is not optional.
+#
+# **This one does change Iowa's trajectory, and that is stated rather than
+# glossed.** Reuse alters which intermediate plans the descent visits, so the
+# same seed no longer produces the same plan as round 3: on 20 Iowa growth
+# seeds, 0 of 20 land on an identical plan. What it does not change is the
+# answer. Median deviation reached is 0.0019 against 0.00206, the count landing
+# inside the working band goes *up* (19 of 20 against 16 of 20), the median call
+# costs 6.0 ms against 11.3 ms, and every Iowa figure asserted in
+# tests/test_adversarial.py -- the D ceiling of 2, the R ceiling of 4, the
+# reachable 3-seat plan, the spreads inside the band -- is unchanged.
+# Reproducibility within a version is intact (same seed, same code, same plan);
+# reproducibility *across* this version boundary is not, and a reader comparing
+# a round-3 artifact to a round-4 one on plan identity will see differences that
+# are this constant and not a finding.
+DEFAULT_DESCENT_MOVES_PER_PASS = 400
 
 # Seed derivation domain. `generate.seeds.derive` does the same job on the other
 # side of the firewall; this package may not import it, and re-deriving here is
@@ -295,6 +531,12 @@ ENVELOPE_MEASURES: tuple[str, ...] = (
 #: already, up to the difference between a mean of a function and a function of
 #: a mean; it too is re-checked at the end.
 IN_LOOP_MEASURES: tuple[str, ...] = ("cut_edges", "polsby_popper_mean")
+
+#: The envelope constructions this module knows how to describe. See
+#: :class:`ShapeEnvelope` for what each one's numeric fields mean; the point of
+#: naming them is that round 3 had one field standing for three different
+#: quantities and rendered all three with the same sentence.
+KINDS: tuple[str, ...] = ("central_band", "matched", "one_sided_floor")
 
 #: **VALUE.** How much of the neutral ensemble's own compactness distribution
 #: the adversary is confined to, as a central interval: at 0.90 a planted plan
@@ -346,22 +588,93 @@ class ShapeEnvelope:
     geometry -- is simply absent, and :meth:`violations` says so rather than
     passing it silently.
 
-    ``coverage`` is how much of the reference distribution the bounds span and
-    ``centre`` is where that window sits in it (0.5 = central); see
-    :data:`DEFAULT_SHAPE_COVERAGE` for what is being chosen, and
-    :func:`calibrate_shape_envelope` for why a caller might move the centre. The
-    remaining provenance fields are here so a reader of ``bench-results.json``
-    can tell a bound calibrated on 2,217 distinct plans from one calibrated on
-    fourteen.
+    **``kind`` says what construction produced the bounds, and no field means
+    anything without it.** Round 3 shipped one numeric field, ``coverage``, and
+    used it for three incompatible quantities: the width of a central quantile
+    band, the half-width in interquartile ranges of an envelope anchored on one
+    draw, and the constant 1.0 standing for a one-sided floor at the observed
+    extreme. ``check_legality`` then rendered all three as "the central N% of
+    the reference", which was true of one of them. The kinds are now named, each
+    carries only the parameter that applies to it, and :attr:`description` is the
+    one place a human-readable rendering is produced:
+
+    ``central_band``
+        ``[q(centre - coverage/2), q(centre + coverage/2)]`` per measure over
+        the reference. ``coverage`` and ``centre`` apply; ``width`` does not.
+        Built by :func:`calibrate_shape_envelope`.
+    ``matched``
+        ``target +/- width * IQR`` per measure, anchored on **one** reference
+        draw. ``width`` applies; ``coverage`` and ``centre`` do not, and
+        ``coverage`` is ``None`` — an envelope around one draw covers no stated
+        fraction of anything, and saying 0.5 was a category error, not a
+        rounding one. Built by :func:`envelope_around_plan` or
+        :func:`envelope_from_measurements`.
+    ``one_sided_floor``
+        A half-open bound per measure at the reference's own extreme, in the
+        direction ``evaluate.compactness.DIRECTION`` says is less compact. No
+        width parameter applies. Built by ``detect.bench.compactness_floor``.
+
+    The remaining provenance fields are here so a reader of
+    ``bench-results.json`` can tell a bound calibrated on 2,217 distinct plans
+    from one calibrated on fourteen.
     """
 
-    coverage: float
+    coverage: float | None
     bounds: dict[str, tuple[float, float]]
     reference_plans: int
     reference_draws: int
     measures: tuple[str, ...]
     source: str
     centre: float = 0.5
+    kind: str = "central_band"
+    width: float | None = None
+    #: For a ``matched`` envelope: the anchor draw's own measurements, so a
+    #: reader can see how far the planted plan moved from the neutral draw it
+    #: was matched to without re-deriving the midpoint of every bound.
+    anchor: dict[str, float] | None = None
+
+    def __post_init__(self) -> None:
+        if self.kind not in KINDS:
+            raise ValueError(f"unknown envelope kind {self.kind!r}; known: {KINDS}")
+        if self.kind == "central_band":
+            if self.coverage is None or not 0 < self.coverage <= 1:
+                raise ValueError(
+                    f"a central_band envelope needs a coverage in (0, 1]; got "
+                    f"{self.coverage!r}"
+                )
+            if self.width is not None:
+                raise ValueError("width does not apply to a central_band envelope")
+        else:
+            if self.coverage is not None:
+                raise ValueError(
+                    f"coverage does not apply to a {self.kind} envelope; it is "
+                    "not a fraction of the reference distribution. Round 3 "
+                    "overloaded this field and check_legality mislabelled every "
+                    "envelope that was not a band"
+                )
+            if self.kind == "matched" and not (self.width and self.width > 0):
+                raise ValueError(
+                    f"a matched envelope needs a positive width in IQRs; got "
+                    f"{self.width!r}"
+                )
+            if self.kind == "one_sided_floor" and self.width is not None:
+                raise ValueError("width does not apply to a one_sided_floor envelope")
+
+    @property
+    def description(self) -> str:
+        """What these bounds *are*, in words. The only rendering of record.
+
+        Used by :func:`check_legality`'s note and by the search's exhaustion
+        message, so a mislabelling has one place to be wrong rather than three.
+        """
+        if self.kind == "central_band":
+            return f"the central {self.coverage:.0%} of {self.source}"
+        if self.kind == "matched":
+            return (
+                f"within +/-{self.width:g} interquartile range(s) of one draw "
+                f"from {self.source}"
+            )
+        return f"no less compact than any of {self.source}"
 
     @property
     def in_loop(self) -> tuple[str, ...]:
@@ -489,12 +802,7 @@ def calibrate_shape_envelope(
     if unknown:
         raise ValueError(f"unknown envelope measure(s) {unknown}")
 
-    series: dict[str, list[float]] = {name: [] for name in wanted}
-    for plan in plans:
-        measured = shape_metrics(plan, adjacency, geometry)
-        for name in wanted:
-            if name in measured:
-                series[name].append(measured[name])
+    series = _series(plans, adjacency, geometry, wanted)
 
     low_p = min(max(centre - coverage / 2.0, 0.0), 1.0 - coverage)
     high_p = low_p + coverage
@@ -512,14 +820,41 @@ def calibrate_shape_envelope(
         reference_draws=int(reference_draws if reference_draws is not None else len(plans)),
         measures=tuple(bounds),
         source=source,
+        kind="central_band",
     )
 
 
+def _series(
+    plans: Sequence[Plan],
+    adjacency: Mapping[str, Iterable[str]],
+    geometry,
+    wanted: Sequence[str],
+) -> dict[str, list[float]]:
+    """``{measure: [one value per plan]}``, measured through :func:`shape_metrics`."""
+    series: dict[str, list[float]] = {name: [] for name in wanted}
+    for plan in plans:
+        measured = shape_metrics(plan, adjacency, geometry)
+        for name in wanted:
+            if name in measured:
+                series[name].append(measured[name])
+    return series
+
+
 #: **VALUE.** Half-width, in reference interquartile ranges, of the envelope
-#: :func:`envelope_around_plan` builds around one neutral draw. 0.5 IQR is wide
-#: enough that the search has somewhere to go and narrow enough that the planted
-#: plan stays near the draw it was matched to; the measured consequence is in
-#: the round-3 notes.
+#: :func:`envelope_around_plan` builds around one neutral draw. Since round 4
+#: this is the constraint the shipped bench runs (``detect.bench.AnchorPool``),
+#: so it is the number that decides what the ground truth is.
+#:
+#: **What the width trades.** At 0 the planted plan would have to reproduce the
+#: anchor draw's five measures exactly, which is unsatisfiable; as it grows the
+#: envelope approaches an uninformative box and the search returns to piling
+#: against an edge. In between, the planted marginal on each measure is the
+#: neutral marginal *blurred* by at most this many IQRs — the plants inherit the
+#: reference's spread rather than sitting at its ceiling, at the cost of a small
+#: variance inflation. 0.5 IQR is wide enough that the search has somewhere to
+#: go and narrow enough that the plan stays near the draw it was matched to.
+#: Nobody can derive it, which is why it is marked `VALUE` and why the yield it
+#: produces is reported at every magnitude rather than being tuned for.
 DEFAULT_MATCH_WIDTH = 0.5
 
 
@@ -570,29 +905,73 @@ def envelope_around_plan(
     if unknown:
         raise ValueError(f"unknown envelope measure(s) {unknown}")
 
-    series: dict[str, list[float]] = {name: [] for name in wanted}
-    for plan in plans:
-        measured = shape_metrics(plan, adjacency, geometry)
-        for name in wanted:
-            if name in measured:
-                series[name].append(measured[name])
-    centre_metrics = shape_metrics(target, adjacency, geometry)
+    return envelope_from_measurements(
+        shape_metrics(target, adjacency, geometry),
+        _series(plans, adjacency, geometry, wanted),
+        width=width,
+        measures=wanted,
+        source=source,
+        reference_plans=len(plans),
+        reference_draws=len(plans),
+    )
+
+
+def envelope_from_measurements(
+    anchor: Mapping[str, float],
+    series: Mapping[str, Sequence[float]],
+    *,
+    width: float = DEFAULT_MATCH_WIDTH,
+    measures: Sequence[str] = ENVELOPE_MEASURES,
+    source: str = "one neutral draw",
+    reference_plans: int | None = None,
+    reference_draws: int | None = None,
+) -> ShapeEnvelope:
+    """:func:`envelope_around_plan`, from measurements that already exist.
+
+    Same arithmetic, same object, no geometry: ``anchor`` is one plan's five
+    measures and ``series`` is the reference's own columns of them. It exists
+    because the caller that ships this envelope -- ``detect.bench`` -- has
+    already measured every reference draw for the detector's percentiles, and
+    re-measuring them inside this module would cost 2.7 s per Colorado plan
+    (measured; 0.17 s on Iowa) for numbers that are sitting in a column. A
+    matched envelope is drawn **per plant**, so that cost would be paid once per
+    planted plan rather than once per round.
+
+    :func:`envelope_around_plan` is the plan-level entry point and delegates
+    here, so there is one implementation of the bound and not two that can
+    drift.
+    """
+    if width <= 0:
+        raise ValueError(f"width must be positive; got {width!r}")
+    wanted = tuple(measures)
+    unknown = [name for name in wanted if name not in ENVELOPE_MEASURES]
+    if unknown:
+        raise ValueError(f"unknown envelope measure(s) {unknown}")
+    if not any(series.get(name) for name in wanted):
+        raise ValueError("no reference measurements to take an interquartile range from")
 
     bounds: dict[str, tuple[float, float]] = {}
+    used: dict[str, float] = {}
     for name in wanted:
-        values = series[name]
-        if not values or name not in centre_metrics:
+        values = list(series.get(name) or ())
+        if not values or name not in anchor:
             continue
         spread = _quantile(values, 0.75) - _quantile(values, 0.25)
         half = width * spread
-        bounds[name] = (centre_metrics[name] - half, centre_metrics[name] + half)
+        centre_value = float(anchor[name])
+        bounds[name] = (centre_value - half, centre_value + half)
+        used[name] = centre_value
+    n = max((len(list(series.get(name) or ())) for name in wanted), default=0)
     return ShapeEnvelope(
-        coverage=float(width),
+        coverage=None,
+        width=float(width),
+        kind="matched",
         bounds=bounds,
-        reference_plans=len(plans),
-        reference_draws=len(plans),
+        anchor=used,
+        reference_plans=int(reference_plans if reference_plans is not None else n),
+        reference_draws=int(reference_draws if reference_draws is not None else n),
         measures=tuple(bounds),
-        source=f"{source}; +/- {width:g} IQR of the reference on each measure",
+        source=source,
     )
 
 
@@ -815,7 +1194,7 @@ def check_legality(
         broken = shape_envelope.violations(plan_shape_metrics)
         checks["compactness_within_neutral_envelope"] = not broken
         notes["compactness_within_neutral_envelope"] = (
-            f"central {shape_envelope.coverage:.0%} of {shape_envelope.source}"
+            shape_envelope.description
             + (f"; {'; '.join(f'{n}: {w}' for n, w in broken.items())}" if broken else "")
         )
     else:
@@ -1065,6 +1444,16 @@ def maximize_seats(
     best: tuple[tuple[int, int], Plan, int, int] | None = None
     ceiling_seen = 0
     rejected_on_shape = 0
+    # Restarts whose starting plan was already outside the working band. The
+    # seat phase accepts a move only if the state it lands in has zero excess
+    # over that band, so such a restart can take no move that does not close the
+    # whole gap at once, and on a large graph no single reassignment ever does:
+    # the annealer runs its full budget without moving and returns the start
+    # plan's own seat count as if it were a ceiling. That failure was silent
+    # until round 4, and the exhaustion message blamed the iteration budget for
+    # it. Counted here so the message can say what actually happened.
+    started_outside = 0
+    worst_start_excess = 0.0
     for index in range(restarts):
         rng = random.Random(_derive(seed, "restart", index))
         if starts is not None:
@@ -1075,6 +1464,10 @@ def maximize_seats(
                 tighten=False, guard=guard,
             )
         state = _State(start, adj, pops, target_votes, other_votes, k, guard)
+        start_excess = state.excess(work_band, ideal)
+        if start_excess > 0.0:
+            started_outside += 1
+            worst_start_excess = max(worst_start_excess, start_excess)
         by_seats = _anneal_seats(
             state, rng, max_iterations, work_band, sigmoid, surrogate_weight, counter
         )
@@ -1132,11 +1525,26 @@ def maximize_seats(
             f"(seat ceiling reached at work_epsilon={work_epsilon}: {ceiling_seen}"
             + (
                 f"; {rejected_on_shape} repaired plan(s) rejected by the shape "
-                f"envelope at coverage {shape_envelope.coverage:g}"
+                f"envelope: {shape_envelope.description}"
                 if shape_envelope is not None
                 else ""
             )
-            + "). This is a statement about the search budget, not a proof that "
+            + ")."
+            + (
+                ""
+                if started_outside == 0
+                else (
+                    f" {started_outside} of {restarts} restart(s) began OUTSIDE "
+                    f"the working band (worst excess {worst_start_excess:,.0f} "
+                    f"persons over work_epsilon={work_epsilon:g}, i.e. "
+                    f"{worst_start_excess / (work_epsilon * ideal):.1f}x the "
+                    "band), and the seat phase cannot move from there — so for "
+                    "those restarts the budget was never the binding "
+                    "constraint. Supply start_plans (neutral ensemble draws are "
+                    "inside the band by construction), or raise work_epsilon."
+                )
+            )
+            + " This is a statement about the search budget, not a proof that "
             "no such plan exists."
         )
 
@@ -1232,6 +1640,14 @@ def plant_gerrymander(
     A negative ``seat_shift`` is meaningful and allowed: it plants a plan that
     *sacrifices* seats for the target party, which is the same construction seen
     from the other party's side.
+
+    Raises:
+        SearchExhausted: when no ``baseline_plan`` was supplied and the neutral
+            reference this function built for itself is not legal at
+            ``epsilon``. That is not a magnitude this function failed to reach,
+            so it is not ``None``: the shift would be measured from a plan that
+            is not a lawful districting, and every number downstream would
+            inherit it.
     """
     party = _check_party(target_party)
     if not isinstance(seat_shift, int) or isinstance(seat_shift, bool):
@@ -1262,6 +1678,29 @@ def plant_gerrymander(
             ),
         )
         kwargs.setdefault("baseline_source", "neutral_reference")
+        # The magnitude this function plants is measured *from* this baseline,
+        # so an illegal baseline makes the planted magnitude a measurement
+        # against a plan no legislature could adopt -- ground truth that is not
+        # ground truth. _neutral_reference returns the most balanced plan it
+        # reached rather than raising when it cannot reach the band, which is
+        # the right behaviour for a function whose caller may only want a
+        # starting point, and the wrong thing to accept silently here.
+        # maximize_seats records its baseline's legality; this refuses to
+        # proceed on it. Only the self-built baseline is checked: a caller who
+        # supplies baseline_plan has named what they are measuring from (the
+        # enacted map, an ensemble median) and that choice is theirs.
+        base_record = check_legality(baseline_plan, adj, pops, k, epsilon)
+        if not base_record.passed:
+            raise SearchExhausted(
+                "the neutral reference plant_gerrymander built for itself is "
+                f"not legal at epsilon={epsilon:g} ("
+                + ", ".join(base_record.failures())
+                + f"; max deviation {base_record.max_deviation_persons:,} "
+                f"persons = {base_record.max_deviation_fraction:.4g} of ideal), "
+                "so the seat shift would be measured from a plan that is not a "
+                "lawful districting. Supply baseline_plan= to say what the "
+                "magnitude is measured from."
+            )
     base_seats = _party_seats(baseline_plan, dem, rep, party)
     wanted = base_seats + seat_shift
     if not 0 <= wanted <= k:
@@ -1729,9 +2168,53 @@ def _seat_ok(state, min_seats, exact_seats) -> bool:
     return True
 
 
+def _live_cost(state, cand, ideal) -> float:
+    """``cand``'s change in summed squared deviation against the *live* totals.
+
+    :func:`_population_candidates` prices every candidate against the totals at
+    the moment it enumerated them, and enumerates only candidates that were on
+    the district boundary then. Reusing one enumeration for several moves makes
+    both facts stale, so each candidate is rechecked and repriced here, and one
+    the earlier moves have invalidated prices at 0.0 and is skipped. Cheap: a
+    handful of lookups against 0.33 ms for the connectivity probe it guards.
+
+    **The adjacency recheck is load-bearing, not defensive.**
+    ``_apply_candidate`` verifies that the *source* district survives losing the
+    unit; for a plain move it never verifies that the unit touches the
+    destination, because a freshly enumerated candidate always did. Without the
+    recheck, reuse can hand it a unit whose last neighbour in the destination
+    has itself moved away, and the destination comes back in two pieces — a
+    disconnected district returned as a legal plan. That is not hypothetical:
+    ``test_colorado_the_default_start_reaches_the_band_at_vtd_scale`` failed on
+    contiguity the first time enumeration reuse was switched on, which is why
+    that test asserts contiguity before it asserts anything about population.
+    """
+    _, kind, unit, other, source, dest = cand
+    totals = state.totals
+    plan = state.plan
+    if plan[unit] != source or len(state.members[source]) < 2:
+        return 0.0
+    if not any(plan[v] == dest for v in state.adj[unit]):
+        return 0.0  # no longer a boundary move: the unit has been cut adrift
+    if kind == "move":
+        diff = state.pops[unit]
+    else:
+        if plan[other] != dest or len(state.members[dest]) < 2:
+            return 0.0
+        if not any(plan[v] == source for v in state.adj[other]):
+            return 0.0
+        diff = state.pops[unit] - state.pops[other]
+    a = totals[source] - diff - ideal
+    b = totals[dest] + diff - ideal
+    return a * a + b * b - (totals[source] - ideal) ** 2 - (totals[dest] - ideal) ** 2
+
+
 def _descend_population(
     state, ideal, counter, min_seats, exact_seats, observe=None,
-    max_steps: int = 400, probes: int = 60,
+    max_steps: int = 400,
+    probes: int = DEFAULT_DESCENT_PROBES,
+    probe_fraction: float = DEFAULT_DESCENT_PROBE_FRACTION,
+    moves_per_pass: int = DEFAULT_DESCENT_MOVES_PER_PASS,
 ) -> None:
     """Best-improvement descent on population, holding the seat constraint.
 
@@ -1740,17 +2223,63 @@ def _descend_population(
     which is *not* the constraint — a state can satisfy ``|dev| <= band`` and
     still be improvable on that sum — so a caller that only looked at the final
     state would walk past legal plans without noticing.
+
+    **The probe cap must be relative to the candidate list, and round 4 measured
+    what happens when it is not.** Until round 4 the cap was an absolute 60,
+    sized on Iowa's 99-county graph, where a boundary of 47 units yields 267
+    candidates and the descent converges in ~74 probes. Colorado's 3,108 VTDs
+    give a boundary of 932 and 27,835 candidates, and at the point where the
+    descent declared itself finished there were still 6,833–12,911 *improving*
+    candidates available, with the first connectivity-legal one at rank 66, 71
+    and 72 on three seeds — just past the cap. Not one of the top 60 survived
+    the contiguity check, because on a large boundary the moves with the largest
+    population payoff are overwhelmingly articulation points. The descent was
+    reporting a local minimum that did not exist.
+
+    Measured on three Colorado growth plans, starting deviation 0.52–0.54 of
+    ideal, budget 2,000 steps:
+
+    ==================================== ================== ==============
+    variant                               final |dev|/ideal   inside 0.10
+    ==================================== ================== ==============
+    absolute cap 60 (the round-3 code)    0.166, 0.485, 0.491   0 of 3
+    relative cap only                     4e-6, 9e-6, 0.043     3 of 3
+    enumeration reuse only                0.161, 0.485, 0.491   0 of 3
+    **both (shipped)**                    **3e-6, 5e-6, 9e-5**  **3 of 3**
+    ==================================== ================== ==============
+
+    Reuse alone fixes nothing — it is the cap that binds. Reuse is what makes
+    the fix affordable: 46–196 s per call with the relative cap alone against
+    5–11 s with both, because one enumeration costs 79.8 ms on Colorado.
+
+    On Iowa the *cap* does not move: ``probe_fraction`` of 267 candidates is 13,
+    below the floor of 60. That is why the floor and the fraction are both kept
+    rather than the constant simply being raised — raising it would have changed
+    Iowa's numbers to fix a bug Iowa does not have. ``moves_per_pass`` does
+    change Iowa's trajectory, and :data:`DEFAULT_DESCENT_MOVES_PER_PASS` says by
+    how much and what it costs.
     """
     if observe is not None:
         observe()
     for _ in range(max_steps):
         cands, _ = _population_candidates(state, ideal)
-        moved = False
-        before = state.shape_violation()
-        for tried, cand in enumerate(cands):
-            if cand[0] >= -1e-9 or tried >= probes:
+        cap = max(probes, int(probe_fraction * len(cands)))
+        applied_here = 0
+        tried = 0
+        for cand in cands:
+            if tried >= cap or applied_here >= moves_per_pass:
                 break
+            if cand[0] >= -1e-9:
+                break  # sorted: nothing after this improves either
+            if _live_cost(state, cand, ideal) >= -1e-9:
+                continue  # an earlier move in this pass invalidated it
+            tried += 1
             counter.bump()
+            # Re-read before *every* move, not once per pass: the rule
+            # _shape_ok enforces is non-increasing violation, and applying
+            # several moves against one snapshot would let the violation ratchet
+            # up within a pass. At moves_per_pass=1 this is the round-3 code.
+            before = state.shape_violation()
             applied = _apply_candidate(state, cand)
             if applied is None:
                 continue
@@ -1759,11 +2288,10 @@ def _descend_population(
             ):
                 state.undo(applied)
                 continue
-            moved = True
-            break
-        if observe is not None:
-            observe()
-        if not moved:
+            applied_here += 1
+            if observe is not None:
+                observe()
+        if applied_here == 0:
             return
 
 
