@@ -499,3 +499,99 @@ The underlying defect was real rather than cosmetic: `summary_lines` raised
 `KeyError` on any report whose gate key differed from the configured state, so
 reading a round-3 Iowa artifact crashed the report. It now names the keys the report
 actually carries. Suite is green at 602.
+
+---
+
+# Phase 1 — concluded, with a negative result
+
+Five rounds. The loop is stopped here, on `prompt.md`'s own terms — "loop until the
+confusion matrix stops improving or I stop you" — because it has stopped improving,
+for a reason worth recording rather than optimising through.
+
+## The two halves ended in different places
+
+**The false-positive half works.** Round 4 on Colorado: FPR **0.0** on 24 null cases,
+against a reference of 11,706 distinct plans, split R-hat 1.0937, ESS 187. Strata are
+reported separately, and the stratum whose selection rule is rank-correlated at −0.868
+with the detector's own statistic is excluded from the gate *with the reason stated
+inline in the artifact*. A detector that does not fire on neutrally drawn maps is the
+harder half of `CRITERIA.md` §8, and that half is measured and passing.
+
+**The true-positive half is unmeasurable.** Not failing — unmeasurable.
+
+| | attempts at the gated magnitude | reached |
+| --- | --- | --- |
+| Iowa D+3 | 16 | **0** |
+| Iowa R+3 | 16 | **0** |
+| Colorado D+3 | 12 | **0** |
+| Colorado R+3 | 12 | **0** |
+
+The gate sits at 3 seats because both states have a measured 2-seat neutral spread
+(D-013), so 3 is the smallest magnitude that is outside the null at all. Constrained
+to be *shape-typical* (D-010) and *legal*, the adversarial search reaches it zero
+times in 56 attempts.
+
+**The gate and the ground truth are therefore jointly unsatisfiable as specified.**
+The magnitude large enough to be detectable exceeds the magnitude the constrained
+adversary can build. No amount of detector tuning changes that, and four rounds of
+gates passing for non-detection reasons — flag-everything, AUC 0.25, an unwired
+function, n=1 — are what it looks like from the inside while you are still trying.
+
+Stated narrowly on purpose: this is *this search* under *these constraints* on *two
+states*. Round 3 asserted the stronger version and it was retracted when the neutral
+sampler turned out to produce counterexamples. A better search might find a 3-seat
+plan. What is established is that the specification and the achievable ground truth
+do not currently meet.
+
+## What Phase 1 actually produced
+
+The durable results were never detection scores:
+
+1. **Neutral seat distributions.** Iowa 0–2 D of 4; Colorado 4–6 D of 8. Both spread
+   **2 seats**. Doubling the delegation did not narrow the null.
+2. **Detectability is floored by the null width, and that width is a property of the
+   state.** A detection threshold in absolute seats is not portable between states
+   and is unreachable in small delegations. (D-013.)
+3. **Three firewall coverage gaps** the static check structurally cannot see, answered
+   with a positive schema allowlist at load time rather than a wider denylist.
+   (`FEASIBILITY.md` §1, `ARCHITECTURE.md` §4.)
+4. **A biased join caught by conservation, not by matching.** VEST subdivides 107
+   Colorado VTDs; an id-only join drops 215,617 votes at 60.0% D against a 56.9%
+   statewide, and reports "unmatched units: 0" while doing it. (D-016.)
+5. **`node_repeats` and the suppressed warning.** A one-character library misuse,
+   hidden by `filterwarnings("ignore")`, produced a false headline finding that
+   survived a full write-up and a PR. (`FEASIBILITY.md` §5.1.)
+
+Four of those five are about *method failing quietly*. That is the most transferable
+thing here.
+
+## What is left broken, and stays recorded
+
+- **The ground truth is still confounded.** Non-partisan AUC 0.746 (Colorado) and
+  0.667 (Iowa) against a target of 0.5. Trajectory 1.000 → 0.890 → 0.746 across three
+  rounds: real progress, short of the bar. Joint Mahalanobis reaches 0.525 while a
+  *fitted* combination gets 0.654 — the leak is no longer in any single natural
+  direction but is still findable.
+- **Colorado's enacted plan is not rook-contiguous at VTD units** (district 4, two
+  components), so its D-direction baseline is illegal by the project's own
+  `check_legality`. D-015 fallout.
+- **FPR deflation survives at the metric level**: `Rule.resolvable` now demands both
+  tails, but `flag()` under `combination="any"` still decides from whichever metrics
+  are eligible.
+- **No regression guard** on the envelope wiring fixed in round 5 — the exact round-3
+  defect could return with the suite green.
+- **D-010's acceptance AUC is computed nowhere in the repo.** It lives in module
+  docstrings produced by uncommitted code, which is precisely where round 3's bad
+  evidence lived. It should be a committed script writing into the artifact.
+- **Split R-hat never reached the 1.00–1.01 band** on either state — 1.0937 at
+  Colorado's best, on 12,000 draws with zero chain failures.
+
+## The sequencing error
+
+`prompt.md`: *"Run experiment 3 early, in parallel with Phase 1. It is largely
+independent of the detection loop and it is the result most likely to change how the
+rest is built."*
+
+It was not run early, or in parallel. Five rounds of detection work went by first.
+The instruction was explicit and it was missed — recorded here because a decision log
+that only contains defensible choices is not a decision log.
