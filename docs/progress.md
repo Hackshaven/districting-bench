@@ -595,3 +595,185 @@ rest is built."*
 It was not run early, or in parallel. Five rounds of detection work went by first.
 The instruction was explicit and it was missed — recorded here because a decision log
 that only contains defensible choices is not a decision log.
+
+---
+
+# Experiment 3 — metric gameability, adversarial
+
+`prompt.md`: *"For each fairness metric, search for a plan that scores well on it while producing a lopsided seat outcome. Reproduce arXiv:2409.17186 on your own data."* And: *"Run each once, produce a plot and a written finding, do not iterate to improve the result."*
+
+Seven searches were run — four on Colorado (k=8), three on Iowa (k=4) — one per metric per state, each producing one plan. Every plan was then re-derived from its CSV by an independent verifier using the committed `evaluate.*` modules, with seat counts additionally recounted by a standalone script that never imports `evaluate.partisan`. Every number in this section was reproduced a second time here before it was written down; the searchers' own narratives are not the source for anything below.
+
+**All seven metric values and seat counts reproduce exactly** — several bit-for-bit to 17 significant figures — and both seat-count paths agree on all seven. Nothing was fabricated. Two of the seven claimed successes did not survive verification and are recorded below as failures, not results.
+
+Suite green at 602, `tools/check_firewall.py` prints `clean`, working tree unmodified.
+
+---
+
+## 1. What was established
+
+**Three legal Colorado plans exist on which a named fairness metric reads essentially zero while one party takes 7 or 8 of 8 seats on 56.94% of the two-party vote.** That is the arXiv:2409.17186 result, reproduced on this project's own data:
+
+| cell | plan | seats | the gamed metric | value | band |
+| --- | --- | --- | --- | --- | --- |
+| co-mean-median | `mm_plan_D_shape.csv` | **7 D – 1 R** | mean-median | −1.47×10⁻⁷ | \|mm\| ≤ 0.02 |
+| co-declination | `co_declination_gamed_D7.csv` | **7 D – 1 R** | declination | −4.20×10⁻⁷ | \|decl\| ≤ 0.1 |
+| co-partisan-bias | `co_partisan_bias_gamed_D8.csv` | **8 D – 0 R** | partisan bias | 0.0 exactly | \|bias\| ≤ 0.05 |
+
+All three pass `evaluate.plan.validate` — every one of 3,108 VTDs assigned exactly once, district ids 1–8 with none empty, **every district rook-connected**, max |pop − ideal|/ideal of 9.938×10⁻³, 9.603×10⁻³ and 6.593×10⁻³ against ε = 1×10⁻².
+
+Against proportionality (0.5694 × 8 = 4.56) they run +2.44, +2.44 and +3.44 seats. Against the neutral seat distribution, the committed 12,000-draw Colorado ensemble spans **4–6 D of 8** and never reached 7 or 8; two fresh ensembles run inside this experiment (2,000 and 6,000 draws, not independently verified) reached 7 D in 0.05% and 1.35% of draws. So the 8-0 plan is outside every ensemble ever drawn here, and the two 7-1 plans are outside the committed support and in the extreme upper tail of the larger fresh ones.
+
+**Two of the three are qualified, and the qualification matters** (§7). **One is not:** `co-mean-median` is inside the full 12,000-draw neutral compactness range on all five measures. It is a plan a commission could plausibly adopt, it is legal by every standard this repo applies, its mean-median is closer to zero than any of 12,000 neutral draws, and it hands one party 7 of 8 seats. That single plan is the experiment's result.
+
+**Two searches correctly returned negatives** — `co-efficiency-gap` and `ia-efficiency-gap` — and both were confirmed as honest failures with mechanisms, not budget exhaustion (§4).
+
+**Two searches claimed success and are refuted** — `ia-mean-median` and `ia-partisan-bias`. Both produced legal 0 D – 4 R plans with the target metric at ≈0, but **0 D of 4 is inside Iowa's neutral support** (1.0% mass) and is exactly the seat outcome of Iowa's real enacted plan. The neutral process produces that outcome unprompted, so it is lopsided against proportionality only, not against the null. Their metric rows are still reported below, as disagreement evidence; their gaming claims are not results.
+
+---
+
+## 2. The cross-metric table — this is the experiment
+
+Sign conventions as implemented (`partisan.FAVOURS`): **+** on efficiency gap, mean-median and declination favours **R**; **+** on partisan bias favours **D**. Bands used: EG 0.07, mean-median 0.02, declination 0.1, partisan bias 0.05. **Bold** = would pass a screen on that metric alone.
+
+| plan | D seats | efficiency gap | mean-median | declination | partisan bias | `trusted_metrics` |
+| --- | --- | --- | --- | --- | --- | --- |
+| CO mean-median gamed | 7 / 8 | −0.240319 | **−0.00000015** | −0.537822 | **0.0** | eg, decl |
+| CO declination gamed | 7 / 8 | −0.247778 | **+0.009486** | **−0.00000042** | **0.0** | eg, decl |
+| CO partisan-bias gamed | 8 / 8 | −0.361236 | +0.031637 | **None** (undefined) | **0.0** | eg |
+| CO efficiency-gap attempt | 4 / 8 (+2 tied) | **+0.003259** | **+0.015959** | **None** (undefined) | **0.0** | eg |
+| IA mean-median plan | 0 / 4 | +0.416336 | **−0.000201** | **None** (undefined) | **0.0** | eg |
+| IA partisan-bias plan | 0 / 4 | +0.416336 | **−0.014275** | **None** (undefined) | **0.0** | eg |
+| IA efficiency-gap attempt | 2 / 4 | −0.077388 | −0.021608 | −0.200820 (untrusted, k<8) | +0.25 | eg, mm, bias |
+| *IA enacted (legal, 0 D)* | 0 / 4 | +0.416337 | −0.024256 | None | +0.25 | eg |
+| *CO enacted (VTD, not contiguous)* | 5 / 8 | **+0.014742** | +0.020001 | **+0.072613** | **0.0** | — |
+
+Read the rows, not the cells:
+
+- On the **CO declination plan — a legal 7–1 map — three of the four metrics read clean.** Declination ≈ 0 by construction, mean-median +0.0095 (inside the very band the mean-median cell used, and near the neutral median), partisan bias exactly 0.0. Only the efficiency gap fires.
+- On the **8–0 sweep**, partisan bias reads exactly 0.0, mean-median reads **+0.032 — a Republican advantage, on a map that gives Democrats every seat** — and declination refuses to answer. One metric of four fires.
+- On the **two Iowa 4–0 sweeps**, mean-median reads −0.0002 and −0.0143 (both "clean", both signed as a *Democratic* advantage on a Republican sweep), partisan bias reads 0.0, declination is undefined. One metric of four fires.
+- **Partisan bias is 0.0 on six of the seven plans and on the CO enacted map.** It cannot distinguish a 4-seat delegation from an 8-seat one on Colorado, or a 0 D map from another 0 D map on Iowa. At k=4 and k=8 the observed values are multiples of 0.125, so a 0.05 band is not a tolerance — it is a test for exactly zero, which several unrelated maps happen to pass.
+- **No plan in the set is clean on all four**, and the efficiency gap flags every lopsided plan in the set. That is real and it is §6's only piece of good news, heavily qualified there.
+- Administrative metrics carried no signal: county splits 0 and ballot styles 8 (CO) / 4 (IA) on every plan, constant at whole-unit resolution. They are orthogonal as designed and therefore contribute nothing to a screen here.
+
+### Where each value sits in the neutral distribution
+
+Fixed bands are one way to read these; ensemble location is the other, and `prompt.md`'s output design says the second is the product. Reference distributions: committed 12,000-draw CO ensemble (`docs/progress/round-04/bench-results.json`) and 806-draw IA ensemble (round-02).
+
+| neutral | min | p05 | median | p95 | max |
+| --- | --- | --- | --- | --- | --- |
+| CO efficiency gap | −0.2513 | −0.1249 | +0.0075 | +0.1429 | +0.1593 |
+| CO mean-median | −0.0576 | −0.0216 | +0.0121 | +0.0449 | +0.0714 |
+| CO declination | −0.6033 | −0.1425 | +0.1070 | +0.3043 | +0.3269 |
+| IA efficiency gap | −0.0942 | −0.0899 | −0.0837 | +0.1680 | +0.4163 |
+| IA mean-median | −0.0374 | −0.0360 | −0.0209 | −0.0047 | +0.0099 |
+
+Two things fall out that the bands hide. **(a)** The CO mean-median plan's EG (−0.2403) and declination (−0.5378) sit in the far left tail near the neutral minima — ensemble location catches what the band missed. **(b)** The IA mean-median plan's −0.0002 is *above the neutral p95* of −0.0047: against Iowa's own neutral distribution that value is anomalous, not clean, and would sit near the detector's 0.99 flag threshold. An absolute band and an ensemble percentile disagree about the same number in opposite directions on the two states.
+
+---
+
+## 3. Compactness — the screen the fairness metrics are not
+
+CO envelope = full range of the 12,000-draw ensemble (`bench.compactness_floor`, D-010). IA envelope = full range of the 806-draw ensemble. All values recomputed here.
+
+| plan | Polsby-Popper | Reock | Schwartzberg | convex hull | cut edges | outside |
+| --- | --- | --- | --- | --- | --- | --- |
+| *CO neutral range* | [0.1059, 0.2749] | [0.3091, 0.5433] | [1.991, 3.202] | [0.6129, 0.8033] | [521, 901] | — |
+| CO mean-median gamed | 0.15022 | 0.39318 | 2.79511 | 0.69834 | 801 | **0 / 5** |
+| CO declination gamed | **0.01570** | **0.25476** | **8.400** | **0.43442** | **4141** | **5 / 5** |
+| CO partisan-bias gamed | **0.01524** | **0.25050** | **8.549** | **0.43844** | **4132** | **5 / 5** |
+| CO efficiency-gap attempt | **0.01517** | **0.23465** | **8.822** | **0.45611** | **3829** | **5 / 5** |
+| *CO enacted* | 0.28697 | 0.39640 | 2.10536 | 0.76304 | 617 | 0 / 5 |
+| *IA neutral range* | [0.2480, 0.4005] | [0.3002, 0.4879] | [1.633, 2.073] | [0.6370, 0.7965] | [41, 59] | — |
+| IA efficiency-gap attempt | 0.32690 | 0.41330 | 1.76617 | 0.72000 | 46 | 0 / 5 |
+| IA mean-median plan | 0.25926 | 0.35522 | 1.99313 | 0.67022 | 56 | 0 / 5 |
+| IA partisan-bias plan | **0.14572** | 0.35305 | **2.67001** | **0.58233** | **91** | **4 / 5** |
+| *IA enacted* | 0.33338 | 0.45066 | 1.75097 | 0.74305 | 51 | 0 / 5 |
+
+**`legal: true` in the searches meant the four structural checks only.** Four of the seven plans fail this repo's *own* committed legality standard, which since round 3 includes compactness (D-010, `bench.compactness_floor`). Three Colorado plans sit at Polsby-Popper ≈ 0.015 against a neutral floor of 0.106, with 3,800–4,100 cut edges against a ceiling of 901 — **one-seventh the compactness and 4.6× the cut edges of the worst of 12,000 neutral draws.** This is the round-2 defect the repo already caught and fixed ("plans with a third the Polsby-Popper of every neutral draw came back `legal_compliance = 1.0`"), reappearing at roughly 20× the severity because Experiment 3's searches were not run through the shape envelope. Colorado's Amendments Y and Z make compactness an ordered criterion; a map at PP 0.015 is rejected on sight.
+
+So `co-declination` and `co-partisan-bias` are weakened as demonstrations even though their arithmetic is correct: they show a metric can be satisfied by a lopsided map, but not by a map anyone would adopt. **`co-mean-median` is the only Colorado gaming result that survives a traditional-criteria screen**, which is why §1 rests on it.
+
+The inverse is also worth recording: on the four plans the fairness metrics missed most badly, compactness caught three. Shape is doing detection work here that no partisan metric did — and on the fourth (`co-mean-median`) it does none at all.
+
+---
+
+## 4. What resisted, per state, and why
+
+### Colorado (k=8, D share 0.5694)
+
+- **Mean-median, declination, partisan bias: gamed, in the D direction** — the direction the statewide majority already runs.
+- **Efficiency gap: not gamed, and the negative is informative.** The search's best in-band plan reads EG = +0.003259 — but it reaches that number by manufacturing **two districts at an exact integer tie** (D = R = 198,871 and D = R = 198,602), together holding 25.1% of Colorado's two-party votes. Under `evaluate.partisan`'s tie rule a tied district wastes every vote on both sides, so those districts contribute exactly 0 to the EG numerator while adding a quarter to the denominator. Its "4 D" seat count is itself tie-convention-dependent (break both toward D: 6–2; both toward R: 4–4), and 4 D is inside the neutral range and *below* proportionality. Nothing was gamed, the searcher said so, and the result is a **gameability of the implementation's tie convention** rather than of the efficiency gap — recorded as a defect candidate, since a plan where a quarter of the delegation elects nobody should not read as the cleanest map in the set.
+- **The R direction resisted in every Colorado cell.** No search produced a legal in-band plan giving Democrats fewer seats than the neutral floor. The searchers offer arithmetic for this (the unweighted mean of district D shares is pinned within ~0.001 of the statewide 0.5694 on every plan measured, so a clean mean-median forces a median above 0.5 and hence ≥4 D districts; a partisan bias of 0 forces exactly 4 districts above 0.5694, all of which are above 0.5). Those arguments are internally consistent with every number measured here, but they were **not independently re-derived by the verifier** and are recorded as arguments, not proofs.
+
+### Iowa (k=4, D share 0.4582)
+
+- **No cell produced a lopsided-versus-null outcome, and this is structural rather than a search failure.** Iowa's neutral support bottoms out at 0 D of 4. The most R-favouring seat outcome that exists is one the neutral process already produces, and the enacted plan produces it too. **No R-direction gerrymander in Iowa can be outside the neutral seat distribution at any search quality.** The D direction is capped at 2 seats by geography — consistent with round 5's "no 3-seat plant exists" (0 of 32 Iowa attempts) — and 2 D is the near-proportional, 43%-of-the-ensemble outcome.
+- **The efficiency gap is not satisfiable on Iowa at all.** At V_D = 0.4582 with near-equal district turnout, achievable EG values are approximately {+0.416 at 0 D, +0.166 at 1 D, −0.084 at 2 D, −0.334 at 3 D}: **the 0.14-wide band is narrower than the 0.25-seat quantum**, so no seat count lands inside it. The best attempt reached −0.0774, outside the band. Confirmed empirically: **no draw of the 806-plan neutral IA ensemble sits inside |EG| ≤ 0.07** (min −0.0942). A fixed-band EG screen on Iowa flags 100% of neutrally drawn maps.
+
+### The delegation-size result
+
+k = 4 and k = 8 behave differently, and it is not a matter of search effort.
+
+1. **Quantisation.** Partisan bias moves in steps of 1/k of seat share (0.25 at k=4, 0.125 at k=8), so any band under half a step is a test for exactly zero. Six of seven plans pass it. Smaller delegations make this worse, but k=8 is already too coarse for a 0.05 band to mean anything.
+2. **Room to hide.** At k=8, "clean" on mean-median or bias is compatible with 7 or 8 of 8 seats — there are enough districts to park four of them just above 0.5 and below the statewide share. At k=4 the same constraint pins the seat count to within one seat of proportional, so satisfying the metric *is* a near-proportionality constraint. **A metric can be more gameable in a larger delegation and less informative in a smaller one, for the same reason: it is counting districts, and there are either too few to distinguish outcomes or enough to conceal them.**
+3. **Declination is simply absent at k=4.** Undefined on both sweeps, and excluded by `trusted_metrics` on the third plan because k < 8. On Iowa it contributed zero information on three of three plans.
+4. **The null width dominates.** Both states have a 2-seat neutral spread (D-013); doubling the delegation doubled the room above the null without narrowing the null. That is the same result Phase 1 ended on, arriving from the metric side.
+
+---
+
+## 5. `CRITERIA.md` §5.1 checked against measurement
+
+§5.1: *"all of these are reliable in competitive states, but only the efficiency gap and declination should be trusted where one party predominates."* Six of the seven plans are in the predominance regime and `partisan.one_party_predominates` fires on each.
+
+**The distrust half is corroborated, strongly.** On every one of the six, mean-median and partisan bias either read inside a conventional clean band or read with the wrong sign, and usually both: mean-median signed as a Democratic advantage on two Iowa Republican sweeps, signed as a Republican advantage on a Colorado 8–0 Democratic sweep; partisan bias exactly 0.0 on all six. Neither ever fired on a lopsided map. §5.1 called these correctly and `evaluate.partisan.trusted_metrics` enforces it — a consumer reading the trusted set first is not fooled by either.
+
+**The trust half does not hold.** Declination — one of the two metrics §5.1 says to keep in this regime — was driven to −4.2×10⁻⁷ on a legal 7–1 map, and returned `None` on the three most lopsided maps in the set (CO 8–0 and both IA 4–0). **On the plan where declination was the gamed metric, `trusted_metrics` returns `('efficiency_gap', 'declination')`: the regime filter discards the two metrics that happened to agree the map was fine and promotes the one that was attacked.** Surviving the regime test is not evidence of correctness, and this is the sharpest thing the experiment found about the repo's own machinery.
+
+**The efficiency gap held on all seven plans** — it is the only metric never fooled, and it flagged all five lopsided plans, three of them past the neutral ensemble's own minimum. But its robustness here is mechanical, not virtuous: on a fixed election EG is close to an affine function of the share of the state's votes cast inside districts one party wins, so at a fixed statewide vote share it is nearly pinned by seat count once turnout is near-uniform. The same property that makes it hard to detach from the seat outcome makes it **carry almost no independent information at k=4** (it is a relabelling of the seat count) and makes a fixed band **misfire on 100% of neutral Iowa maps**. §5.1's endorsement of EG survives; the reason it survives is not that EG measures fairness.
+
+**Proposed amendment for §5.1**, on this evidence: the trust column should read *efficiency gap only* under predominance, with declination moved to "trusted where defined and not directly optimised against" — and every metric should be read as an ensemble percentile rather than against a fixed band, because the two disagreed in opposite directions on the two states.
+
+---
+
+## 6. What this means for the system
+
+`CRITERIA.md` §5.2 and `prompt.md` both hold that single-metric scoring must never ship. **The data supports that, and the support is uneven — strong where it is an existence claim, weak where it would be a general one.**
+
+**What is established at full strength.** Existence claims need one example, and there are three. There exists a legal, contiguous, population-equal, **shape-typical** Colorado plan whose mean-median is nearer zero than any of 12,000 neutral draws and which gives one party 7 of 8 seats. There exists a legal Colorado plan on which three of the four fairness metrics read clean while it delivers 7 of 8. There exists a legal Colorado plan handing one party 8 of 8 seats on which partisan bias is exactly 0.0 and declination declines to answer. **Any single metric fixed in advance can be satisfied by a map that hands one party nearly every seat, on this state and this election.** That is enough to forbid single-metric scoring in this system, and it is what §5.2 predicted.
+
+**What is not established, and must not be claimed.** This is 7 plans on 2 states with **one election** (2020 presidential two-party via VEST), one metric implementation, one sampler (ReCom at a fixed ε), and one legality standard. It is not a theorem, and the paper's theorem is not re-proved here — it is illustrated. Specifically: nothing here shows the efficiency gap is safe; it shows EG was not defeated by four searches on two states, one of which defeated it in a different way (the tie exploit) and another of which showed it flagging every neutral map in the state. Nothing here establishes that any metric *cannot* be gamed in the R direction — only that these searches did not manage it (§7). And two states is not a sample: the two behaved differently enough that a third would probably behave differently again.
+
+**Three consequences for the build.**
+
+1. **Report all four side by side, always, and never a subset — including when `trusted_metrics` narrows the set.** The regime filter promoted a gamed metric on `co-declination`. Narrowing to the trusted set is correct for reliability and is not a defence against an adversary who knows the filter.
+2. **Locate in the distribution; do not test against a band.** Every plan that beat a fixed band was caught, or correctly not caught, by ensemble location — and the two disagreed in both directions (IA mean-median: band-clean, above neutral p95; IA efficiency gap: band-fails on 100% of neutral maps). This is `prompt.md`'s output design vindicated by an experiment that was not designed to test it.
+3. **Report compactness alongside the partisan row, and gate the adversary on it.** Compactness caught three of the four plans the fairness metrics missed — and missed the one plan that matters most, `co-mean-median`. A shape screen is a necessary complement and is not a substitute, which is exactly what makes that single plan the finding.
+
+---
+
+## 7. Limitations — every one we know
+
+**Distinguish "cannot be gamed" from "we did not manage to game it."** Nothing in this experiment proves a negative.
+
+- **Colorado efficiency gap, R and D directions:** not gamed. Supported by an LP outer bound over VTD turnout with contiguity and integrality relaxed (searcher's own construction, internally consistent with every measured number, **not independently re-derived**) plus 150,000-proposal annealing × 3 restarts that never entered the band. That is a strong argument, not a proof. A better search, a different sampler, or a different election could change it.
+- **All Colorado R-direction claims** (mean-median, bias and declination cannot be dragged clean while the majority party loses seats) rest on the same class of argument: pinned district-share means, plus failed searches. Recorded as "not managed", not "shown impossible".
+- **Iowa efficiency gap** is the one place the argument is close to arithmetic — the achievable EG values are pinned by seat count at a 0.25-seat quantum against a 0.14-wide band — and is corroborated by 806 neutral draws none of which land in band. Still stated as a statement about this election and this epsilon.
+- **`ia-mean-median` and `ia-partisan-bias` claimed success and did not have it.** Both plans are legal and both metric values reproduce, but 0 D of 4 is inside the neutral support and is the enacted plan's outcome. The cells should have reported that Iowa is unwinnable for an R-direction gaming demonstration by construction. They are recorded here as failures.
+- **Four of seven plans fail this repo's own compactness standard** (§3), so `legal: true` in the search returns is narrower than `gates.legal_compliance` means elsewhere in the bench. The searches were not run through the D-010 shape envelope. Whether a shape-constrained search can reach |declination| ≈ 0 at 7 seats, or bias = 0 at 8 seats, **was not run** — `prompt.md` says measure once. It is the single most valuable follow-up and it is open.
+- **Colorado's enacted plan is not rook-contiguous at VTD units** — district 4 comes in two components (419 and 13 units), the known D-015 whole-VTD approximation defect, re-confirmed here. Its metric row appears in §2 in italics as context only. It is **not** a legal baseline and no comparison in this section depends on it.
+- **The neutral reference ensembles are not converged.** Colorado's 12,000-draw ensemble has split R̂ 1.0937 and Iowa's 806-draw ensemble never reached the 1.00–1.01 band. Every percentile and every "outside the neutral range" statement carries that uncertainty. The two fresh Colorado ensembles run inside this experiment reached 7 D in 0.05% and 1.35% of draws where the committed one never did — so **"outside the neutral seat range" for the two 7–1 plans is a statement about the committed ensemble, and the larger fresh samples put those plans in an extreme tail rather than outside the support.** The 8–0 plan is outside every ensemble drawn.
+- **One election, votes cast rather than eligible voters, two-party reduction, no uncontested-race imputation, uniform-swing counterfactuals for bias and the seats-votes curve.** `CRITERIA.md` §10's unmodelled list applies in full, and the efficiency gap is the metric most exposed to turnout heterogeneity because turnout sits in its denominator.
+- **The Colorado EG "clean" plan depends on a tie convention.** Its seat count and its metric value both change if ties are broken. This is a property of the implementation, not of the state, and is recorded as a defect candidate rather than a finding about the efficiency gap.
+- **Administrative metrics were degenerate** at whole-unit resolution on both states (0 county splits, constant ballot styles), so they neither confirmed nor contradicted anything here.
+- **Plots and plan CSVs are in scratch, not committed.** `exp3-co-declination.png`, `co-mean-median/mm_gameability_CO.png`, `co_partisan_bias_gameability.png`, `exp3_co_efficiency_gap.png`, `exp3_ia_efficiency_gap.png`, `ia-mean-median/ia_mean_median.png`, `ia_partisan_bias_gameability.png`, all under `/tmp/claude-0/-home-user-districting-bench/413b4380-574f-5ca9-91ae-b514806c3a51/scratchpad/`. Every number in this section was re-derived from the plan CSVs by the committed modules and is reproducible from them; the artifacts themselves are not in the repo, which is a gap against `prompt.md`'s "produce a plot and a written finding."
+- **This experiment was run last, not early.** `prompt.md` asked for it early and in parallel with Phase 1 because it is "the result most likely to change how the rest is built." It ran after five detection rounds. The sequencing error is already recorded at the end of the Phase 1 section; the cost is visible here, in that the searches were built without the D-010 envelope that Phase 1 had already established was necessary.
+
+---
+
+## 8. Reproduction
+
+Master seed 20260820 throughout; ensemble seeds via `generate.seeds.derive`; `node_repeats=0` everywhere. Every metric came from the committed `evaluate.partisan`, `evaluate.compactness`, `evaluate.plan` and `adversarial.gerrymander` — none was reimplemented for reporting. Verification loaded each plan CSV cold and re-derived legality, every partisan metric, every compactness measure and the seat count (twice, once without importing `evaluate.partisan`).
+
+Nothing under `src/`, `docs/` or `tools/` was modified by this experiment. `python3 tools/check_firewall.py` prints `clean`; `git status` is empty; `PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` is green at 602.

@@ -416,3 +416,51 @@ that reintroduces the leak fails loudly.
 *Generalisable warning:* "every unit matched" is not evidence that a join is sound
 when the two tables have different cardinality. The check that matters is
 conservation of the quantity being joined.
+
+---
+
+## D-017 — Experiment 3 ships one demonstration, not three
+
+**Date:** 2026-08-20 · **Phase:** experiments
+
+Three Colorado plans were found on which a named fairness metric reads essentially
+zero while one party takes 7 or 8 of 8 seats. Independent verification confirmed
+every number. But **two of the three fail this repository's own compactness
+standard** (`gerrymander.check_legality`'s envelope, D-010): they sit outside the
+entire 12,000-draw neutral range on all five measures, at roughly one seventh the
+Polsby-Popper and four times the cut edges of the *worst* neutral draw.
+
+*Chosen:* `co-mean-median` is the headline demonstration. It is the only plan in the
+set that is legal by every standard this repo applies **and** inside the full neutral
+compactness range on all five measures — a map a commission could plausibly adopt.
+The other two are reported with the qualification stated in the same breath as the
+result, never as free-standing findings.
+
+*Why this is a decision and not bookkeeping:* the dramatic version of this
+experiment is "three metrics gamed, one of them on an 8–0 sweep". The honest version
+is "one metric gamed on a plan that would survive traditional-criteria review, and
+two more on plans that a compactness screen rejects on sight". Round 2 established
+that a gerrymander a compactness screen catches is not the adversary this system
+exists to detect; applying that standard to our own headline result is the same rule
+pointed inward.
+
+---
+
+## D-018 — Two Iowa cells were refuted and are recorded as failures
+
+**Date:** 2026-08-20 · **Phase:** experiments
+
+`ia-mean-median` and `ia-partisan-bias` were returned as successes and **refuted on
+verification**. Both produce 0 D of 4 — which is inside Iowa's neutral range of 0–2
+and is the enacted plan's own outcome. The neutral process produces that result
+unprompted, so it is not lopsided against the null however extreme it looks against
+proportionality.
+
+The structural reason is worth keeping: **Iowa's neutral support bottoms out at
+0 D, so no R-favouring seat outcome in Iowa lies outside the neutral range at any
+search quality.** That cell was unwinnable by construction, not by budget — the same
+shape of finding as D-013, arriving from the other direction.
+
+*Recorded as failures rather than quietly dropped*, because a searcher's claim that
+does not survive verification is evidence about the method, and this project has
+already shipped one false headline (`FEASIBILITY.md` §5.1) by not applying that rule.
