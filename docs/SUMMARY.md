@@ -12,6 +12,29 @@ any decision about a real map.
 
 ---
 
+## The short version
+
+- **The goal:** tell a rigged district map from an honest one, by comparing it
+  against thousands of maps a computer draws using only the state's legal rules.
+- **The detector does not work — and the reason turned out to be worth more than
+  the detector.** In both states studied, honest maps already swing two seats on
+  their own. To stand out, a gerrymander has to be bigger than that. Nobody could
+  build one that big that was still legal and still normal-looking, so there was
+  nothing to test the detector against.
+- **Popular "fairness scores" can be fooled.** There is a perfectly legal
+  Colorado map that hands one party 7 of 8 seats while scoring closer to perfect
+  on a well-known fairness formula than any of 12,000 honestly drawn maps.
+- **How detectable a gerrymander is depends on the state, not on the detector.**
+  A national rule of thumb stated in seats cannot work.
+- **Four separate "passing" scores turned out to mean nothing**, each for a
+  different reason. All four are written down rather than quietly fixed.
+- Of three planned side studies, one is finished, one is re-running, and one has
+  not started.
+
+The rest of this document explains each of those.
+
+---
+
 ## The problem
 
 Every ten years, states redraw the district boundaries that decide who elects
@@ -36,6 +59,20 @@ the normal range, that is evidence something other than the rules shaped it.
 
 Two states have been built: Iowa, with 4 districts made of whole counties, and
 Colorado, with 8 districts made of voting precincts.
+
+### A few words that keep coming up
+
+- **Compact** — a district that is a reasonable blob rather than a sprawling
+  tentacle. There are five common ways to measure it and they disagree with each
+  other, which is itself part of the problem.
+- **Fairness score** — one of several published formulas that boil a whole map
+  down to a single number meant to say whether it treats the parties evenly.
+- **Competitive district** — one where the two parties are close enough that the
+  seat could go either way.
+- **County splits** — how many counties a map cuts through. Some states forbid
+  it; others just discourage it.
+- **Comparison maps** — the thousands of computer-drawn, politics-blind maps that
+  everything else gets measured against.
 
 ---
 
@@ -74,22 +111,23 @@ states and both parties, to build a map that moves three seats.
 **It succeeded zero times.**
 
 That does not prove such a map is impossible. A better search might find one. But
-it does mean the thing the project set out to measure and the thing it can
-actually build do not currently meet: the size of gerrymander big enough to stand
-out is bigger than the one a constrained, realistic search can produce.
+it does mean the two halves of the test no longer meet: the gerrymander big
+enough to stand out is bigger than the gerrymander a realistic search can build.
 
-The loop was stopped there rather than tuned until something passed.
+Rather than keep adjusting the detector until some number came back green, the
+work stopped there.
 
 **One half does work.** Telling the detector *not* to cry wolf turned out to be
 the achievable half: on Colorado, checked against 24 honestly drawn maps, it
-raised zero false alarms. One category of test map was left out of that score and
-reported separately, because the way those maps were picked was too close to what
-the detector itself measures for the result to mean anything.
+raised zero false alarms. One group of test maps was reported separately instead
+of being counted in that score, because those maps had been picked using
+something close to the detector's own yardstick — which would have skewed the
+result whichever way it came out.
 
 ## Four times a test passed for the wrong reason
 
-Across five rounds, a scoring gate passed four separate times without the system
-actually detecting anything:
+Across five rounds, one of the project's pass/fail scores came back green four
+separate times without the system actually detecting anything:
 
 1. A trial run scored perfectly because it was flagging every map put in front of
    it.
@@ -276,9 +314,10 @@ dangerous one.
   three-quarters of the time. The goal is for it to be no better than a coin
   flip. Three rounds of work moved it from certain to three-quarters — real
   progress, short of the bar.
-- **The collections of comparison maps have not fully settled.** By the standard
-  measure of whether a random sampling process has run long enough, neither state
-  is there yet, which puts an uncertainty under every percentage in the record.
+- **The collections of comparison maps have not fully settled.** There is a
+  standard statistical check for whether a random sampling process has run long
+  enough to be representative of everything it could have produced. Neither state
+  passes it yet, which puts a question mark under every percentage here.
 - **Colorado's real map, as approximated here, is not legally valid at the
   precision used** — one district comes apart into two pieces. That is a known
   side effect of working with whole precincts.
