@@ -62,6 +62,8 @@ imported by ``src/generate``.
 from __future__ import annotations
 
 import argparse
+import csv
+import gzip
 import json
 import math
 import random
@@ -117,7 +119,7 @@ class StateSpec:
     county_prefix_len: int | None
 
 
-IOWA = StateSpec("IA", "ia", 4, 2e-4, 8, 1500, county_prefix_len=None)
+IOWA = StateSpec("IA", "ia", 4, 2e-4, 12, 1500, county_prefix_len=None)
 COLORADO = StateSpec("CO", "co", 8, 1e-2, 8, 1000, county_prefix_len=5)
 STATES = {"IA": IOWA, "CO": COLORADO}
 
@@ -126,7 +128,17 @@ STATES = {"IA": IOWA, "CO": COLORADO}
 # criteria — the value choices, each one explicit and each one directional
 # --------------------------------------------------------------------------- #
 
-#: ``name -> (row key, +1 if larger is better, human-readable statement)``
+#: The contest whose partisan metrics the headline verdicts use. Every partisan
+#: criterion is also measured on :data:`ALTERNATE_CONTEST` and the whole pair
+#: analysis is re-run against it, because docs/progress.md records "one election"
+#: as the first limitation of Experiment 3 and a finding that flips when the
+#: office changes is a finding about the office.
+PRIMARY_CONTEST = "G20PRE"
+ALTERNATE_CONTEST = "G20USS"
+
+#: ``name -> (row key, +1 if larger is better, human-readable statement)``.
+#: A key containing ``@`` is contest-dependent and is bound by
+#: :func:`criteria_for`; the rest are the same whatever the election.
 CRITERIA: dict[str, tuple[str, int, str]] = {
     "compactness_pp": ("polsby_popper_mean", +1,
                        "mean Polsby-Popper over districts"),
@@ -134,20 +146,34 @@ CRITERIA: dict[str, tuple[str, int, str]] = {
                         "cut edges on the rook graph"),
     "county_integrity": ("county_splits", -1,
                          "counties divided between districts"),
-    "fairness_eg": ("abs_efficiency_gap", -1,
-                    "|efficiency gap|, 2020 presidential two-party"),
-    "fairness_mm": ("abs_mean_median", -1,
-                    "|mean-median|, 2020 presidential two-party"),
-    "competitiveness": ("competitive_districts", +1,
+    "fairness_eg": ("abs_efficiency_gap@", -1,
+                    "|efficiency gap|, two-party"),
+    "fairness_mm": ("abs_mean_median@", -1,
+                    "|mean-median|, two-party"),
+    "competitiveness": ("competitive_districts@", +1,
                         "districts inside 45-55% two-party D share"),
     "population_equality": ("population_spread", -1,
                             "max-min district population, persons"),
 }
 
+#: Criteria whose value depends on which election is used.
+PARTISAN_CRITERIA = tuple(
+    name for name, (key, _, _) in CRITERIA.items() if key.endswith("@")
+)
 
-def goodness(rows: list[dict], name: str) -> list[float]:
+
+def criteria_for(contest: str) -> dict[str, tuple[str, int, str]]:
+    """:data:`CRITERIA` with the contest-dependent row keys bound to ``contest``."""
+    return {
+        name: (key + contest if key.endswith("@") else key, direction, statement)
+        for name, (key, direction, statement) in CRITERIA.items()
+    }
+
+
+def goodness(rows: list[dict], name: str,
+             criteria: dict[str, tuple[str, int, str]] | None = None) -> list[float]:
     """The criterion's values re-signed so that larger is always better."""
-    key, direction, _ = CRITERIA[name]
+    key, direction, _ = (criteria or criteria_for(PRIMARY_CONTEST))[name]
     return [direction * float(row[key]) for row in rows]
 
 
@@ -172,12 +198,16 @@ def measure_plan(plan, ctx) -> dict:
     shapes = C.measure_districts(plan, ctx["geom"], ctx["cache"])
     pp = list(shapes["polsby_popper"].values())
 
-    dem, rep = ctx["dem"], ctx["rep"]
-    shares = PA.district_shares(plan, dem, rep)
-    competitive = sum(1 for s in shares.values() if 0.45 <= s <= 0.55)
-
-    eg = PA.efficiency_gap(plan, dem, rep)
-    mm = PA.mean_median(plan, dem, rep)
+    partisan: dict[str, float] = {}
+    for contest, (dem, rep) in ctx["contests"].items():
+        shares = PA.district_shares(plan, dem, rep)
+        partisan[f"competitive_districts@{contest}"] = sum(
+            1 for s in shares.values() if 0.45 <= s <= 0.55
+        )
+        partisan[f"abs_efficiency_gap@{contest}"] = abs(
+            PA.efficiency_gap(plan, dem, rep)
+        )
+        partisan[f"abs_mean_median@{contest}"] = abs(PA.mean_median(plan, dem, rep))
 
     totals = EP.aggregate(plan, ctx["pops"])
     spread = int(max(totals.values()) - min(totals.values()))
@@ -191,20 +221,21 @@ def measure_plan(plan, ctx) -> dict:
         "polsby_popper_mean": sum(pp) / len(pp),
         "cut_edges": C.cut_edges(plan, ctx["adjacency"]),
         "county_splits": splits,
-        "abs_efficiency_gap": abs(eg),
-        "abs_mean_median": abs(mm),
-        "competitive_districts": competitive,
         "population_spread": spread,
+        **partisan,
     }
 
 
-def load_context(spec: StateSpec, contest: str) -> dict:
+def load_context(spec: StateSpec, contests: tuple[str, ...]) -> dict:
     geom = GU.load_geometry(PROCESSED / f"{spec.prefix}_units.gpkg")
     adjacency = GU.load_adjacency(PROCESSED / f"{spec.prefix}_adjacency.json")
     pops = EP.populations(PROCESSED / f"{spec.prefix}_units.csv")
     el = E.load_elections(PROCESSED / f"{spec.prefix}_elections.csv")
-    dem_col, rep_col = E.two_party_columns(el, contest)
-    dem, rep = E.two_party(el, dem_col, rep_col)
+    votes, columns = {}, {}
+    for contest in contests:
+        dem_col, rep_col = E.two_party_columns(el, contest)
+        votes[contest] = E.two_party(el, dem_col, rep_col)
+        columns[contest] = [dem_col, rep_col]
 
     counties = None
     if spec.county_prefix_len is not None:
@@ -215,11 +246,9 @@ def load_context(spec: StateSpec, contest: str) -> dict:
         "geom": geom,
         "adjacency": adjacency,
         "pops": pops,
-        "dem": dem,
-        "rep": rep,
+        "contests": votes,
         "counties": counties,
-        "contest": contest,
-        "columns": (dem_col, rep_col),
+        "columns": columns,
         "cache": C.MeasureCache(maxsize=1 << 15),
     }
 
@@ -270,8 +299,9 @@ def diagnostics(chains: list[ChainResult]) -> dict:
     if len(completed) < 2:
         out["note"] = "fewer than two completed chains; no diagnostic possible"
         return out
+    bound = criteria_for(PRIMARY_CONTEST)
     for name in ("compactness_cut", "fairness_eg", "population_equality"):
-        key, _, _ = CRITERIA[name]
+        key, _, _ = bound[name]
         series = [[float(row[key]) for row in c.rows] for c in completed]
         equal = convergence.truncate(series)
         out["metrics"][name] = {
@@ -287,11 +317,26 @@ def diagnostics(chains: list[ChainResult]) -> dict:
 # --------------------------------------------------------------------------- #
 
 def _robust_sd(values: list[float]) -> float:
-    """MAD rescaled to a normal SD. Zero when the quantity does not vary."""
+    """MAD rescaled to a normal SD, falling back to the plain SD.
+
+    The MAD is preferred because a handful of extreme draws should not set the
+    scale an effect size is measured against. But several criteria here are
+    small integers -- competitiveness is a count of districts, county splits is
+    a count of counties -- and when more than half the ensemble sits on the
+    median the MAD is exactly zero while the criterion is plainly varying.
+    Reporting that pair as degenerate would be a false negative caused by the
+    choice of scale estimator, so the plain SD is used instead and only a
+    genuinely constant criterion returns zero.
+    """
     if not values:
         return 0.0
     centre = median(values)
-    return 1.4826 * median([abs(v - centre) for v in values])
+    mad = 1.4826 * median([abs(v - centre) for v in values])
+    if mad > 0:
+        return mad
+    mean = sum(values) / len(values)
+    variance = sum((v - mean) ** 2 for v in values) / len(values)
+    return math.sqrt(variance)
 
 
 def _varies(values: list[float]) -> bool:
@@ -453,21 +498,35 @@ def pareto_size(a_chains, b_chains) -> dict:
     }
 
 
-def evaluate_pair(rows_by_chain, a: str, b: str, rng: random.Random) -> dict:
-    a_chains = [goodness(rows, a) for rows in rows_by_chain]
-    b_chains = [goodness(rows, b) for rows in rows_by_chain]
+def evaluate_pair(rows_by_chain, a: str, b: str, rng: random.Random,
+                  criteria=None) -> dict:
+    criteria = criteria or criteria_for(PRIMARY_CONTEST)
+    a_chains = [goodness(rows, a, criteria) for rows in rows_by_chain]
+    b_chains = [goodness(rows, b, criteria) for rows in rows_by_chain]
     results = {name: fn(a_chains, b_chains, rng) for name, fn in TESTS.items()}
-    verdicts = [r["verdict"] for r in results.values()]
-    if all(v == "degenerate" for v in verdicts):
+    verdicts = {name: r["verdict"] for name, r in results.items()}
+    deciding = [name for name, v in verdicts.items() if v != "degenerate"]
+    votes = sum(1 for v in verdicts.values() if v == "tradeoff")
+
+    # A test that cannot decide is not a vote against a tradeoff, and it is not
+    # a reason to discard the tests that could. But "strong" is a claim that
+    # three independent tests agreed, so it is unavailable when fewer than three
+    # were able to answer.
+    if not deciding:
         overall = "degenerate"
-    elif any(v == "degenerate" for v in verdicts):
-        overall = "degenerate"
+    elif votes == 0:
+        overall = "none"
+    elif len(deciding) == len(results) and votes == len(results):
+        overall = "strong"
     else:
-        votes = sum(1 for v in verdicts if v == "tradeoff")
-        overall = {0: "none", 1: "weak", 2: "weak", 3: "strong"}[votes]
+        overall = "weak"
+
     return {
-        "a": a, "b": b, "verdict": overall,
-        "votes": sum(1 for v in verdicts if v == "tradeoff"),
+        "a": a, "b": b, "verdict": overall, "votes": votes,
+        "n_deciding": len(deciding),
+        "partial": 0 < len(deciding) < len(results),
+        "degenerate_tests": [name for name, v in verdicts.items()
+                             if v == "degenerate"],
         "tests": results,
         "pareto": (pareto_size(a_chains, b_chains)
                    if overall != "degenerate" else None),
@@ -545,9 +604,84 @@ def controls(seed: int = MASTER_SEED) -> dict:
 # driver
 # --------------------------------------------------------------------------- #
 
-def run_state(spec: StateSpec, contest: str, *, log=print) -> dict:
+
+def analyse(rows_by_chain, contest: str, *, log=print) -> dict:
+    """Every ordered pair of varying criteria, under one election's metrics.
+
+    Called twice per state -- once for :data:`PRIMARY_CONTEST` and once for
+    :data:`ALTERNATE_CONTEST` -- over the *same* draws. The ensemble is neutral
+    and knows nothing about either election, so re-scoring it costs no sampling
+    and answers a question a single-election run cannot: whether a verdict is
+    about the state's geography or about one office's returns.
+    """
+    criteria = criteria_for(contest)
+    all_rows = [row for rows in rows_by_chain for row in rows]
+
+    varying, degenerate = [], {}
+    for name, (key, _, _) in criteria.items():
+        values = [row[key] for row in all_rows]
+        if len(set(values)) > 1:
+            varying.append(name)
+        else:
+            degenerate[name] = {
+                "constant_value": values[0],
+                "reason": ("units are the subdivisions, so no plan over them can "
+                           "split one" if name == "county_integrity"
+                           else "did not vary over this ensemble"),
+            }
+
+    # One RNG seeded per contest, so the primary run's numbers do not depend on
+    # whether a replication happens to run before or after it.
+    rng = random.Random(MASTER_SEED + 7 + sum(contest.encode()))
+    pairs = []
+    for i, a in enumerate(varying):
+        for b in varying[i + 1:]:
+            pairs.append(evaluate_pair(rows_by_chain, a, b, rng, criteria))
+            pairs.append(evaluate_pair(rows_by_chain, b, a, rng, criteria))
+            log(f"  [{contest}] {a} x {b}: "
+                f"{pairs[-2]['verdict']} / {pairs[-1]['verdict']}")
+
+    return {
+        "contest": contest,
+        "criteria": {
+            "varying": varying,
+            "degenerate": degenerate,
+            "definitions": {n: {"row_key": k, "direction": d, "statement": s}
+                            for n, (k, d, s) in criteria.items()},
+        },
+        "pairs": pairs,
+        "summary": {
+            v: [f"{p['a']} -> {p['b']}" for p in pairs if p["verdict"] == v]
+            for v in ("strong", "weak", "none", "degenerate")
+        },
+    }
+
+
+def compare_contests(primary: dict, replication: dict) -> dict:
+    """Where the two elections disagree about a pair. This is the robustness check."""
+    index = {(p["a"], p["b"]): p["verdict"] for p in replication["pairs"]}
+    agree, differ = [], []
+    for pair in primary["pairs"]:
+        key = (pair["a"], pair["b"])
+        other = index.get(key)
+        record = {"pair": f"{pair['a']} -> {pair['b']}",
+                  primary["contest"]: pair["verdict"],
+                  replication["contest"]: other}
+        (agree if other == pair["verdict"] else differ).append(record)
+    return {
+        "n_pairs_compared": len(primary["pairs"]),
+        "n_agree": len(agree),
+        "n_differ": len(differ),
+        "disagreements": differ,
+        "note": ("a pair only present under one contest is counted as a "
+                 "disagreement, since a criterion that goes degenerate under a "
+                 "different election is itself a finding about the criterion"),
+    }
+
+
+def run_state(spec: StateSpec, *, log=print) -> dict:
     log(f"[{spec.key}] loading")
-    ctx = load_context(spec, contest)
+    ctx = load_context(spec, (PRIMARY_CONTEST, ALTERNATE_CONTEST))
     log(f"[{spec.key}] sampling {spec.chains} chains x {spec.steps} steps, "
         f"k={spec.k}, epsilon={spec.epsilon}")
     chains = measure_ensemble(spec, ctx, log=log)
@@ -560,34 +694,19 @@ def run_state(spec: StateSpec, contest: str, *, log=print) -> dict:
             f"the chain-level bootstrap and permutation tests need at least two"
         )
 
+    analysis = analyse(rows_by_chain, PRIMARY_CONTEST, log=log)
+    replication = analyse(rows_by_chain, ALTERNATE_CONTEST, log=log)
+    pairs = analysis["pairs"]
     all_rows = [row for rows in rows_by_chain for row in rows]
-    varying, degenerate = [], {}
-    for name, (key, _, _) in CRITERIA.items():
-        values = [row[key] for row in all_rows]
-        if len(set(values)) > 1:
-            varying.append(name)
-        else:
-            degenerate[name] = {
-                "constant_value": values[0],
-                "reason": ("units are the subdivisions, so no plan over them can "
-                           "split one" if name == "county_integrity"
-                           else "did not vary over this ensemble"),
-            }
 
-    rng = random.Random(MASTER_SEED + 7)
-    pairs = []
-    for i, a in enumerate(varying):
-        for b in varying[i + 1:]:
-            pairs.append(evaluate_pair(rows_by_chain, a, b, rng))
-            pairs.append(evaluate_pair(rows_by_chain, b, a, rng))
-            log(f"  {a} x {b}: {pairs[-2]['verdict']} / {pairs[-1]['verdict']}")
-
-    return {
+    report = {
         "state": spec.key,
         "config": {
             "k": spec.k, "epsilon": spec.epsilon, "chains": spec.chains,
             "steps": spec.steps, "master_seed": MASTER_SEED, "node_repeats": 0,
-            "contest": contest, "columns": list(ctx["columns"]),
+            "primary_contest": PRIMARY_CONTEST,
+            "alternate_contest": ALTERNATE_CONTEST,
+            "columns": ctx["columns"],
             "county_prefix_len": spec.county_prefix_len,
         },
         "ensemble": {
@@ -607,25 +726,50 @@ def run_state(spec: StateSpec, contest: str, *, log=print) -> dict:
             },
         },
         "convergence": diagnostics(chains),
-        "criteria": {
-            "varying": varying,
-            "degenerate": degenerate,
-            "definitions": {n: {"direction": d, "statement": s}
-                            for n, (_, d, s) in CRITERIA.items()},
-        },
+        "criteria": analysis["criteria"],
         "pairs": pairs,
-        "summary": {
-            v: [f"{p['a']} -> {p['b']}" for p in pairs if p["verdict"] == v]
-            for v in ("strong", "weak", "none")
-        },
+        "summary": analysis["summary"],
+        "replication": replication,
+        "contest_agreement": compare_contests(analysis, replication),
     }
+    return report, chains
+
+
+def write_rows(spec: StateSpec, chains: list[ChainResult], path: Path) -> dict:
+    """Every measured draw, so the finding can be re-derived without re-sampling.
+
+    ReCom is deterministic given a seed, but a reader who wants to check a
+    percentile should not have to spend an hour of CPU to do it, and
+    docs/progress.md already records that Experiment 3's plots and plan CSVs
+    were left in a scratch directory that no longer exists. Dead chains are
+    written too, marked, because the failure rate is itself a sampling bias
+    (ARCHITECTURE.md section 7) and a file holding only survivors cannot show it.
+    """
+    keys = sorted({key for contest in (PRIMARY_CONTEST, ALTERNATE_CONTEST)
+                   for key, _, _ in criteria_for(contest).values()})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    n = 0
+    with gzip.open(path, "wt", newline="") as handle:
+        out = csv.writer(handle)
+        out.writerow(["chain_index", "chain_seed", "chain_completed", "draw", *keys])
+        for index, chain in enumerate(chains):
+            for draw, row in enumerate(chain.rows):
+                out.writerow([index, chain.seed, int(chain.completed), draw,
+                              *[row[key] for key in keys]])
+                n += 1
+    try:
+        shown = str(path.relative_to(ROOT))
+    except ValueError:
+        shown = str(path)
+    return {"path": shown, "n_rows": n,
+            "columns": ["chain_index", "chain_seed", "chain_completed", "draw", *keys],
+            "includes_failed_chains": True}
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--state", action="append", choices=sorted(STATES),
                         help="repeatable; default is both")
-    parser.add_argument("--contest", default="G20PRE")
     parser.add_argument("--out", default=str(OUT / "experiment-2-results.json"))
     parser.add_argument("--controls-only", action="store_true")
     args = parser.parse_args(argv)
@@ -639,7 +783,12 @@ def main(argv=None) -> int:
     keys = args.state or sorted(STATES)
     results = {"master_seed": MASTER_SEED, "controls": control_report, "states": {}}
     for key in keys:
-        results["states"][key] = run_state(STATES[key], args.contest)
+        spec = STATES[key]
+        report, chains = run_state(spec)
+        rows_path = Path(args.out).parent / f"{spec.prefix}-draws.csv.gz"
+        report["draws_file"] = write_rows(spec, chains, rows_path)
+        print(f"wrote {rows_path} ({report['draws_file']['n_rows']} rows)")
+        results["states"][key] = report
 
     path = Path(args.out)
     path.parent.mkdir(parents=True, exist_ok=True)

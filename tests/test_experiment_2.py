@@ -112,7 +112,8 @@ def test_votes_map_to_verdict(monkeypatch, verdicts, expected):
         monkeypatch.setitem(
             X.TESTS, name, lambda a, b, rng, v=verdict: {"verdict": v}
         )
-    rows = [[{"cut_edges": i, "abs_efficiency_gap": (i % 7) / 10}
+    key = X.criteria_for(X.PRIMARY_CONTEST)["fairness_eg"][0]
+    rows = [[{"cut_edges": i, key: (i % 7) / 10}
              for i in range(40)] for _ in range(3)]
     result = X.evaluate_pair(rows, "compactness_cut", "fairness_eg",
                              random.Random(0))
@@ -137,6 +138,92 @@ def test_every_criterion_declares_a_direction_and_a_statement():
         assert key
 
 
+def test_partisan_criteria_are_bound_to_a_contest_and_others_are_not():
+    bound = X.criteria_for("G20USS")
+    for name in X.PARTISAN_CRITERIA:
+        assert bound[name][0].endswith("@G20USS"), name
+    assert bound["compactness_pp"][0] == "polsby_popper_mean"
+    assert set(X.PARTISAN_CRITERIA) == {
+        "fairness_eg", "fairness_mm", "competitiveness"
+    }
+
+
+def test_the_two_contests_bind_to_different_row_keys():
+    primary = X.criteria_for(X.PRIMARY_CONTEST)
+    alternate = X.criteria_for(X.ALTERNATE_CONTEST)
+    assert X.PRIMARY_CONTEST != X.ALTERNATE_CONTEST
+    for name in X.PARTISAN_CRITERIA:
+        assert primary[name][0] != alternate[name][0], name
+
+
+# --------------------------------------------------------------------------- #
+# partial degeneracy must not erase the tests that could decide
+# --------------------------------------------------------------------------- #
+
+def _rows(n=60, chains=3):
+    key = X.criteria_for(X.PRIMARY_CONTEST)["fairness_eg"][0]
+    return [[{"cut_edges": (i * 3) % 17, key: ((i * 5) % 13) / 10}
+             for i in range(n)] for _ in range(chains)]
+
+
+def test_one_degenerate_test_leaves_the_others_deciding(monkeypatch):
+    monkeypatch.setitem(X.TESTS, "correlation",
+                        lambda a, b, rng: {"verdict": "degenerate"})
+    monkeypatch.setitem(X.TESTS, "conditional",
+                        lambda a, b, rng: {"verdict": "tradeoff"})
+    monkeypatch.setitem(X.TESTS, "achievability",
+                        lambda a, b, rng: {"verdict": "tradeoff"})
+    result = X.evaluate_pair(_rows(), "compactness_cut", "fairness_eg",
+                             random.Random(0))
+    assert result["verdict"] == "weak"
+    assert result["partial"] is True
+    assert result["n_deciding"] == 2
+    assert result["degenerate_tests"] == ["correlation"]
+
+
+def test_strong_requires_all_three_tests_to_have_decided(monkeypatch):
+    """Two firing tests and one that could not answer is never 'strong'."""
+    monkeypatch.setitem(X.TESTS, "correlation",
+                        lambda a, b, rng: {"verdict": "degenerate"})
+    for name in ("conditional", "achievability"):
+        monkeypatch.setitem(X.TESTS, name,
+                            lambda a, b, rng: {"verdict": "tradeoff"})
+    assert X.evaluate_pair(_rows(), "compactness_cut", "fairness_eg",
+                           random.Random(0))["verdict"] != "strong"
+
+
+def test_a_degenerate_test_is_not_a_vote_against_a_tradeoff(monkeypatch):
+    monkeypatch.setitem(X.TESTS, "correlation",
+                        lambda a, b, rng: {"verdict": "degenerate"})
+    for name in ("conditional", "achievability"):
+        monkeypatch.setitem(X.TESTS, name,
+                            lambda a, b, rng: {"verdict": "none"})
+    result = X.evaluate_pair(_rows(), "compactness_cut", "fairness_eg",
+                             random.Random(0))
+    assert result["verdict"] == "none"
+    assert result["votes"] == 0
+
+
+def test_robust_sd_falls_back_to_the_plain_sd_on_a_discrete_criterion():
+    """More than half the mass on the median: the MAD is 0, the criterion is not."""
+    values = [3.0] * 70 + [1.0] * 15 + [5.0] * 15
+    assert X._robust_sd(values) > 0
+
+
+def test_contest_comparison_counts_a_missing_pair_as_a_disagreement():
+    primary = {"contest": "A", "pairs": [
+        {"a": "x", "b": "y", "verdict": "none"},
+        {"a": "y", "b": "x", "verdict": "weak"},
+    ]}
+    replication = {"contest": "B", "pairs": [
+        {"a": "x", "b": "y", "verdict": "none"},
+    ]}
+    out = X.compare_contests(primary, replication)
+    assert out["n_agree"] == 1
+    assert out["n_differ"] == 1
+    assert out["disagreements"][0]["B"] is None
+
+
 # --------------------------------------------------------------------------- #
 # the Pareto frontier
 # --------------------------------------------------------------------------- #
@@ -159,9 +246,12 @@ def test_frontier_collapses_to_one_point_under_perfect_synergy():
 # convergence reporting — the second lost-run defect
 # --------------------------------------------------------------------------- #
 
+EG = X.criteria_for(X.PRIMARY_CONTEST)["fairness_eg"][0]
+
+
 def _chain(seed, n, *, failure=None, steps=None):
     rows = [{"cut_edges": (i * 7) % 13,
-             "abs_efficiency_gap": ((i * 3) % 11) / 10,
+             EG: ((i * 3) % 11) / 10,
              "population_spread": (i * 5) % 17}
             for i in range(n)]
     return X.ChainResult(seed=seed, steps_requested=steps or n,
