@@ -1157,8 +1157,8 @@ def chains_from_draws(spec: StateSpec, path: Path) -> list[ChainResult]:
     empty: dict[int, dict] = {}
     if sidecar.exists():
         for record in json.loads(sidecar.read_text())["chains"]:
+            empty[record["index"]] = record
             if record["n_rows"] == 0:
-                empty[record["index"]] = record
                 rows.setdefault(record["index"], [])
                 meta[record["index"]] = (record["seed"], record["completed"])
 
@@ -1172,9 +1172,20 @@ def chains_from_draws(spec: StateSpec, path: Path) -> list[ChainResult]:
                 f"configuration derives {expected}. The file was produced by a "
                 f"different run and re-analysing it would silently mix ensembles."
             )
+        # Completion is READ from the file, not re-derived from the row count.
+        # The file records what the run actually did; recomputing it here would
+        # let a truncated or partially written file quietly re-describe a
+        # completed chain as a failed one, which would change the failure rate
+        # -- a reported result in its own right (ARCHITECTURE.md section 7).
+        recorded = empty.get(index, {}).get("n_rows")
+        if recorded is not None and recorded != len(rows[index]):
+            raise ValueError(
+                f"{path}: chain {index} holds {len(rows[index])} rows but the "
+                f"sidecar records {recorded}. One of the two files is stale."
+            )
         out.append(ChainResult(
             seed=seed, rows=rows[index],
-            steps_requested=spec.steps if completed else spec.steps,
+            steps_requested=len(rows[index]) if completed else spec.steps,
             failure=None if completed else "recorded in the draws file as failed",
         ))
     return out
@@ -1195,6 +1206,17 @@ def run_state(spec: StateSpec, *, log=print, jobs: int = 1,
     chains = measure_ensemble(spec, ctx, log=log, jobs=jobs,
                               checkpoints=checkpoints)
     return _analyse_chains(spec, chains, log=log)
+
+
+def election_columns(spec: StateSpec) -> dict[str, list[str]]:
+    """The ``(dem, rep)`` column pair backing each contest, for the record.
+
+    Read from the election table rather than carried through from the sampling
+    context, so the re-analysis path records exactly what the sampling path does.
+    """
+    el = E.load_elections(PROCESSED / f"{spec.prefix}_elections.csv")
+    return {contest: list(E.two_party_columns(el, contest))
+            for contest in (PRIMARY_CONTEST, ALTERNATE_CONTEST)}
 
 
 def _analyse_chains(spec: StateSpec, chains: list[ChainResult], *, log=print):
@@ -1234,7 +1256,7 @@ def _analyse_chains(spec: StateSpec, chains: list[ChainResult], *, log=print):
             "steps": spec.steps, "master_seed": MASTER_SEED, "node_repeats": 0,
             "primary_contest": PRIMARY_CONTEST,
             "alternate_contest": ALTERNATE_CONTEST,
-            "columns": ctx["columns"],
+            "columns": election_columns(spec),
             "county_prefix_len": spec.county_prefix_len,
             "config_digest": config_digest(spec),
         },

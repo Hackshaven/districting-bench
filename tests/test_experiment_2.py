@@ -23,6 +23,7 @@ per-test output.
 
 from __future__ import annotations
 
+import csv
 import dataclasses
 import gzip
 import json
@@ -595,3 +596,84 @@ def test_written_draws_are_byte_stable_across_runs(tmp_path):
     X.write_rows(TINY, chains, first)
     X.write_rows(TINY, chains, second)
     assert first.read_bytes() == second.read_bytes()
+
+
+# --------------------------------------------------------------------------- #
+# the re-analysis path — report assembly, not statistics
+# --------------------------------------------------------------------------- #
+
+def _truncated_draws(tmp_path, prefix, keep=90):
+    """A small but structurally complete draws file, plus its sidecar."""
+    src = X.OUT / f"{prefix}-draws.csv.gz"
+    if not src.exists():
+        pytest.skip(f"{src} not on disk")
+    out = tmp_path / f"{prefix}-draws.csv.gz"
+    kept = {}
+    with gzip.open(src, "rt", newline="") as handle:
+        reader = csv.DictReader(handle)
+        fields = reader.fieldnames
+        rows = []
+        for row in reader:
+            index = int(row["chain_index"])
+            if kept.get(index, 0) >= keep:
+                continue
+            kept[index] = kept.get(index, 0) + 1
+            rows.append(row)
+    with gzip.open(out, "wt", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    sidecar = X.OUT / f"{prefix}-chains.json"
+    if sidecar.exists():
+        data = json.loads(sidecar.read_text())
+        for record in data["chains"]:
+            record["n_rows"] = kept.get(record["index"], 0)
+        (tmp_path / f"{prefix}-chains.json").write_text(json.dumps(data))
+    return out
+
+
+def test_reanalysis_assembles_a_complete_report(tmp_path, monkeypatch):
+    """Exercise every block of the report, cheaply.
+
+    This is a wiring test, not a statistics test: the thresholds are turned down
+    so it runs in seconds. It exists because the re-analysis path shipped with a
+    NameError in report assembly -- it referenced the sampling context that this
+    path never builds -- and every statistical test in this module passed while
+    the driver could not produce a report at all.
+    """
+    monkeypatch.setattr(X, "BOOTSTRAP", 20)
+    monkeypatch.setattr(X, "PERMUTATIONS", 20)
+    monkeypatch.setattr(X, "CALIBRATION_BLEND", (0.0, 64.0))
+    draws = _truncated_draws(tmp_path, "ia")
+
+    report, chains = X.run_state(X.IOWA, draws=draws, log=lambda *_: None)
+
+    for key in ("state", "config", "ensemble", "convergence", "criteria",
+                "pairs", "symmetry", "relationships", "multiplicity",
+                "detection_floor", "summary", "replication",
+                "contest_agreement"):
+        assert key in report, key
+    assert report["config"]["columns"]["G20PRE"] == ["G20PREDBID", "G20PRERTRU"]
+    assert report["relationships"]["n_relationships"] > 0
+    assert report["multiplicity"]["method"] == "Benjamini-Hochberg"
+    assert len(report["detection_floor"]) == 2
+    assert json.dumps(report, default=str)          # must be serialisable
+    assert chains
+
+
+def test_reanalysis_recovers_chains_that_produced_no_draws(tmp_path):
+    """The failure rate is part of the result; an empty chain must not vanish."""
+    draws = _truncated_draws(tmp_path, "ia")
+    chains = X.chains_from_draws(X.IOWA, draws)
+    assert len(chains) == X.IOWA.chains, (
+        "every attempted chain must be recovered, including those that died "
+        "before producing a draw"
+    )
+    assert sum(1 for c in chains if not c.completed) == 4
+
+
+def test_reanalysis_refuses_a_draws_file_from_another_configuration(tmp_path):
+    draws = _truncated_draws(tmp_path, "ia")
+    other = dataclasses.replace(X.IOWA, key="CO")
+    with pytest.raises(ValueError, match="different run"):
+        X.chains_from_draws(other, draws)

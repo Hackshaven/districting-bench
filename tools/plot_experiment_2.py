@@ -9,6 +9,16 @@ three tests concluded. This is a categorical grid, so it is a grid: no
 interpolation, no continuous colour ramp implying a magnitude the verdict does
 not have. Read down a row for "what does prioritising this criterion cost".
 
+The matrix is drawn as a **triangle, not a square**, and this is the point of it.
+Two of the three tests are mathematically symmetric in (A, B) -- Spearman rho by
+definition, and the joint top-tercile rate because both indicator sets enter it
+the same way -- so only the conditional test can distinguish direction. Drawing
+all 42 ordered cells invites a reader to count 42 findings when Colorado has 21
+relationships, and every apparent asymmetry would be manufactured by the one test
+the audit found carrying every defect. The lower triangle therefore shows the
+relationship, and a cell whose two directions disagree is marked rather than
+silently averaged or silently doubled.
+
 **The frontier panels.** For the pairs the law actually argues about, the
 ensemble as a density with its Pareto frontier drawn on top. This is the chart
 that shows the *shape* behind the verdict: whether the cloud is one blob, whether
@@ -111,20 +121,35 @@ def verdict_matrix(state: dict, path: Path) -> Path:
     names = state["criteria"]["varying"] + sorted(state["criteria"]["degenerate"])
     index = {n: i for i, n in enumerate(names)}
     verdicts = {(p["a"], p["b"]): p for p in state["pairs"]}
+    rel = {r["relationship"]: r
+           for r in state.get("relationships", {}).get("relationships", [])}
 
     n = len(names)
     fig, ax = plt.subplots(figsize=(1.15 * n + 3.2, 1.15 * n + 2.2), dpi=200)
     fig.patch.set_facecolor(SURFACE)
     ax.set_facecolor(SURFACE)
 
+    drawn = set()
     for (a, b), pair in verdicts.items():
+        key = tuple(sorted((a, b)))
+        if key in drawn:
+            continue
+        drawn.add(key)
+        # lower triangle: row is the later name, so each relationship is one cell
+        row, col = index[key[1]], index[key[0]]
+        record = rel.get(f"{key[0]} <-> {key[1]}")
+        verdict = record["verdict"] if record else pair["verdict"]
         ax.add_patch(plt.Rectangle(
-            (index[b] - 0.5, index[a] - 0.5), 1, 1,
-            facecolor=VERDICT_COLOUR[pair["verdict"]], edgecolor=SURFACE, lw=2))
-        if pair["verdict"] != "degenerate":
-            ax.text(index[b], index[a], f"{pair['votes']}/{pair['n_deciding']}",
+            (col - 0.5, row - 0.5), 1, 1,
+            facecolor=VERDICT_COLOUR[verdict], edgecolor=SURFACE, lw=2))
+        if verdict != "degenerate":
+            other = verdicts.get((b, a))
+            votes = max(pair["votes"], other["votes"] if other else 0)
+            deciding = max(pair["n_deciding"], other["n_deciding"] if other else 0)
+            mark = "*" if record and record["direction_dependent"] else ""
+            ax.text(col, row, f"{votes}/{deciding}{mark}",
                     ha="center", va="center", fontsize=8,
-                    color=INK if pair["verdict"] != "strong" else "#ffffff")
+                    color=INK if verdict != "strong" else "#ffffff")
 
     for name in names:
         if name in state["criteria"]["degenerate"]:
