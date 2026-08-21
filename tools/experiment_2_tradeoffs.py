@@ -1125,8 +1125,68 @@ def compare_contests(primary: dict, replication: dict) -> dict:
     }
 
 
+def chains_from_draws(spec: StateSpec, path: Path) -> list[ChainResult]:
+    """Rebuild the chain results from a committed draws file.
+
+    The draws file holds every measured value for every draw, so the entire
+    analysis can be re-derived from it without sampling. That matters for two
+    reasons. A reader checking a verdict should not need an hour of CPU and a
+    working GerryChain to do it -- the committed CSV plus this path is the whole
+    computation. And this environment reclaims its container roughly every two
+    hours, which has now destroyed four long runs; an analysis that reads a
+    committed file cannot be killed halfway through anything expensive.
+
+    Failed chains are carried through with their failure strings, so the failure
+    rate and the analysis sample are the same as in the run that produced the
+    file.
+    """
+    keys = sorted({key for contest in (PRIMARY_CONTEST, ALTERNATE_CONTEST)
+                   for key, _, _ in criteria_for(contest).values()})
+    rows: dict[int, list[dict]] = {}
+    meta: dict[int, tuple[int, bool]] = {}
+    with gzip.open(path, "rt", newline="") as handle:
+        for record in csv.DictReader(handle):
+            index = int(record["chain_index"])
+            rows.setdefault(index, []).append(
+                {key: float(record[key]) for key in keys})
+            meta[index] = (int(record["chain_seed"]),
+                           record["chain_completed"] == "1")
+
+    # Recover chains that produced no rows at all from the sidecar, if present.
+    sidecar = path.with_name(path.name.replace("-draws.csv.gz", "-chains.json"))
+    empty: dict[int, dict] = {}
+    if sidecar.exists():
+        for record in json.loads(sidecar.read_text())["chains"]:
+            if record["n_rows"] == 0:
+                empty[record["index"]] = record
+                rows.setdefault(record["index"], [])
+                meta[record["index"]] = (record["seed"], record["completed"])
+
+    out = []
+    for index in sorted(rows):
+        seed, completed = meta[index]
+        expected = seeds.derive(MASTER_SEED, f"exp2-{spec.key.lower()}", index)
+        if seed != expected:
+            raise ValueError(
+                f"{path}: chain {index} carries seed {seed}, but this "
+                f"configuration derives {expected}. The file was produced by a "
+                f"different run and re-analysing it would silently mix ensembles."
+            )
+        out.append(ChainResult(
+            seed=seed, rows=rows[index],
+            steps_requested=spec.steps if completed else spec.steps,
+            failure=None if completed else "recorded in the draws file as failed",
+        ))
+    return out
+
+
 def run_state(spec: StateSpec, *, log=print, jobs: int = 1,
-              checkpoints: Path | None = None) -> dict:
+              checkpoints: Path | None = None,
+              draws: Path | None = None) -> dict:
+    if draws is not None:
+        log(f"[{spec.key}] re-analysing {draws} without sampling")
+        chains = chains_from_draws(spec, draws)
+        return _analyse_chains(spec, chains, log=log)
     log(f"[{spec.key}] loading")
     ctx = load_context(spec, (PRIMARY_CONTEST, ALTERNATE_CONTEST))
     log(f"[{spec.key}] sampling {spec.chains} chains x {spec.steps} steps, "
@@ -1134,6 +1194,12 @@ def run_state(spec: StateSpec, *, log=print, jobs: int = 1,
         f"config={config_digest(spec)}")
     chains = measure_ensemble(spec, ctx, log=log, jobs=jobs,
                               checkpoints=checkpoints)
+    return _analyse_chains(spec, chains, log=log)
+
+
+def _analyse_chains(spec: StateSpec, chains: list[ChainResult], *, log=print):
+    """Everything downstream of the draws. Identical whether they were just
+    sampled or read back from the committed file."""
 
     completed = [c for c in chains if c.completed]
     rows_by_chain = [c.rows for c in completed]
@@ -1228,11 +1294,24 @@ def write_rows(spec: StateSpec, chains: list[ChainResult], path: Path) -> dict:
                 out.writerow([index, chain.seed, int(chain.completed), draw,
                               *[row[key] for key in keys]])
                 n += 1
+    # Chains that died before producing a single draw leave no rows, so the
+    # draws file alone understates the failure rate -- and ARCHITECTURE.md
+    # section 7 makes that rate part of the result, because surviving seeds are
+    # not a random subset of attempted seeds. The sidecar carries every attempted
+    # chain, including the empty ones.
+    sidecar = path.with_name(path.name.replace("-draws.csv.gz", "-chains.json"))
+    sidecar.write_text(json.dumps({
+        "config_digest": config_digest(spec),
+        "chains": [{"index": i, "seed": c.seed, "n_rows": len(c.rows),
+                    "completed": c.completed, "failure": c.failure}
+                   for i, c in enumerate(chains)],
+    }, indent=2))
+
     try:
         shown = str(path.relative_to(ROOT))
     except ValueError:
         shown = str(path)
-    return {"path": shown, "n_rows": n,
+    return {"path": shown, "n_rows": n, "sidecar": str(sidecar.name),
             "columns": ["chain_index", "chain_seed", "chain_completed", "draw", *keys],
             "includes_failed_chains": True}
 
@@ -1250,6 +1329,10 @@ def main(argv=None) -> int:
     parser.add_argument("--checkpoints", default=str(OUT / "checkpoints"),
                         help="per-chain cache; a container restart then costs "
                              "one chain rather than the run")
+    parser.add_argument("--from-draws", action="store_true",
+                        help="re-derive every verdict from the committed draws "
+                             "files instead of sampling; the whole analysis is "
+                             "a pure function of those files")
     args = parser.parse_args(argv)
 
     control_report = controls()
@@ -1265,11 +1348,17 @@ def main(argv=None) -> int:
     results = {"master_seed": MASTER_SEED, "controls": control_report, "states": {}}
     for key in keys:
         spec = STATES[key]
-        report, chains = run_state(spec, jobs=args.jobs,
-                                   checkpoints=checkpoints)
         rows_path = Path(args.out).parent / f"{spec.prefix}-draws.csv.gz"
-        report["draws_file"] = write_rows(spec, chains, rows_path)
-        print(f"wrote {rows_path} ({report['draws_file']['n_rows']} rows)")
+        if args.from_draws:
+            report, chains = run_state(spec, draws=rows_path)
+            report["draws_file"] = {"path": str(rows_path.relative_to(ROOT)),
+                                    "n_rows": sum(len(c.rows) for c in chains),
+                                    "reanalysed_without_sampling": True}
+        else:
+            report, chains = run_state(spec, jobs=args.jobs,
+                                       checkpoints=checkpoints)
+            report["draws_file"] = write_rows(spec, chains, rows_path)
+            print(f"wrote {rows_path} ({report['draws_file']['n_rows']} rows)")
         results["states"][key] = report
 
     path = Path(args.out)

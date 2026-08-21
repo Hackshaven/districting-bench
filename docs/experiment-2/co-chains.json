@@ -1,0 +1,62 @@
+{
+  "config_digest": "6f6e9fb846a69634",
+  "provenance": "reconstructed from the run that produced the committed draws file",
+  "chains": [
+    {
+      "index": 0,
+      "seed": 563234666686854419,
+      "n_rows": 1000,
+      "completed": true,
+      "failure": null
+    },
+    {
+      "index": 1,
+      "seed": 4761589958218801350,
+      "n_rows": 1000,
+      "completed": true,
+      "failure": null
+    },
+    {
+      "index": 2,
+      "seed": 5217148686552512972,
+      "n_rows": 1000,
+      "completed": true,
+      "failure": null
+    },
+    {
+      "index": 3,
+      "seed": 4164046303359253295,
+      "n_rows": 1000,
+      "completed": true,
+      "failure": null
+    },
+    {
+      "index": 4,
+      "seed": 3567447526945967275,
+      "n_rows": 1000,
+      "completed": true,
+      "failure": null
+    },
+    {
+      "index": 5,
+      "seed": 6397685640330708380,
+      "n_rows": 1000,
+      "completed": true,
+      "failure": null
+    },
+    {
+      "index": 6,
+      "seed": 8902359970357767147,
+      "n_rows": 1000,
+      "completed": true,
+      "failure": null
+    },
+    {
+      "index": 7,
+      "seed": 5383407191473591799,
+      "n_rows": 1000,
+      "completed": true,
+      "failure": null
+    }
+  ]
+}
