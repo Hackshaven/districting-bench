@@ -674,6 +674,24 @@ def pareto_size(a_chains, b_chains) -> dict:
     }
 
 
+def verdict_from(verdicts: dict, n_tests: int) -> tuple[str, int, int]:
+    """The pair's verdict from its tests' verdicts. One rule, used twice.
+
+    Applied once to the raw test verdicts and again after the multiplicity
+    correction, so the corrected headline is produced by the same arithmetic as
+    the uncorrected one rather than by a second, differently-written rule.
+    """
+    deciding = [name for name, v in verdicts.items() if v != "degenerate"]
+    votes = sum(1 for v in verdicts.values() if v == "tradeoff")
+    if not deciding:
+        return "degenerate", votes, 0
+    if votes == 0:
+        return "none", votes, len(deciding)
+    if len(deciding) == n_tests and votes == n_tests:
+        return "strong", votes, len(deciding)
+    return "weak", votes, len(deciding)
+
+
 def evaluate_pair(rows_by_chain, a: str, b: str, rng: random.Random,
                   criteria=None) -> dict:
     criteria = criteria or criteria_for(PRIMARY_CONTEST)
@@ -682,20 +700,12 @@ def evaluate_pair(rows_by_chain, a: str, b: str, rng: random.Random,
     results = {name: fn(a_chains, b_chains, rng) for name, fn in TESTS.items()}
     verdicts = {name: r["verdict"] for name, r in results.items()}
     deciding = [name for name, v in verdicts.items() if v != "degenerate"]
-    votes = sum(1 for v in verdicts.values() if v == "tradeoff")
 
     # A test that cannot decide is not a vote against a tradeoff, and it is not
     # a reason to discard the tests that could. But "strong" is a claim that
     # three independent tests agreed, so it is unavailable when fewer than three
     # were able to answer.
-    if not deciding:
-        overall = "degenerate"
-    elif votes == 0:
-        overall = "none"
-    elif len(deciding) == len(results) and votes == len(results):
-        overall = "strong"
-    else:
-        overall = "weak"
+    overall, votes, _ = verdict_from(verdicts, len(results))
 
     return {
         "a": a, "b": b, "verdict": overall, "votes": votes,
@@ -932,12 +942,43 @@ def adjust_multiplicity(pairs: list[dict]) -> dict:
     changed = [p for p in ranked
                if (p["tests"]["conditional"]["verdict"] == "tradeoff")
                != p["tests"]["conditional"]["fires_after_correction"]]
+
+    # The correction is applied to the headline, not merely reported beside it.
+    # One permutation test per ordered pair per contest is 42 simultaneous tests
+    # on Colorado at alpha=0.05; under a global null that produces false firings
+    # of the same order as the reported signal, and a verdict table built from
+    # raw p-values would be counting them as findings. The uncorrected verdict
+    # is kept on every pair so the difference is visible.
+    flipped = []
+    for pair in pairs:
+        pair["verdict_uncorrected"] = pair["verdict"]
+        conditional = pair["tests"]["conditional"]
+        if conditional.get("p") is None:
+            continue
+        corrected = dict(
+            {name: r["verdict"] for name, r in pair["tests"].items()},
+            conditional=("tradeoff" if conditional["fires_after_correction"]
+                         else "none"),
+        )
+        verdict, votes, deciding = verdict_from(corrected, len(pair["tests"]))
+        if verdict != pair["verdict"]:
+            flipped.append(f"{pair['a']} -> {pair['b']}: "
+                           f"{pair['verdict']} -> {verdict}")
+        pair["verdict"] = verdict
+        pair["votes"] = votes
+        pair["n_deciding"] = deciding
+
     return {
         "method": "Benjamini-Hochberg",
+        "applied_to_headline": True,
         "n_tests": n,
         "alpha": ALPHA,
-        "n_verdicts_changed": len(changed),
-        "changed": [f"{p['a']} -> {p['b']}" for p in changed],
+        "n_conditional_firings_lost": len(changed),
+        "conditional_firings_lost": [f"{p['a']} -> {p['b']}" for p in changed],
+        "n_pair_verdicts_changed": len(flipped),
+        "pair_verdicts_changed": flipped,
+        "note": ("verdict_uncorrected on each pair is the verdict before this "
+                 "correction; verdict is after it"),
     }
 
 
@@ -1082,6 +1123,8 @@ def analyse(rows_by_chain, contest: str, *, log=print) -> dict:
             log(f"  [{contest}] {a} x {b}: "
                 f"{pairs[-2]['verdict']} / {pairs[-1]['verdict']}")
 
+    # Order matters: the correction rewrites pair verdicts, so the relationship
+    # collapse and the summary must be computed from the corrected ones.
     multiplicity = adjust_multiplicity(pairs)
 
     return {

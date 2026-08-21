@@ -677,3 +677,68 @@ def test_reanalysis_refuses_a_draws_file_from_another_configuration(tmp_path):
     other = dataclasses.replace(X.IOWA, key="CO")
     with pytest.raises(ValueError, match="different run"):
         X.chains_from_draws(other, draws)
+
+
+# --------------------------------------------------------------------------- #
+# multiplicity — the correction has to reach the headline, not sit beside it
+# --------------------------------------------------------------------------- #
+
+def _pair(a, b, *, p, corr="none", ach="none"):
+    """A pair whose stated verdict agrees with its own tests, as the driver builds it."""
+    tests = {
+        "correlation": {"verdict": corr},
+        "conditional": {"verdict": "tradeoff" if p < X.ALPHA else "none",
+                        "p": p, "effect": -1.0},
+        "achievability": {"verdict": ach},
+    }
+    verdict, votes, deciding = X.verdict_from(
+        {name: t["verdict"] for name, t in tests.items()}, len(tests))
+    return {"a": a, "b": b, "verdict": verdict, "votes": votes,
+            "n_deciding": deciding, "tests": tests}
+
+
+def test_correction_downgrades_a_verdict_carried_by_one_marginal_test():
+    """Twenty tests, one at p=0.03: that is what a global null looks like."""
+    pairs = [_pair("a", f"b{i}", p=0.03 if i == 0 else 0.6) for i in range(20)]
+    report = X.adjust_multiplicity(pairs)
+    assert report["applied_to_headline"] is True
+    assert pairs[0]["verdict_uncorrected"] == "weak"
+    assert pairs[0]["verdict"] == "none"
+    assert report["n_pair_verdicts_changed"] == 1
+
+
+def test_correction_leaves_a_strongly_significant_finding_alone():
+    pairs = [_pair("a", f"b{i}", p=0.0001 if i == 0 else 0.6) for i in range(20)]
+    X.adjust_multiplicity(pairs)
+    assert pairs[0]["verdict"] == "weak"
+    assert pairs[0]["tests"]["conditional"]["fires_after_correction"] is True
+
+
+def test_correction_cannot_erase_a_finding_another_test_carries():
+    """A pair the correlation test fires on does not depend on the permutation."""
+    pairs = [_pair("a", f"b{i}", p=0.03 if i == 0 else 0.6) for i in range(20)]
+    pairs[0]["tests"]["correlation"]["verdict"] = "tradeoff"
+    X.adjust_multiplicity(pairs)
+    assert pairs[0]["verdict"] == "weak"
+    assert pairs[0]["votes"] == 1
+
+
+def test_q_values_are_monotone_in_p():
+    pairs = [_pair("a", f"b{i}", p=(i + 1) / 40) for i in range(20)]
+    X.adjust_multiplicity(pairs)
+    qs = [p["tests"]["conditional"]["q_value"] for p in
+          sorted(pairs, key=lambda p: p["tests"]["conditional"]["p"])]
+    assert qs == sorted(qs), "Benjamini-Hochberg q-values must not decrease"
+    assert all(q >= p["tests"]["conditional"]["p"]
+               for q, p in zip(qs, sorted(pairs,
+                                          key=lambda p: p["tests"]["conditional"]["p"])))
+
+
+def test_verdict_arithmetic_is_one_rule_used_twice():
+    assert X.verdict_from({"a": "tradeoff", "b": "tradeoff", "c": "tradeoff"}, 3)[0] == "strong"
+    assert X.verdict_from({"a": "tradeoff", "b": "none", "c": "none"}, 3)[0] == "weak"
+    assert X.verdict_from({"a": "none", "b": "none", "c": "none"}, 3)[0] == "none"
+    assert X.verdict_from({"a": "degenerate"}, 1)[0] == "degenerate"
+    # three firing tests but one abstained: cannot be "strong"
+    assert X.verdict_from(
+        {"a": "tradeoff", "b": "tradeoff", "c": "degenerate"}, 3)[0] == "weak"

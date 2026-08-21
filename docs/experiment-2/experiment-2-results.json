@@ -25,7 +25,15 @@
         "achievability": "none"
       }
     },
-    "conclusion": "each of the three tests returned 'tradeoff' on synthetic tradeoff data and 'none' on both independent and synergistic data, so each can produce either verdict and none is a constant"
+    "discrete_tradeoff": {
+      "expected": "anything but 'none'",
+      "got": {
+        "correlation": "tradeoff",
+        "conditional": "degenerate",
+        "achievability": "tradeoff"
+      }
+    },
+    "conclusion": "each of the three tests returned 'tradeoff' on synthetic tradeoff data and 'none' on both independent and synergistic data, so each can produce either verdict and none is a constant; and on a perfect tradeoff between a continuous criterion and a three-valued one, no test denied it -- the regime in which the conditional test was previously a proven constant"
   },
   "states": {
     "IA": {
@@ -85,7 +93,7 @@
           {
             "seed": 8458559163655332203,
             "draws": 0,
-            "failure": "RuntimeError: Could not find a possible cut after 100000 attempts.",
+            "failure": "recorded in the draws file as failed",
             "completed": false
           },
           {
@@ -103,7 +111,7 @@
           {
             "seed": 8181738652657340395,
             "draws": 0,
-            "failure": "RuntimeError: Could not find a possible cut after 100000 attempts.",
+            "failure": "recorded in the draws file as failed",
             "completed": false
           },
           {
@@ -115,7 +123,7 @@
           {
             "seed": 4674702755440810699,
             "draws": 1,
-            "failure": "RuntimeError: Could not find a possible cut after 100000 attempts.",
+            "failure": "recorded in the draws file as failed",
             "completed": false
           },
           {
@@ -127,7 +135,7 @@
           {
             "seed": 3911660532335731725,
             "draws": 49,
-            "failure": "RuntimeError: Could not find a possible cut after 100000 attempts.",
+            "failure": "recorded in the draws file as failed",
             "completed": false
           }
         ],
@@ -180,7 +188,7 @@
         ],
         "degenerate": {
           "county_integrity": {
-            "constant_value": 0,
+            "constant_value": 0.0,
             "reason": "units are the subdivisions, so no plan over them can split one"
           }
         },
@@ -245,14 +253,18 @@
               "verdict": "none",
               "effect": 0.6744907594765952,
               "p": 1.0,
-              "decile_n": 1200,
+              "decile_n": 1242,
+              "attainable_effect": -1.7986420252709205,
               "top_decile_median": -42.0,
               "ensemble_median": -45.0,
               "robust_sd": 4.4478,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -297,14 +309,18 @@
               "verdict": "none",
               "effect": 0.9809693845800759,
               "p": 1.0,
-              "decile_n": 1200,
+              "decile_n": 1253,
+              "attainable_effect": -1.4571060151480661,
               "top_decile_median": 0.35910564705119646,
               "ensemble_median": 0.32583573263317944,
               "robust_sd": 0.033915344292073796,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -348,15 +364,19 @@
             "conditional": {
               "verdict": "none",
               "effect": 0.10506875618519822,
-              "p": 0.5384615384615384,
-              "decile_n": 1200,
+              "p": 0.5414585414585414,
+              "decile_n": 1242,
+              "attainable_effect": -5.44069876507364,
               "top_decile_median": -0.08806367712842081,
               "ensemble_median": -0.08961613005837392,
               "robust_sd": 0.014775590635304536,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.9668902526045383,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -400,15 +420,19 @@
             "conditional": {
               "verdict": "tradeoff",
               "effect": -0.24903121436738399,
-              "p": 0.02097902097902098,
-              "decile_n": 1200,
+              "p": 0.016983016983016984,
+              "decile_n": 1224,
+              "attainable_effect": -1.4571060151480661,
               "top_decile_median": 0.3173897532584364,
               "ensemble_median": 0.32583573263317944,
               "robust_sd": 0.033915344292073796,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.05307192807192807,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -453,14 +477,18 @@
               "verdict": "tradeoff",
               "effect": -0.8983322624760557,
               "p": 0.000999000999000999,
-              "decile_n": 1200,
+              "decile_n": 1242,
+              "attainable_effect": -2.37173353385703,
               "top_decile_median": -0.02443079697517153,
               "ensemble_median": -0.017286084081190922,
               "robust_sd": 0.00795330769295514,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.006243756243756244,
+              "fires_after_correction": true
             },
             "achievability": {
               "verdict": "none",
@@ -503,16 +531,20 @@
             },
             "conditional": {
               "verdict": "tradeoff",
-              "effect": -0.565606067619464,
-              "p": 0.000999000999000999,
-              "decile_n": 1200,
-              "top_decile_median": 0.30665300811617935,
+              "effect": -0.3848652725764256,
+              "p": 0.001998001998001998,
+              "decile_n": 1308,
+              "attainable_effect": -1.4571060151480661,
+              "top_decile_median": 0.31278289440768714,
               "ensemble_median": 0.32583573263317944,
               "robust_sd": 0.033915344292073796,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.008325008325008326,
+              "fires_after_correction": true
             },
             "achievability": {
               "verdict": "none",
@@ -540,9 +572,11 @@
           "b": "competitiveness",
           "verdict": "none",
           "votes": 0,
-          "n_deciding": 3,
-          "partial": false,
-          "degenerate_tests": [],
+          "n_deciding": 2,
+          "partial": true,
+          "degenerate_tests": [
+            "conditional"
+          ],
           "tests": {
             "correlation": {
               "verdict": "none",
@@ -554,17 +588,10 @@
               "n_draws": 12000
             },
             "conditional": {
-              "verdict": "none",
-              "effect": 2.0029670338763044,
-              "p": 1.0,
-              "decile_n": 1200,
-              "top_decile_median": 3.0,
-              "ensemble_median": 2.0,
-              "robust_sd": 0.4992593403121163,
-              "thresholds": {
-                "effect": -0.2,
-                "alpha": 0.05
-              }
+              "verdict": "degenerate",
+              "effect": null,
+              "attainable_effect": 0.0,
+              "reason": "no ordering of this criterion could reach the firing threshold: the worst possible decile of goodness(B) shifts its median by +0.000 robust SD against a threshold of -0.2, because goodness(B) is coarse enough that its median does not move"
             },
             "achievability": {
               "verdict": "none",
@@ -599,24 +626,28 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.39375198723042004,
-              "ci_low": 0.26741448700273956,
-              "ci_high": 0.5064749846639403,
+              "ci_low": 0.26884988880975785,
+              "ci_high": 0.5100818030666441,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.47335219060565353,
-              "p": 0.997002997002997,
-              "decile_n": 1200,
-              "top_decile_median": 0.3418896351489775,
+              "effect": 0.5751225908886486,
+              "p": 1.0,
+              "decile_n": 5529,
+              "attainable_effect": -1.4571060151480661,
+              "top_decile_median": 0.34534121331331746,
               "ensemble_median": 0.32583573263317944,
               "robust_sd": 0.033915344292073796,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -651,8 +682,8 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.08286537286208485,
-              "ci_low": 0.0053531694400588406,
-              "ci_high": 0.1619014399207344,
+              "ci_low": -0.0008661870159451946,
+              "ci_high": 0.16194535512126104,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
@@ -660,15 +691,19 @@
             "conditional": {
               "verdict": "none",
               "effect": 0.13160795306860393,
-              "p": 0.999000999000999,
-              "decile_n": 1200,
+              "p": 0.997002997002997,
+              "decile_n": 1242,
+              "attainable_effect": -1.069314618682407,
               "top_decile_median": -215.0,
               "ensemble_median": -223.0,
               "robust_sd": 60.7866,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -694,8 +729,8 @@
         {
           "a": "population_equality",
           "b": "compactness_pp",
-          "verdict": "weak",
-          "votes": 1,
+          "verdict": "none",
+          "votes": 0,
           "n_deciding": 3,
           "partial": false,
           "degenerate_tests": [],
@@ -703,24 +738,28 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.08286537286208485,
-              "ci_low": -0.007448224793405967,
-              "ci_high": 0.1602774024761009,
+              "ci_low": -0.0018042097221955065,
+              "ci_high": 0.16506071989390775,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
-              "verdict": "tradeoff",
-              "effect": -0.3002046185364006,
-              "p": 0.000999000999000999,
-              "decile_n": 1200,
-              "top_decile_median": 0.31565418963744674,
+              "verdict": "none",
+              "effect": -0.15109565701578848,
+              "p": 0.001998001998001998,
+              "decile_n": 1290,
+              "attainable_effect": -1.4571060151480661,
+              "top_decile_median": 0.3207112714044519,
               "ensemble_median": 0.32583573263317944,
               "robust_sd": 0.033915344292073796,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.008325008325008326,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -755,8 +794,8 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.11498045061873745,
-              "ci_low": -0.11242396151149353,
-              "ci_high": 0.3190615218618419,
+              "ci_low": -0.11883575361198927,
+              "ci_high": 0.3351554068677074,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
@@ -764,15 +803,19 @@
             "conditional": {
               "verdict": "tradeoff",
               "effect": -5.071528333640657,
-              "p": 0.002997002997002997,
-              "decile_n": 1200,
+              "p": 0.007992007992007992,
+              "decile_n": 1253,
+              "attainable_effect": -5.44069876507364,
               "top_decile_median": -0.16455095661159644,
               "ensemble_median": -0.08961613005837392,
               "robust_sd": 0.014775590635304536,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.02854288568574283,
+              "fires_after_correction": true
             },
             "achievability": {
               "verdict": "none",
@@ -807,8 +850,8 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.11498045061873745,
-              "ci_low": -0.11837427170106661,
-              "ci_high": 0.30986588679659405,
+              "ci_low": -0.1272078473458393,
+              "ci_high": 0.3034278255482707,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
@@ -816,15 +859,19 @@
             "conditional": {
               "verdict": "none",
               "effect": -0.22483025315886507,
-              "p": 0.3916083916083916,
-              "decile_n": 1200,
+              "p": 0.3836163836163836,
+              "decile_n": 1224,
+              "attainable_effect": -1.7986420252709205,
               "top_decile_median": -46.0,
               "ensemble_median": -45.0,
               "robust_sd": 4.4478,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.7992007992007992,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -859,8 +906,8 @@
             "correlation": {
               "verdict": "none",
               "rho": -0.11222254945234324,
-              "ci_low": -0.3117570139573047,
-              "ci_high": 0.104059848995106,
+              "ci_low": -0.29750903846414795,
+              "ci_high": 0.09265556987675178,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
@@ -868,15 +915,19 @@
             "conditional": {
               "verdict": "none",
               "effect": 0.4888327676939052,
-              "p": 0.9820179820179821,
-              "decile_n": 1200,
+              "p": 0.9790209790209791,
+              "decile_n": 1253,
+              "attainable_effect": -2.37173353385703,
               "top_decile_median": -0.013398246669322433,
               "ensemble_median": -0.017286084081190922,
               "robust_sd": 0.00795330769295514,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -911,24 +962,28 @@
             "correlation": {
               "verdict": "none",
               "rho": -0.11222254945234324,
-              "ci_low": -0.31144737564904734,
-              "ci_high": 0.11096778028826304,
+              "ci_low": -0.3046733687225832,
+              "ci_high": 0.09493283752584815,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
               "verdict": "tradeoff",
-              "effect": -0.6744907594765952,
-              "p": 0.003996003996003996,
-              "decile_n": 1200,
-              "top_decile_median": -48.0,
+              "effect": -0.8993210126354603,
+              "p": 0.000999000999000999,
+              "decile_n": 1308,
+              "attainable_effect": -1.7986420252709205,
+              "top_decile_median": -49.0,
               "ensemble_median": -45.0,
               "robust_sd": 4.4478,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.006243756243756244,
+              "fires_after_correction": true
             },
             "achievability": {
               "verdict": "none",
@@ -956,31 +1011,26 @@
           "b": "competitiveness",
           "verdict": "none",
           "votes": 0,
-          "n_deciding": 3,
-          "partial": false,
-          "degenerate_tests": [],
+          "n_deciding": 2,
+          "partial": true,
+          "degenerate_tests": [
+            "conditional"
+          ],
           "tests": {
             "correlation": {
               "verdict": "none",
               "rho": 0.12315917243881157,
-              "ci_low": -0.06816701775082698,
-              "ci_high": 0.29653663718795337,
+              "ci_low": -0.0755609647542994,
+              "ci_high": 0.2975927978293869,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
-              "verdict": "none",
-              "effect": 2.0029670338763044,
-              "p": 1.0,
-              "decile_n": 1200,
-              "top_decile_median": 3.0,
-              "ensemble_median": 2.0,
-              "robust_sd": 0.4992593403121163,
-              "thresholds": {
-                "effect": -0.2,
-                "alpha": 0.05
-              }
+              "verdict": "degenerate",
+              "effect": null,
+              "attainable_effect": 0.0,
+              "reason": "no ordering of this criterion could reach the firing threshold: the worst possible decile of goodness(B) shifts its median by +0.000 robust SD against a threshold of -0.2, because goodness(B) is coarse enough that its median does not move"
             },
             "achievability": {
               "verdict": "none",
@@ -1015,8 +1065,8 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.12315917243881157,
-              "ci_low": -0.07657866528432275,
-              "ci_high": 0.28187115409878816,
+              "ci_low": -0.05001543862440267,
+              "ci_high": 0.3015646138568058,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
@@ -1024,15 +1074,19 @@
             "conditional": {
               "verdict": "none",
               "effect": 0.0,
-              "p": 0.926073926073926,
-              "decile_n": 1200,
+              "p": 1.0,
+              "decile_n": 5529,
+              "attainable_effect": -1.7986420252709205,
               "top_decile_median": -45.0,
               "ensemble_median": -45.0,
               "robust_sd": 4.4478,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -1067,8 +1121,8 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.086075042858781,
-              "ci_low": -0.025442564430605715,
-              "ci_high": 0.18209281824743484,
+              "ci_low": -0.009284806118699331,
+              "ci_high": 0.17986059195161827,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
@@ -1076,15 +1130,19 @@
             "conditional": {
               "verdict": "none",
               "effect": 0.13160795306860393,
-              "p": 0.4905094905094905,
-              "decile_n": 1200,
+              "p": 0.4695304695304695,
+              "decile_n": 1253,
+              "attainable_effect": -1.069314618682407,
               "top_decile_median": -215.0,
               "ensemble_median": -223.0,
               "robust_sd": 60.7866,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.9029432106355183,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -1110,8 +1168,8 @@
         {
           "a": "population_equality",
           "b": "compactness_cut",
-          "verdict": "weak",
-          "votes": 1,
+          "verdict": "none",
+          "votes": 0,
           "n_deciding": 3,
           "partial": false,
           "degenerate_tests": [],
@@ -1119,24 +1177,28 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.086075042858781,
-              "ci_low": -0.00635944867948492,
-              "ci_high": 0.17827419655413176,
+              "ci_low": -0.019615075412727303,
+              "ci_high": 0.17986059195161827,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
-              "verdict": "tradeoff",
-              "effect": -0.44966050631773014,
-              "p": 0.000999000999000999,
-              "decile_n": 1200,
-              "top_decile_median": -47.0,
+              "verdict": "none",
+              "effect": -0.22483025315886507,
+              "p": 0.1018981018981019,
+              "decile_n": 1290,
+              "attainable_effect": -1.7986420252709205,
+              "top_decile_median": -46.0,
               "ensemble_median": -45.0,
               "robust_sd": 4.4478,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.2547452547452548,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -1171,8 +1233,8 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.03489490223646267,
-              "ci_low": -0.14449865322804137,
-              "ci_high": 0.26171374454792473,
+              "ci_low": -0.14660264231318254,
+              "ci_high": 0.2443898153194574,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
@@ -1180,15 +1242,19 @@
             "conditional": {
               "verdict": "none",
               "effect": 0.2576938070059239,
-              "p": 0.977022977022977,
-              "decile_n": 1200,
+              "p": 0.98001998001998,
+              "decile_n": 1224,
+              "attainable_effect": -2.37173353385703,
               "top_decile_median": -0.01523656594350381,
               "ensemble_median": -0.017286084081190922,
               "robust_sd": 0.00795330769295514,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -1223,24 +1289,28 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.03489490223646267,
-              "ci_low": -0.13784472021610267,
-              "ci_high": 0.23647452933371338,
+              "ci_low": -0.14534321066061937,
+              "ci_high": 0.2530545677415507,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
               "verdict": "none",
-              "effect": -0.02181443071652267,
-              "p": 0.7622377622377622,
-              "decile_n": 1200,
-              "top_decile_median": -0.08993845115658347,
+              "effect": -5.068341956120266,
+              "p": 0.3076923076923077,
+              "decile_n": 1308,
+              "attainable_effect": -5.44069876507364,
+              "top_decile_median": -0.1645038760017456,
               "ensemble_median": -0.08961613005837392,
               "robust_sd": 0.014775590635304536,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.6993006993006993,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -1268,31 +1338,26 @@
           "b": "competitiveness",
           "verdict": "none",
           "votes": 0,
-          "n_deciding": 3,
-          "partial": false,
-          "degenerate_tests": [],
+          "n_deciding": 2,
+          "partial": true,
+          "degenerate_tests": [
+            "conditional"
+          ],
           "tests": {
             "correlation": {
               "verdict": "none",
               "rho": -0.24045192141606153,
-              "ci_low": -0.4413782622255559,
-              "ci_high": -0.07021761732151993,
+              "ci_low": -0.455511268895509,
+              "ci_high": -0.047973934213001265,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
-              "verdict": "none",
-              "effect": 0.0,
-              "p": 0.4385614385614386,
-              "decile_n": 1200,
-              "top_decile_median": 2.0,
-              "ensemble_median": 2.0,
-              "robust_sd": 0.4992593403121163,
-              "thresholds": {
-                "effect": -0.2,
-                "alpha": 0.05
-              }
+              "verdict": "degenerate",
+              "effect": null,
+              "attainable_effect": 0.0,
+              "reason": "no ordering of this criterion could reach the firing threshold: the worst possible decile of goodness(B) shifts its median by +0.000 robust SD against a threshold of -0.2, because goodness(B) is coarse enough that its median does not move"
             },
             "achievability": {
               "verdict": "none",
@@ -1327,24 +1392,28 @@
             "correlation": {
               "verdict": "none",
               "rho": -0.24045192141606153,
-              "ci_low": -0.4287384174465732,
-              "ci_high": -0.06826036306014821,
+              "ci_low": -0.4417533114047914,
+              "ci_high": -0.054617363219203366,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
               "verdict": "tradeoff",
-              "effect": -5.071528333640657,
-              "p": 0.001998001998001998,
-              "decile_n": 1200,
-              "top_decile_median": -0.16455095661159644,
+              "effect": -5.070874717739038,
+              "p": 0.000999000999000999,
+              "decile_n": 5529,
+              "attainable_effect": -5.44069876507364,
+              "top_decile_median": -0.1645412990506014,
               "ensemble_median": -0.08961613005837392,
               "robust_sd": 0.014775590635304536,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.006243756243756244,
+              "fires_after_correction": true
             },
             "achievability": {
               "verdict": "none",
@@ -1379,8 +1448,8 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.038162855259401246,
-              "ci_low": -0.12498572436266582,
-              "ci_high": 0.18554717679716737,
+              "ci_low": -0.12102853203726464,
+              "ci_high": 0.181129585143987,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
@@ -1388,15 +1457,19 @@
             "conditional": {
               "verdict": "tradeoff",
               "effect": -0.3948238592058118,
-              "p": 0.04195804195804196,
-              "decile_n": 1200,
+              "p": 0.04695304695304695,
+              "decile_n": 1224,
+              "attainable_effect": -1.069314618682407,
               "top_decile_median": -247.0,
               "ensemble_median": -223.0,
               "robust_sd": 60.7866,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.1304251304251304,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -1431,24 +1504,28 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.038162855259401246,
-              "ci_low": -0.12594341233152156,
-              "ci_high": 0.1802516599149941,
+              "ci_low": -0.12074275822927062,
+              "ci_high": 0.17690226273499388,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.0966943024457086,
-              "p": 0.7122877122877123,
-              "decile_n": 1200,
-              "top_decile_median": -0.0881874146286698,
+              "effect": 0.1491878295444566,
+              "p": 0.8701298701298701,
+              "decile_n": 1290,
+              "attainable_effect": -5.44069876507364,
+              "top_decile_median": -0.08741179176125544,
               "ensemble_median": -0.08961613005837392,
               "robust_sd": 0.014775590635304536,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -1476,31 +1553,26 @@
           "b": "competitiveness",
           "verdict": "weak",
           "votes": 2,
-          "n_deciding": 3,
-          "partial": false,
-          "degenerate_tests": [],
+          "n_deciding": 2,
+          "partial": true,
+          "degenerate_tests": [
+            "conditional"
+          ],
           "tests": {
             "correlation": {
               "verdict": "tradeoff",
               "rho": -0.7682509811694219,
-              "ci_low": -0.800915908108328,
-              "ci_high": -0.7323480980965219,
+              "ci_low": -0.8019292698451147,
+              "ci_high": -0.7334171640036504,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
-              "verdict": "none",
-              "effect": 0.0,
-              "p": 0.8741258741258742,
-              "decile_n": 1200,
-              "top_decile_median": 2.0,
-              "ensemble_median": 2.0,
-              "robust_sd": 0.4992593403121163,
-              "thresholds": {
-                "effect": -0.2,
-                "alpha": 0.05
-              }
+              "verdict": "degenerate",
+              "effect": null,
+              "attainable_effect": 0.0,
+              "reason": "no ordering of this criterion could reach the firing threshold: the worst possible decile of goodness(B) shifts its median by +0.000 robust SD against a threshold of -0.2, because goodness(B) is coarse enough that its median does not move"
             },
             "achievability": {
               "verdict": "tradeoff",
@@ -1535,24 +1607,28 @@
             "correlation": {
               "verdict": "tradeoff",
               "rho": -0.7682509811694219,
-              "ci_low": -0.8010621800565091,
-              "ci_high": -0.7319091764720267,
+              "ci_low": -0.8032383570937478,
+              "ci_high": -0.7330641443806454,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
               "verdict": "tradeoff",
-              "effect": -0.6957557731624858,
+              "effect": -0.7438224955041464,
               "p": 0.000999000999000999,
-              "decile_n": 1200,
-              "top_decile_median": -0.02281964382430207,
+              "decile_n": 5529,
+              "attainable_effect": -2.37173353385703,
+              "top_decile_median": -0.02320193325687714,
               "ensemble_median": -0.017286084081190922,
               "robust_sd": 0.00795330769295514,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.006243756243756244,
+              "fires_after_correction": true
             },
             "achievability": {
               "verdict": "tradeoff",
@@ -1587,24 +1663,28 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.07949999652273046,
-              "ci_low": -0.03433330586810438,
-              "ci_high": 0.17223148726774665,
+              "ci_low": -0.032556917962361556,
+              "ci_high": 0.17438895875519497,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.24676491200363238,
-              "p": 0.996003996003996,
-              "decile_n": 1200,
-              "top_decile_median": -208.0,
+              "effect": 0.08225497066787746,
+              "p": 0.8671328671328671,
+              "decile_n": 1308,
+              "attainable_effect": -1.069314618682407,
+              "top_decile_median": -218.0,
               "ensemble_median": -223.0,
               "robust_sd": 60.7866,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -1639,8 +1719,8 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.07949999652273046,
-              "ci_low": -0.03454080380164763,
-              "ci_high": 0.17148487593778075,
+              "ci_low": -0.032556917962361556,
+              "ci_high": 0.17347883405132938,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
@@ -1648,15 +1728,19 @@
             "conditional": {
               "verdict": "none",
               "effect": 0.21002169385764594,
-              "p": 0.951048951048951,
-              "decile_n": 1200,
+              "p": 0.9020979020979021,
+              "decile_n": 1290,
+              "attainable_effect": -2.37173353385703,
               "top_decile_median": -0.015615716927745438,
               "ensemble_median": -0.017286084081190922,
               "robust_sd": 0.00795330769295514,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -1691,24 +1775,28 @@
             "correlation": {
               "verdict": "none",
               "rho": 0.00010416835965803894,
-              "ci_low": -0.091352250741763,
-              "ci_high": 0.09542417269380275,
+              "ci_low": -0.09392318913479208,
+              "ci_high": 0.09940771337017447,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
               "verdict": "none",
-              "effect": -0.03290198826715098,
-              "p": 0.8931068931068931,
-              "decile_n": 1200,
-              "top_decile_median": -225.0,
+              "effect": 0.13160795306860393,
+              "p": 1.0,
+              "decile_n": 5529,
+              "attainable_effect": -1.069314618682407,
+              "top_decile_median": -215.0,
               "ensemble_median": -223.0,
               "robust_sd": 60.7866,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -1736,31 +1824,26 @@
           "b": "competitiveness",
           "verdict": "none",
           "votes": 0,
-          "n_deciding": 3,
-          "partial": false,
-          "degenerate_tests": [],
+          "n_deciding": 2,
+          "partial": true,
+          "degenerate_tests": [
+            "conditional"
+          ],
           "tests": {
             "correlation": {
               "verdict": "none",
               "rho": 0.00010416835965803894,
-              "ci_low": -0.10029746248127448,
-              "ci_high": 0.09166581131228674,
+              "ci_low": -0.09402712389580842,
+              "ci_high": 0.09605521859771855,
               "threshold": -0.1,
               "n_chains": 8,
               "n_draws": 12000
             },
             "conditional": {
-              "verdict": "none",
-              "effect": 0.0,
-              "p": 0.7322677322677322,
-              "decile_n": 1200,
-              "top_decile_median": 2.0,
-              "ensemble_median": 2.0,
-              "robust_sd": 0.4992593403121163,
-              "thresholds": {
-                "effect": -0.2,
-                "alpha": 0.05
-              }
+              "verdict": "degenerate",
+              "effect": null,
+              "attainable_effect": 0.0,
+              "reason": "no ordering of this criterion could reach the firing threshold: the worst possible decile of goodness(B) shifts its median by +0.000 robust SD against a threshold of -0.2, because goodness(B) is coarse enough that its median does not move"
             },
             "achievability": {
               "verdict": "none",
@@ -1784,6 +1867,463 @@
           }
         }
       ],
+      "symmetry": {
+        "symmetric_tests": [
+          "correlation",
+          "achievability"
+        ],
+        "directional_tests": [
+          "conditional"
+        ],
+        "n_checked": 15,
+        "n_direction_dependent": 0,
+        "mismatches": [],
+        "note": "a non-zero count means a test documented as symmetric is not, which would be a defect in that test rather than a finding"
+      },
+      "relationships": {
+        "n_relationships": 15,
+        "counts": {
+          "none": 8,
+          "weak": 7
+        },
+        "n_direction_dependent": 6,
+        "direction_comes_only_from": "conditional",
+        "relationships": [
+          {
+            "relationship": "compactness_cut <-> compactness_pp",
+            "verdict": "none",
+            "directions": {
+              "compactness_pp -> compactness_cut": "none",
+              "compactness_cut -> compactness_pp": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_pp <-> fairness_eg",
+            "verdict": "weak",
+            "directions": {
+              "compactness_pp -> fairness_eg": "none",
+              "fairness_eg -> compactness_pp": "weak"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "compactness_pp <-> fairness_mm",
+            "verdict": "weak",
+            "directions": {
+              "compactness_pp -> fairness_mm": "weak",
+              "fairness_mm -> compactness_pp": "weak"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_pp <-> competitiveness",
+            "verdict": "none",
+            "directions": {
+              "compactness_pp -> competitiveness": "none",
+              "competitiveness -> compactness_pp": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_pp <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "compactness_pp -> population_equality": "none",
+              "population_equality -> compactness_pp": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_cut <-> fairness_eg",
+            "verdict": "weak",
+            "directions": {
+              "compactness_cut -> fairness_eg": "weak",
+              "fairness_eg -> compactness_cut": "none"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "compactness_cut <-> fairness_mm",
+            "verdict": "weak",
+            "directions": {
+              "compactness_cut -> fairness_mm": "none",
+              "fairness_mm -> compactness_cut": "weak"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "compactness_cut <-> competitiveness",
+            "verdict": "none",
+            "directions": {
+              "compactness_cut -> competitiveness": "none",
+              "competitiveness -> compactness_cut": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_cut <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "compactness_cut -> population_equality": "none",
+              "population_equality -> compactness_cut": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "fairness_eg <-> fairness_mm",
+            "verdict": "none",
+            "directions": {
+              "fairness_eg -> fairness_mm": "none",
+              "fairness_mm -> fairness_eg": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "competitiveness <-> fairness_eg",
+            "verdict": "weak",
+            "directions": {
+              "fairness_eg -> competitiveness": "none",
+              "competitiveness -> fairness_eg": "weak"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "fairness_eg <-> population_equality",
+            "verdict": "weak",
+            "directions": {
+              "fairness_eg -> population_equality": "weak",
+              "population_equality -> fairness_eg": "none"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "competitiveness <-> fairness_mm",
+            "verdict": "weak",
+            "directions": {
+              "fairness_mm -> competitiveness": "weak",
+              "competitiveness -> fairness_mm": "strong"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "fairness_mm <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "fairness_mm -> population_equality": "none",
+              "population_equality -> fairness_mm": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "competitiveness <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "competitiveness -> population_equality": "none",
+              "population_equality -> competitiveness": "none"
+            },
+            "direction_dependent": false
+          }
+        ]
+      },
+      "multiplicity": {
+        "method": "Benjamini-Hochberg",
+        "n_tests": 25,
+        "alpha": 0.05,
+        "n_verdicts_changed": 2,
+        "changed": [
+          "fairness_eg -> compactness_pp",
+          "fairness_eg -> population_equality"
+        ]
+      },
+      "detection_floor": [
+        {
+          "pair": "compactness_pp x fairness_mm",
+          "method": "anti-monotone re-pairing within each chain at a range of noise levels; each chain's B multiset is preserved exactly, so only the pairing changes",
+          "max_attainable_rho": 0.938847136679335,
+          "points": [
+            {
+              "blend": 0.0,
+              "achieved_rho": -0.938847136679335,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.1,
+              "achieved_rho": -0.9337763113845133,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.25,
+              "achieved_rho": -0.9110121739406554,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.5,
+              "achieved_rho": -0.8442172381372414,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 1.0,
+              "achieved_rho": -0.6576763201029471,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 2.0,
+              "achieved_rho": -0.4159543963714867,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 4.0,
+              "achieved_rho": -0.24243159889514979,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 8.0,
+              "achieved_rho": -0.13213060756202172,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 16.0,
+              "achieved_rho": -0.09829845188187847,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "tradeoff",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 32.0,
+              "achieved_rho": -0.042868582271859516,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 64.0,
+              "achieved_rho": -0.04384945452894932,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            }
+          ],
+          "floor_any_test": {
+            "fires": true,
+            "weakest_detected_rho": 0.09829845188187847,
+            "strongest_missed_rho": 0.04384945452894932,
+            "monotone": false
+          },
+          "floor_by_test": {
+            "correlation": {
+              "fires": true,
+              "weakest_detected_rho": 0.24243159889514979,
+              "strongest_missed_rho": 0.13213060756202172,
+              "monotone": true
+            },
+            "conditional": {
+              "fires": true,
+              "weakest_detected_rho": 0.09829845188187847,
+              "strongest_missed_rho": 0.04384945452894932,
+              "monotone": false
+            },
+            "achievability": {
+              "fires": true,
+              "weakest_detected_rho": 0.6576763201029471,
+              "strongest_missed_rho": 0.4159543963714867,
+              "monotone": true
+            }
+          },
+          "interpretation": "a 'none' verdict on this state means: no monotone tradeoff stronger than about this |rho|. It is not a claim about weaker dependence, nor about non-monotone dependence, which no test here can see, nor about a tradeoff confined to the frontier."
+        },
+        {
+          "pair": "compactness_pp x competitiveness",
+          "method": "anti-monotone re-pairing within each chain at a range of noise levels; each chain's B multiset is preserved exactly, so only the pairing changes",
+          "max_attainable_rho": 0.7641698183038853,
+          "points": [
+            {
+              "blend": 0.0,
+              "achieved_rho": -0.7641698183038853,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "degenerate",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.1,
+              "achieved_rho": -0.7621912450600995,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "degenerate",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.25,
+              "achieved_rho": -0.7493905652727858,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "degenerate",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.5,
+              "achieved_rho": -0.7032361691872367,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "degenerate",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 1.0,
+              "achieved_rho": -0.5119630229844531,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "degenerate",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 2.0,
+              "achieved_rho": -0.25629945329643705,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "degenerate",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 4.0,
+              "achieved_rho": -0.12113997408513065,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "degenerate",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 8.0,
+              "achieved_rho": -0.04201377761475377,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "degenerate",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 16.0,
+              "achieved_rho": -0.021165484889801522,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "degenerate",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 32.0,
+              "achieved_rho": 0.009622535347546785,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "degenerate",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 64.0,
+              "achieved_rho": 0.007999966000769961,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "degenerate",
+                "achievability": "none"
+              },
+              "any_fired": false
+            }
+          ],
+          "floor_any_test": {
+            "fires": true,
+            "weakest_detected_rho": 0.25629945329643705,
+            "strongest_missed_rho": 0.12113997408513065,
+            "monotone": true
+          },
+          "floor_by_test": {
+            "correlation": {
+              "fires": true,
+              "weakest_detected_rho": 0.25629945329643705,
+              "strongest_missed_rho": 0.12113997408513065,
+              "monotone": true
+            },
+            "conditional": {
+              "fires": false,
+              "reason": "never fired at any injected strength; the strongest dependence these marginals permit is |rho|=0.764"
+            },
+            "achievability": {
+              "fires": true,
+              "weakest_detected_rho": 0.5119630229844531,
+              "strongest_missed_rho": 0.25629945329643705,
+              "monotone": true
+            }
+          },
+          "interpretation": "a 'none' verdict on this state means: no monotone tradeoff stronger than about this |rho|. It is not a claim about weaker dependence, nor about non-monotone dependence, which no test here can see, nor about a tradeoff confined to the frontier."
+        }
+      ],
       "summary": {
         "strong": [
           "competitiveness -> fairness_mm"
@@ -1792,10 +2332,8 @@
           "fairness_eg -> compactness_pp",
           "compactness_pp -> fairness_mm",
           "fairness_mm -> compactness_pp",
-          "population_equality -> compactness_pp",
           "compactness_cut -> fairness_eg",
           "fairness_mm -> compactness_cut",
-          "population_equality -> compactness_cut",
           "competitiveness -> fairness_eg",
           "fairness_eg -> population_equality",
           "fairness_mm -> competitiveness"
@@ -1807,11 +2345,13 @@
           "compactness_pp -> competitiveness",
           "competitiveness -> compactness_pp",
           "compactness_pp -> population_equality",
+          "population_equality -> compactness_pp",
           "fairness_eg -> compactness_cut",
           "compactness_cut -> fairness_mm",
           "compactness_cut -> competitiveness",
           "competitiveness -> compactness_cut",
           "compactness_cut -> population_equality",
+          "population_equality -> compactness_cut",
           "fairness_eg -> fairness_mm",
           "fairness_mm -> fairness_eg",
           "fairness_eg -> competitiveness",
@@ -1836,7 +2376,7 @@
           ],
           "degenerate": {
             "county_integrity": {
-              "constant_value": 0,
+              "constant_value": 0.0,
               "reason": "units are the subdivisions, so no plan over them can split one"
             }
           },
@@ -1901,14 +2441,18 @@
                 "verdict": "none",
                 "effect": 0.6744907594765952,
                 "p": 1.0,
-                "decile_n": 1200,
+                "decile_n": 1242,
+                "attainable_effect": -1.7986420252709205,
                 "top_decile_median": -42.0,
                 "ensemble_median": -45.0,
                 "robust_sd": 4.4478,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -1953,14 +2497,18 @@
                 "verdict": "none",
                 "effect": 0.9809693845800759,
                 "p": 1.0,
-                "decile_n": 1200,
+                "decile_n": 1253,
+                "attainable_effect": -1.4571060151480661,
                 "top_decile_median": 0.35910564705119646,
                 "ensemble_median": 0.32583573263317944,
                 "robust_sd": 0.033915344292073796,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2004,15 +2552,19 @@
               "conditional": {
                 "verdict": "tradeoff",
                 "effect": -10.174319991826804,
-                "p": 0.024975024975024976,
-                "decile_n": 1200,
+                "p": 0.03896103896103896,
+                "decile_n": 1242,
+                "attainable_effect": -10.952874353246521,
                 "top_decile_median": -0.17728551179857963,
                 "ensemble_median": -0.07274658982032971,
                 "robust_sd": 0.010274782202862473,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.0899100899100899,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2056,15 +2608,19 @@
               "conditional": {
                 "verdict": "tradeoff",
                 "effect": -0.24903121436738399,
-                "p": 0.014985014985014986,
-                "decile_n": 1200,
+                "p": 0.007992007992007992,
+                "decile_n": 1308,
+                "attainable_effect": -1.4571060151480661,
                 "top_decile_median": 0.3173897532584364,
                 "ensemble_median": 0.32583573263317944,
                 "robust_sd": 0.033915344292073796,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.023976023976023976,
+                "fires_after_correction": true
               },
               "achievability": {
                 "verdict": "none",
@@ -2109,14 +2665,18 @@
                 "verdict": "tradeoff",
                 "effect": -0.8860930974281466,
                 "p": 0.000999000999000999,
-                "decile_n": 1200,
+                "decile_n": 1242,
+                "attainable_effect": -1.2829984991442152,
                 "top_decile_median": -0.02617637773465542,
                 "ensemble_median": -0.017769764211882394,
                 "robust_sd": 0.00948728022729544,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.004281432852861424,
+                "fires_after_correction": true
               },
               "achievability": {
                 "verdict": "none",
@@ -2159,16 +2719,20 @@
               },
               "conditional": {
                 "verdict": "tradeoff",
-                "effect": -0.5309628679062093,
+                "effect": -0.5174545521685044,
                 "p": 0.000999000999000999,
-                "decile_n": 1200,
-                "top_decile_median": 0.30782794416183346,
+                "decile_n": 1204,
+                "attainable_effect": -1.4571060151480661,
+                "top_decile_median": 0.30828608334088375,
                 "ensemble_median": 0.32583573263317944,
                 "robust_sd": 0.033915344292073796,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.004281432852861424,
+                "fires_after_correction": true
               },
               "achievability": {
                 "verdict": "none",
@@ -2213,14 +2777,18 @@
                 "verdict": "none",
                 "effect": 0.0,
                 "p": 1.0,
-                "decile_n": 1200,
+                "decile_n": 1242,
+                "attainable_effect": -2.06869446468978,
                 "top_decile_median": 3.0,
                 "ensemble_median": 3.0,
                 "robust_sd": 0.48339666251775826,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2263,16 +2831,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": -0.026050962583958514,
-                "p": 0.973026973026973,
-                "decile_n": 1200,
-                "top_decile_median": 0.32495220526800456,
+                "effect": 0.3035277932215234,
+                "p": 1.0,
+                "decile_n": 7577,
+                "attainable_effect": -1.4571060151480661,
+                "top_decile_median": 0.3361299822425008,
                 "ensemble_median": 0.32583573263317944,
                 "robust_sd": 0.033915344292073796,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2316,15 +2888,19 @@
               "conditional": {
                 "verdict": "none",
                 "effect": 0.13160795306860393,
-                "p": 0.997002997002997,
-                "decile_n": 1200,
+                "p": 0.998001998001998,
+                "decile_n": 1242,
+                "attainable_effect": -1.069314618682407,
                 "top_decile_median": -215.0,
                 "ensemble_median": -223.0,
                 "robust_sd": 60.7866,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2350,8 +2926,8 @@
           {
             "a": "population_equality",
             "b": "compactness_pp",
-            "verdict": "weak",
-            "votes": 1,
+            "verdict": "none",
+            "votes": 0,
             "n_deciding": 3,
             "partial": false,
             "degenerate_tests": [],
@@ -2366,17 +2942,21 @@
                 "n_draws": 12000
               },
               "conditional": {
-                "verdict": "tradeoff",
-                "effect": -0.3002046185364006,
+                "verdict": "none",
+                "effect": -0.15109565701578848,
                 "p": 0.000999000999000999,
-                "decile_n": 1200,
-                "top_decile_median": 0.31565418963744674,
+                "decile_n": 1290,
+                "attainable_effect": -1.4571060151480661,
+                "top_decile_median": 0.3207112714044519,
                 "ensemble_median": 0.32583573263317944,
                 "robust_sd": 0.033915344292073796,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.004281432852861424,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2420,15 +3000,19 @@
               "conditional": {
                 "verdict": "tradeoff",
                 "effect": -10.415853294258296,
-                "p": 0.016983016983016984,
-                "decile_n": 1200,
+                "p": 0.03296703296703297,
+                "decile_n": 1253,
+                "attainable_effect": -10.952874353246521,
                 "top_decile_median": -0.1797672138758013,
                 "ensemble_median": -0.07274658982032971,
                 "robust_sd": 0.010274782202862473,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.08241758241758242,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2454,8 +3038,8 @@
           {
             "a": "fairness_eg",
             "b": "compactness_cut",
-            "verdict": "weak",
-            "votes": 1,
+            "verdict": "none",
+            "votes": 0,
             "n_deciding": 3,
             "partial": false,
             "degenerate_tests": [],
@@ -2470,17 +3054,21 @@
                 "n_draws": 12000
               },
               "conditional": {
-                "verdict": "tradeoff",
-                "effect": -0.44966050631773014,
-                "p": 0.04395604395604396,
-                "decile_n": 1200,
-                "top_decile_median": -47.0,
+                "verdict": "none",
+                "effect": -0.22483025315886507,
+                "p": 0.38961038961038963,
+                "decile_n": 1308,
+                "attainable_effect": -1.7986420252709205,
+                "top_decile_median": -46.0,
                 "ensemble_median": -45.0,
                 "robust_sd": 4.4478,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.6875477463712758,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2524,15 +3112,19 @@
               "conditional": {
                 "verdict": "none",
                 "effect": 0.4696692454157363,
-                "p": 0.994005994005994,
-                "decile_n": 1200,
+                "p": 0.995004995004995,
+                "decile_n": 1253,
+                "attainable_effect": -1.2829984991442152,
                 "top_decile_median": -0.01331388046648091,
                 "ensemble_median": -0.017769764211882394,
                 "robust_sd": 0.00948728022729544,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2577,14 +3169,18 @@
                 "verdict": "tradeoff",
                 "effect": -0.8993210126354603,
                 "p": 0.000999000999000999,
-                "decile_n": 1200,
+                "decile_n": 1204,
+                "attainable_effect": -1.7986420252709205,
                 "top_decile_median": -49.0,
                 "ensemble_median": -45.0,
                 "robust_sd": 4.4478,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.004281432852861424,
+                "fires_after_correction": true
               },
               "achievability": {
                 "verdict": "none",
@@ -2629,14 +3225,18 @@
                 "verdict": "none",
                 "effect": 0.0,
                 "p": 1.0,
-                "decile_n": 1200,
+                "decile_n": 1253,
+                "attainable_effect": -2.06869446468978,
                 "top_decile_median": 3.0,
                 "ensemble_median": 3.0,
                 "robust_sd": 0.48339666251775826,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2679,16 +3279,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": -0.22483025315886507,
-                "p": 0.999000999000999,
-                "decile_n": 1200,
-                "top_decile_median": -46.0,
+                "effect": 0.0,
+                "p": 1.0,
+                "decile_n": 7577,
+                "attainable_effect": -1.7986420252709205,
+                "top_decile_median": -45.0,
                 "ensemble_median": -45.0,
                 "robust_sd": 4.4478,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2732,15 +3336,19 @@
               "conditional": {
                 "verdict": "none",
                 "effect": 0.13160795306860393,
-                "p": 0.48451548451548454,
-                "decile_n": 1200,
+                "p": 0.48151848151848153,
+                "decile_n": 1253,
+                "attainable_effect": -1.069314618682407,
                 "top_decile_median": -215.0,
                 "ensemble_median": -223.0,
                 "robust_sd": 60.7866,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.8025308025308026,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2766,8 +3374,8 @@
           {
             "a": "population_equality",
             "b": "compactness_cut",
-            "verdict": "weak",
-            "votes": 1,
+            "verdict": "none",
+            "votes": 0,
             "n_deciding": 3,
             "partial": false,
             "degenerate_tests": [],
@@ -2782,17 +3390,21 @@
                 "n_draws": 12000
               },
               "conditional": {
-                "verdict": "tradeoff",
-                "effect": -0.44966050631773014,
-                "p": 0.000999000999000999,
-                "decile_n": 1200,
-                "top_decile_median": -47.0,
+                "verdict": "none",
+                "effect": -0.22483025315886507,
+                "p": 0.11288711288711288,
+                "decile_n": 1290,
+                "attainable_effect": -1.7986420252709205,
+                "top_decile_median": -46.0,
                 "ensemble_median": -45.0,
                 "robust_sd": 4.4478,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.24190095618667046,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2836,15 +3448,19 @@
               "conditional": {
                 "verdict": "none",
                 "effect": -0.04840606201713351,
-                "p": 0.5724275724275725,
-                "decile_n": 1200,
+                "p": 0.5854145854145855,
+                "decile_n": 1308,
+                "attainable_effect": -1.2829984991442152,
                 "top_decile_median": -0.01822900608693878,
                 "ensemble_median": -0.017769764211882394,
                 "robust_sd": 0.00948728022729544,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.9243388190756612,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2888,15 +3504,19 @@
               "conditional": {
                 "verdict": "none",
                 "effect": -10.01233646362897,
-                "p": 0.1958041958041958,
-                "decile_n": 1200,
+                "p": 0.1968031968031968,
+                "decile_n": 1204,
+                "attainable_effect": -10.952874353246521,
                 "top_decile_median": -0.17562116632589564,
                 "ensemble_median": -0.07274658982032971,
                 "robust_sd": 0.010274782202862473,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.3936063936063936,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -2940,15 +3560,19 @@
               "conditional": {
                 "verdict": "tradeoff",
                 "effect": -2.06869446468978,
-                "p": 0.000999000999000999,
-                "decile_n": 1200,
+                "p": 0.001998001998001998,
+                "decile_n": 1308,
+                "attainable_effect": -2.06869446468978,
                 "top_decile_median": 2.0,
                 "ensemble_median": 3.0,
                 "robust_sd": 0.48339666251775826,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.00666000666000666,
+                "fires_after_correction": true
               },
               "achievability": {
                 "verdict": "none",
@@ -2975,7 +3599,7 @@
             "a": "competitiveness",
             "b": "fairness_eg",
             "verdict": "weak",
-            "votes": 1,
+            "votes": 2,
             "n_deciding": 3,
             "partial": false,
             "degenerate_tests": [],
@@ -2990,17 +3614,21 @@
                 "n_draws": 12000
               },
               "conditional": {
-                "verdict": "none",
-                "effect": 0.19800323337387568,
-                "p": 0.027972027972027972,
-                "decile_n": 1200,
-                "top_decile_median": -0.07071214972195058,
+                "verdict": "tradeoff",
+                "effect": -10.211331065035212,
+                "p": 0.000999000999000999,
+                "decile_n": 7577,
+                "attainable_effect": -10.952874353246521,
+                "top_decile_median": -0.1776657925148902,
                 "ensemble_median": -0.07274658982032971,
                 "robust_sd": 0.010274782202862473,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.004281432852861424,
+                "fires_after_correction": true
               },
               "achievability": {
                 "verdict": "none",
@@ -3044,15 +3672,19 @@
               "conditional": {
                 "verdict": "tradeoff",
                 "effect": -0.3948238592058118,
-                "p": 0.005994005994005994,
-                "decile_n": 1200,
+                "p": 0.011988011988011988,
+                "decile_n": 1308,
+                "attainable_effect": -1.069314618682407,
                 "top_decile_median": -247.0,
                 "ensemble_median": -223.0,
                 "robust_sd": 60.7866,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.032694578149123604,
+                "fires_after_correction": true
               },
               "achievability": {
                 "verdict": "none",
@@ -3095,16 +3727,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": -0.06320722242734596,
-                "p": 0.20679320679320679,
-                "decile_n": 1200,
-                "top_decile_median": -0.07339603026441857,
+                "effect": -0.050830142750507436,
+                "p": 0.37962037962037964,
+                "decile_n": 1290,
+                "attainable_effect": -10.952874353246521,
+                "top_decile_median": -0.07326885846643158,
                 "ensemble_median": -0.07274658982032971,
                 "robust_sd": 0.010274782202862473,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.6875477463712758,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -3148,15 +3784,19 @@
               "conditional": {
                 "verdict": "tradeoff",
                 "effect": -2.06869446468978,
-                "p": 0.001998001998001998,
-                "decile_n": 1200,
+                "p": 0.000999000999000999,
+                "decile_n": 1204,
+                "attainable_effect": -2.06869446468978,
                 "top_decile_median": 2.0,
                 "ensemble_median": 3.0,
                 "robust_sd": 0.48339666251775826,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.004281432852861424,
+                "fires_after_correction": true
               },
               "achievability": {
                 "verdict": "none",
@@ -3199,16 +3839,20 @@
               },
               "conditional": {
                 "verdict": "tradeoff",
-                "effect": -0.3918767846975248,
+                "effect": -0.6271265189049224,
                 "p": 0.000999000999000999,
-                "decile_n": 1200,
-                "top_decile_median": -0.021487609082879333,
+                "decile_n": 7577,
+                "attainable_effect": -1.2829984991442152,
+                "top_decile_median": -0.023719489234701685,
                 "ensemble_median": -0.017769764211882394,
                 "robust_sd": 0.00948728022729544,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.004281432852861424,
+                "fires_after_correction": true
               },
               "achievability": {
                 "verdict": "none",
@@ -3252,15 +3896,19 @@
               "conditional": {
                 "verdict": "none",
                 "effect": 0.08225497066787746,
-                "p": 0.7952047952047953,
-                "decile_n": 1200,
+                "p": 0.7852147852147852,
+                "decile_n": 1204,
+                "attainable_effect": -1.069314618682407,
                 "top_decile_median": -218.0,
                 "ensemble_median": -223.0,
                 "robust_sd": 60.7866,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -3303,16 +3951,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 0.5099234690097328,
+                "effect": 0.4560303460779858,
                 "p": 1.0,
-                "decile_n": 1200,
-                "top_decile_median": -0.012931977366912456,
+                "decile_n": 1290,
+                "attainable_effect": -1.2829984991442152,
+                "top_decile_median": -0.013443276526490022,
                 "ensemble_median": -0.017769764211882394,
                 "robust_sd": 0.00948728022729544,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -3355,16 +4007,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": -0.1974119296029059,
-                "p": 0.942057942057942,
-                "decile_n": 1200,
-                "top_decile_median": -235.0,
+                "effect": 0.06580397653430196,
+                "p": 0.998001998001998,
+                "decile_n": 7577,
+                "attainable_effect": -1.069314618682407,
+                "top_decile_median": -219.0,
                 "ensemble_median": -223.0,
                 "robust_sd": 60.7866,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -3390,8 +4046,8 @@
           {
             "a": "population_equality",
             "b": "competitiveness",
-            "verdict": "none",
-            "votes": 0,
+            "verdict": "weak",
+            "votes": 1,
             "n_deciding": 3,
             "partial": false,
             "degenerate_tests": [],
@@ -3406,17 +4062,21 @@
                 "n_draws": 12000
               },
               "conditional": {
-                "verdict": "none",
-                "effect": 0.0,
-                "p": 1.0,
-                "decile_n": 1200,
-                "top_decile_median": 3.0,
+                "verdict": "tradeoff",
+                "effect": -2.06869446468978,
+                "p": 0.001998001998001998,
+                "decile_n": 1290,
+                "attainable_effect": -2.06869446468978,
+                "top_decile_median": 2.0,
                 "ensemble_median": 3.0,
                 "robust_sd": 0.48339666251775826,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.00666000666000666,
+                "fires_after_correction": true
               },
               "achievability": {
                 "verdict": "none",
@@ -3440,6 +4100,175 @@
             }
           }
         ],
+        "symmetry": {
+          "symmetric_tests": [
+            "correlation",
+            "achievability"
+          ],
+          "directional_tests": [
+            "conditional"
+          ],
+          "n_checked": 15,
+          "n_direction_dependent": 0,
+          "mismatches": [],
+          "note": "a non-zero count means a test documented as symmetric is not, which would be a defect in that test rather than a finding"
+        },
+        "relationships": {
+          "n_relationships": 15,
+          "counts": {
+            "none": 7,
+            "weak": 8
+          },
+          "n_direction_dependent": 4,
+          "direction_comes_only_from": "conditional",
+          "relationships": [
+            {
+              "relationship": "compactness_cut <-> compactness_pp",
+              "verdict": "none",
+              "directions": {
+                "compactness_pp -> compactness_cut": "none",
+                "compactness_cut -> compactness_pp": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> fairness_eg",
+              "verdict": "weak",
+              "directions": {
+                "compactness_pp -> fairness_eg": "weak",
+                "fairness_eg -> compactness_pp": "weak"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> fairness_mm",
+              "verdict": "weak",
+              "directions": {
+                "compactness_pp -> fairness_mm": "weak",
+                "fairness_mm -> compactness_pp": "weak"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> competitiveness",
+              "verdict": "none",
+              "directions": {
+                "compactness_pp -> competitiveness": "none",
+                "competitiveness -> compactness_pp": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "compactness_pp -> population_equality": "none",
+                "population_equality -> compactness_pp": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_cut <-> fairness_eg",
+              "verdict": "weak",
+              "directions": {
+                "compactness_cut -> fairness_eg": "weak",
+                "fairness_eg -> compactness_cut": "none"
+              },
+              "direction_dependent": true
+            },
+            {
+              "relationship": "compactness_cut <-> fairness_mm",
+              "verdict": "weak",
+              "directions": {
+                "compactness_cut -> fairness_mm": "none",
+                "fairness_mm -> compactness_cut": "weak"
+              },
+              "direction_dependent": true
+            },
+            {
+              "relationship": "compactness_cut <-> competitiveness",
+              "verdict": "none",
+              "directions": {
+                "compactness_cut -> competitiveness": "none",
+                "competitiveness -> compactness_cut": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_cut <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "compactness_cut -> population_equality": "none",
+                "population_equality -> compactness_cut": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "fairness_eg <-> fairness_mm",
+              "verdict": "none",
+              "directions": {
+                "fairness_eg -> fairness_mm": "none",
+                "fairness_mm -> fairness_eg": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "competitiveness <-> fairness_eg",
+              "verdict": "weak",
+              "directions": {
+                "fairness_eg -> competitiveness": "weak",
+                "competitiveness -> fairness_eg": "weak"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "fairness_eg <-> population_equality",
+              "verdict": "weak",
+              "directions": {
+                "fairness_eg -> population_equality": "weak",
+                "population_equality -> fairness_eg": "none"
+              },
+              "direction_dependent": true
+            },
+            {
+              "relationship": "competitiveness <-> fairness_mm",
+              "verdict": "weak",
+              "directions": {
+                "fairness_mm -> competitiveness": "weak",
+                "competitiveness -> fairness_mm": "weak"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "fairness_mm <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "fairness_mm -> population_equality": "none",
+                "population_equality -> fairness_mm": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "competitiveness <-> population_equality",
+              "verdict": "weak",
+              "directions": {
+                "competitiveness -> population_equality": "none",
+                "population_equality -> competitiveness": "weak"
+              },
+              "direction_dependent": true
+            }
+          ]
+        },
+        "multiplicity": {
+          "method": "Benjamini-Hochberg",
+          "n_tests": 30,
+          "alpha": 0.05,
+          "n_verdicts_changed": 2,
+          "changed": [
+            "compactness_cut -> fairness_eg",
+            "compactness_pp -> fairness_eg"
+          ]
+        },
         "summary": {
           "strong": [],
           "weak": [
@@ -3447,16 +4276,14 @@
             "fairness_eg -> compactness_pp",
             "compactness_pp -> fairness_mm",
             "fairness_mm -> compactness_pp",
-            "population_equality -> compactness_pp",
             "compactness_cut -> fairness_eg",
-            "fairness_eg -> compactness_cut",
             "fairness_mm -> compactness_cut",
-            "population_equality -> compactness_cut",
             "fairness_eg -> competitiveness",
             "competitiveness -> fairness_eg",
             "fairness_eg -> population_equality",
             "fairness_mm -> competitiveness",
-            "competitiveness -> fairness_mm"
+            "competitiveness -> fairness_mm",
+            "population_equality -> competitiveness"
           ],
           "none": [
             "compactness_pp -> compactness_cut",
@@ -3464,17 +4291,19 @@
             "compactness_pp -> competitiveness",
             "competitiveness -> compactness_pp",
             "compactness_pp -> population_equality",
+            "population_equality -> compactness_pp",
+            "fairness_eg -> compactness_cut",
             "compactness_cut -> fairness_mm",
             "compactness_cut -> competitiveness",
             "competitiveness -> compactness_cut",
             "compactness_cut -> population_equality",
+            "population_equality -> compactness_cut",
             "fairness_eg -> fairness_mm",
             "fairness_mm -> fairness_eg",
             "population_equality -> fairness_eg",
             "fairness_mm -> population_equality",
             "population_equality -> fairness_mm",
-            "competitiveness -> population_equality",
-            "population_equality -> competitiveness"
+            "competitiveness -> population_equality"
           ],
           "degenerate": []
         }
@@ -3490,11 +4319,6 @@
             "G20USS": "weak"
           },
           {
-            "pair": "fairness_eg -> compactness_cut",
-            "G20PRE": "none",
-            "G20USS": "weak"
-          },
-          {
             "pair": "fairness_eg -> competitiveness",
             "G20PRE": "none",
             "G20USS": "weak"
@@ -3503,6 +4327,11 @@
             "pair": "competitiveness -> fairness_mm",
             "G20PRE": "strong",
             "G20USS": "weak"
+          },
+          {
+            "pair": "population_equality -> competitiveness",
+            "G20PRE": "none",
+            "G20USS": "weak"
           }
         ],
         "note": "a pair only present under one contest is counted as a disagreement, since a criterion that goes degenerate under a different election is itself a finding about the criterion"
@@ -3510,23 +4339,7 @@
       "draws_file": {
         "path": "docs/experiment-2/ia-draws.csv.gz",
         "n_rows": 12050,
-        "columns": [
-          "chain_index",
-          "chain_seed",
-          "chain_completed",
-          "draw",
-          "abs_efficiency_gap@G20PRE",
-          "abs_efficiency_gap@G20USS",
-          "abs_mean_median@G20PRE",
-          "abs_mean_median@G20USS",
-          "competitive_districts@G20PRE",
-          "competitive_districts@G20USS",
-          "county_splits",
-          "cut_edges",
-          "polsby_popper_mean",
-          "population_spread"
-        ],
-        "includes_failed_chains": true
+        "reanalysed_without_sampling": true
       }
     },
     "CO": {
@@ -3719,13 +4532,17 @@
               "effect": 0.8784065704811472,
               "p": 1.0,
               "decile_n": 800,
+              "attainable_effect": -1.788184804193764,
               "top_decile_median": -653.0,
               "ensemble_median": -709.0,
               "robust_sd": 63.751799999999996,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -3768,16 +4585,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 1.0191683786718515,
+              "effect": 1.0184372825444505,
               "p": 1.0,
-              "decile_n": 800,
-              "top_decile_median": 0.19808903256975569,
+              "decile_n": 802,
+              "attainable_effect": -1.619785930680834,
+              "top_decile_median": 0.19807358664211724,
               "ensemble_median": 0.17655697893364078,
               "robust_sd": 0.021127081733221365,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -3823,13 +4644,17 @@
               "effect": 0.3372453797382976,
               "p": 1.0,
               "decile_n": 800,
+              "attainable_effect": -2.023472278429786,
               "top_decile_median": -21.0,
               "ensemble_median": -22.0,
               "robust_sd": 2.9652,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -3872,16 +4697,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.5704693898937495,
+              "effect": 0.5882246092546505,
               "p": 1.0,
-              "decile_n": 800,
-              "top_decile_median": 0.18860933236022695,
+              "decile_n": 1026,
+              "attainable_effect": -1.619785930680834,
+              "top_decile_median": 0.18898444833085598,
               "ensemble_median": 0.17655697893364078,
               "robust_sd": 0.021127081733221365,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -3927,13 +4756,17 @@
               "effect": 0.042070151387810166,
               "p": 0.48951048951048953,
               "decile_n": 800,
+              "attainable_effect": -6.783428362200682,
               "top_decile_median": -0.015331217601742402,
               "ensemble_median": -0.016131638181497456,
               "robust_sd": 0.019025854515631154,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -3976,16 +4809,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.26651612714820627,
-              "p": 0.8891108891108891,
-              "decile_n": 800,
-              "top_decile_median": 0.18218768693512255,
+              "effect": 0.26902059351987645,
+              "p": 0.8901098901098901,
+              "decile_n": 801,
+              "attainable_effect": -1.619785930680834,
+              "top_decile_median": 0.18224059900085493,
               "ensemble_median": 0.17655697893364078,
               "robust_sd": 0.021127081733221365,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4031,13 +4868,17 @@
               "effect": 0.17912578628290673,
               "p": 0.8771228771228772,
               "decile_n": 800,
+              "attainable_effect": -2.064448109386155,
               "top_decile_median": -0.011663523419185362,
               "ensemble_median": -0.013857205158424812,
               "robust_sd": 0.012246599357698309,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4083,13 +4924,17 @@
               "effect": 0.047840346973506004,
               "p": 0.3996003996003996,
               "decile_n": 800,
+              "attainable_effect": -1.619785930680834,
               "top_decile_median": 0.1775677058542957,
               "ensemble_median": 0.17655697893364078,
               "robust_sd": 0.021127081733221365,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4135,13 +4980,17 @@
               "effect": 0.0,
               "p": 1.0,
               "decile_n": 800,
+              "attainable_effect": -1.3489815189531904,
               "top_decile_median": 3.0,
               "ensemble_median": 3.0,
               "robust_sd": 1.4826,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4167,8 +5016,8 @@
         {
           "a": "competitiveness",
           "b": "compactness_pp",
-          "verdict": "none",
-          "votes": 0,
+          "verdict": "weak",
+          "votes": 1,
           "n_deciding": 3,
           "partial": false,
           "degenerate_tests": [],
@@ -4183,17 +5032,21 @@
               "n_draws": 8000
             },
             "conditional": {
-              "verdict": "none",
-              "effect": -0.17221602814743775,
-              "p": 0.024975024975024976,
-              "decile_n": 800,
-              "top_decile_median": 0.1729185568311991,
+              "verdict": "tradeoff",
+              "effect": -0.27920348843651294,
+              "p": 0.022977022977022976,
+              "decile_n": 1206,
+              "attainable_effect": -1.619785930680834,
+              "top_decile_median": 0.17065822401324204,
               "ensemble_median": 0.17655697893364078,
               "robust_sd": 0.021127081733221365,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.24335664335664337,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4239,13 +5092,17 @@
               "effect": 0.21684946323943274,
               "p": 0.986013986013986,
               "decile_n": 800,
+              "attainable_effect": -1.2456872951388234,
               "top_decile_median": -11742.0,
               "ensemble_median": -12059.0,
               "robust_sd": 1461.8436,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4288,16 +5145,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": -0.0635512396203458,
-              "p": 0.24175824175824176,
-              "decile_n": 800,
-              "top_decile_median": 0.1752143266999342,
+              "effect": -0.06430587920971984,
+              "p": 0.23976023976023977,
+              "decile_n": 801,
+              "attainable_effect": -1.619785930680834,
+              "top_decile_median": 0.17519838336765037,
               "ensemble_median": 0.17655697893364078,
               "robust_sd": 0.021127081733221365,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4342,14 +5203,18 @@
               "verdict": "none",
               "effect": 0.3372453797382976,
               "p": 1.0,
-              "decile_n": 800,
+              "decile_n": 802,
+              "attainable_effect": -2.023472278429786,
               "top_decile_median": -21.0,
               "ensemble_median": -22.0,
               "robust_sd": 2.9652,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4392,16 +5257,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.4392032852405736,
+              "effect": 0.5019466117035127,
               "p": 1.0,
-              "decile_n": 800,
-              "top_decile_median": -681.0,
+              "decile_n": 1026,
+              "attainable_effect": -1.788184804193764,
+              "top_decile_median": -677.0,
               "ensemble_median": -709.0,
               "robust_sd": 63.751799999999996,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4444,16 +5313,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.05253585827750395,
-              "p": 0.3876123876123876,
-              "decile_n": 800,
-              "top_decile_median": -0.01513209858505585,
+              "effect": 0.052527565324342544,
+              "p": 0.3916083916083916,
+              "decile_n": 802,
+              "attainable_effect": -6.783428362200682,
+              "top_decile_median": -0.015132256365576203,
               "ensemble_median": -0.016131638181497456,
               "robust_sd": 0.019025854515631154,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4497,15 +5370,19 @@
             "conditional": {
               "verdict": "none",
               "effect": 0.2352874742360216,
-              "p": 0.8101898101898102,
-              "decile_n": 800,
+              "p": 0.8111888111888111,
+              "decile_n": 801,
+              "attainable_effect": -1.788184804193764,
               "top_decile_median": -694.0,
               "ensemble_median": -709.0,
               "robust_sd": 63.751799999999996,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4548,16 +5425,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.3201107116271565,
-              "p": 0.996003996003996,
-              "decile_n": 800,
-              "top_decile_median": -0.009936937523019329,
+              "effect": 0.31936873082493816,
+              "p": 0.997002997002997,
+              "decile_n": 802,
+              "attainable_effect": -2.064448109386155,
+              "top_decile_median": -0.0099460242646352,
               "ensemble_median": -0.013857205158424812,
               "robust_sd": 0.012246599357698309,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4603,13 +5484,17 @@
               "effect": 0.07842915807867386,
               "p": 0.6973026973026973,
               "decile_n": 800,
+              "attainable_effect": -1.788184804193764,
               "top_decile_median": -704.0,
               "ensemble_median": -709.0,
               "robust_sd": 63.751799999999996,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4654,14 +5539,18 @@
               "verdict": "none",
               "effect": 0.0,
               "p": 1.0,
-              "decile_n": 800,
+              "decile_n": 802,
+              "attainable_effect": -1.3489815189531904,
               "top_decile_median": 3.0,
               "ensemble_median": 3.0,
               "robust_sd": 1.4826,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4687,8 +5576,8 @@
         {
           "a": "competitiveness",
           "b": "compactness_cut",
-          "verdict": "none",
-          "votes": 0,
+          "verdict": "weak",
+          "votes": 1,
           "n_deciding": 3,
           "partial": false,
           "degenerate_tests": [],
@@ -4703,17 +5592,21 @@
               "n_draws": 8000
             },
             "conditional": {
-              "verdict": "none",
-              "effect": -0.02352874742360216,
-              "p": 0.17282717282717283,
-              "decile_n": 800,
-              "top_decile_median": -710.5,
+              "verdict": "tradeoff",
+              "effect": -0.26665913746749115,
+              "p": 0.026973026973026972,
+              "decile_n": 1206,
+              "attainable_effect": -1.788184804193764,
+              "top_decile_median": -726.0,
               "ensemble_median": -709.0,
               "robust_sd": 63.751799999999996,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.24335664335664337,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4756,16 +5649,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.027020674441506604,
-              "p": 0.5564435564435565,
-              "decile_n": 800,
-              "top_decile_median": -12019.5,
+              "effect": 0.022574234343537163,
+              "p": 0.5484515484515484,
+              "decile_n": 802,
+              "attainable_effect": -1.2456872951388234,
+              "top_decile_median": -12026.0,
               "ensemble_median": -12059.0,
               "robust_sd": 1461.8436,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4809,15 +5706,19 @@
             "conditional": {
               "verdict": "none",
               "effect": -0.06274332646293909,
-              "p": 0.3156843156843157,
-              "decile_n": 800,
+              "p": 0.3276723276723277,
+              "decile_n": 801,
+              "attainable_effect": -1.788184804193764,
               "top_decile_median": -713.0,
               "ensemble_median": -709.0,
               "robust_sd": 63.751799999999996,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4860,16 +5761,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.13352483885179028,
-              "p": 0.7672327672327672,
-              "decile_n": 800,
-              "top_decile_median": -0.0135912140232802,
+              "effect": 0.11494862377024191,
+              "p": 0.7942057942057942,
+              "decile_n": 1026,
+              "attainable_effect": -6.783428362200682,
+              "top_decile_median": -0.013944642388872813,
               "ensemble_median": -0.016131638181497456,
               "robust_sd": 0.019025854515631154,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4913,15 +5818,19 @@
             "conditional": {
               "verdict": "none",
               "effect": 0.0,
-              "p": 0.8341658341658341,
-              "decile_n": 800,
+              "p": 0.8351648351648352,
+              "decile_n": 801,
+              "attainable_effect": -2.023472278429786,
               "top_decile_median": -22.0,
               "ensemble_median": -22.0,
               "robust_sd": 2.9652,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -4964,16 +5873,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": -0.0809724350730516,
-              "p": 0.15084915084915085,
-              "decile_n": 800,
-              "top_decile_median": -0.014848842129781714,
+              "effect": -0.07938788847182629,
+              "p": 0.2017982017982018,
+              "decile_n": 1026,
+              "attainable_effect": -2.064448109386155,
+              "top_decile_median": -0.014829436822392905,
               "ensemble_median": -0.013857205158424812,
               "robust_sd": 0.012246599357698309,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5019,13 +5932,17 @@
               "effect": 0.0,
               "p": 0.993006993006993,
               "decile_n": 800,
+              "attainable_effect": -2.023472278429786,
               "top_decile_median": -22.0,
               "ensemble_median": -22.0,
               "robust_sd": 2.9652,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5070,14 +5987,18 @@
               "verdict": "none",
               "effect": 0.0,
               "p": 1.0,
-              "decile_n": 800,
+              "decile_n": 1026,
+              "attainable_effect": -1.3489815189531904,
               "top_decile_median": 3.0,
               "ensemble_median": 3.0,
               "robust_sd": 1.4826,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5121,15 +6042,19 @@
             "conditional": {
               "verdict": "none",
               "effect": -0.3372453797382976,
-              "p": 0.27472527472527475,
-              "decile_n": 800,
+              "p": 0.6063936063936064,
+              "decile_n": 1206,
+              "attainable_effect": -2.023472278429786,
               "top_decile_median": -23.0,
               "ensemble_median": -22.0,
               "robust_sd": 2.9652,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5172,16 +6097,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.022574234343537163,
-              "p": 0.8101898101898102,
-              "decile_n": 800,
-              "top_decile_median": -12026.0,
+              "effect": 0.048226773370283936,
+              "p": 0.8711288711288712,
+              "decile_n": 1026,
+              "attainable_effect": -1.2456872951388234,
+              "top_decile_median": -11988.5,
               "ensemble_median": -12059.0,
               "robust_sd": 1461.8436,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5226,14 +6155,18 @@
               "verdict": "none",
               "effect": 0.0,
               "p": 1.0,
-              "decile_n": 800,
+              "decile_n": 801,
+              "attainable_effect": -2.023472278429786,
               "top_decile_median": -22.0,
               "ensemble_median": -22.0,
               "robust_sd": 2.9652,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5276,16 +6209,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.26040821880239895,
-              "p": 0.9270729270729271,
-              "decile_n": 800,
-              "top_decile_median": -0.010668090033299993,
+              "effect": 0.26251164489015844,
+              "p": 0.9300699300699301,
+              "decile_n": 801,
+              "attainable_effect": -2.064448109386155,
+              "top_decile_median": -0.010642330216724671,
               "ensemble_median": -0.013857205158424812,
               "robust_sd": 0.012246599357698309,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5331,13 +6268,17 @@
               "effect": 0.0325830129711623,
               "p": 0.4985014985014985,
               "decile_n": 800,
+              "attainable_effect": -6.783428362200682,
               "top_decile_median": -0.0155117185170272,
               "ensemble_median": -0.016131638181497456,
               "robust_sd": 0.019025854515631154,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5382,14 +6323,18 @@
               "verdict": "none",
               "effect": 0.0,
               "p": 1.0,
-              "decile_n": 800,
+              "decile_n": 801,
+              "attainable_effect": -1.3489815189531904,
               "top_decile_median": 3.0,
               "ensemble_median": 3.0,
               "robust_sd": 1.4826,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5432,16 +6377,20 @@
             },
             "conditional": {
               "verdict": "tradeoff",
-              "effect": -0.34341119041380264,
-              "p": 0.01998001998001998,
-              "decile_n": 800,
-              "top_decile_median": -0.022665329529350173,
+              "effect": -0.3478893851209616,
+              "p": 0.013986013986013986,
+              "decile_n": 1206,
+              "attainable_effect": -6.783428362200682,
+              "top_decile_median": -0.02275053101034125,
               "ensemble_median": -0.016131638181497456,
               "robust_sd": 0.019025854515631154,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.24335664335664337,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5484,16 +6433,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.15904574196583002,
-              "p": 0.987012987012987,
-              "decile_n": 800,
-              "top_decile_median": -11826.5,
+              "effect": 0.15870370811214005,
+              "p": 0.988011988011988,
+              "decile_n": 801,
+              "attainable_effect": -1.2456872951388234,
+              "top_decile_median": -11827.0,
               "ensemble_median": -12059.0,
               "robust_sd": 1461.8436,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5536,16 +6489,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": 0.013816059966901682,
-              "p": 0.5324675324675324,
-              "decile_n": 800,
-              "top_decile_median": -0.01586877583458795,
+              "effect": 0.00987690721523401,
+              "p": 0.5274725274725275,
+              "decile_n": 801,
+              "attainable_effect": -6.783428362200682,
+              "top_decile_median": -0.015943721581756026,
               "ensemble_median": -0.016131638181497456,
               "robust_sd": 0.019025854515631154,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5591,13 +6548,17 @@
               "effect": -0.6744907594765952,
               "p": 0.028971028971028972,
               "decile_n": 800,
+              "attainable_effect": -1.3489815189531904,
               "top_decile_median": 2.0,
               "ensemble_median": 3.0,
               "robust_sd": 1.4826,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.24335664335664337,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5640,16 +6601,20 @@
             },
             "conditional": {
               "verdict": "tradeoff",
-              "effect": -1.188435869305429,
+              "effect": -1.2503385970609635,
               "p": 0.000999000999000999,
-              "decile_n": 800,
-              "top_decile_median": -0.028411503112126313,
+              "decile_n": 1206,
+              "attainable_effect": -2.064448109386155,
+              "top_decile_median": -0.029169601018097013,
               "ensemble_median": -0.013857205158424812,
               "robust_sd": 0.012246599357698309,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.04195804195804196,
+              "fires_after_correction": true
             },
             "achievability": {
               "verdict": "none",
@@ -5695,13 +6660,17 @@
               "effect": 0.015049489562358107,
               "p": 0.5894105894105894,
               "decile_n": 800,
+              "attainable_effect": -1.2456872951388234,
               "top_decile_median": -12037.0,
               "ensemble_median": -12059.0,
               "robust_sd": 1461.8436,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5744,16 +6713,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": -0.08910765691592114,
+              "effect": -0.08985440986237055,
               "p": 0.16983016983016982,
-              "decile_n": 800,
-              "top_decile_median": -0.014948470932377333,
+              "decile_n": 801,
+              "attainable_effect": -2.064448109386155,
+              "top_decile_median": -0.01495761611653168,
               "ensemble_median": -0.013857205158424812,
               "robust_sd": 0.012246599357698309,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5796,16 +6769,20 @@
             },
             "conditional": {
               "verdict": "none",
-              "effect": -0.07285321083596084,
-              "p": 0.21178821178821178,
-              "decile_n": 800,
-              "top_decile_median": -12165.5,
+              "effect": -0.04172813015017476,
+              "p": 0.14385614385614387,
+              "decile_n": 1206,
+              "attainable_effect": -1.2456872951388234,
+              "top_decile_median": -12120.0,
               "ensemble_median": -12059.0,
               "robust_sd": 1461.8436,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5850,14 +6827,18 @@
               "verdict": "none",
               "effect": 0.0,
               "p": 1.0,
-              "decile_n": 800,
+              "decile_n": 801,
+              "attainable_effect": -1.3489815189531904,
               "top_decile_median": 3.0,
               "ensemble_median": 3.0,
               "robust_sd": 1.4826,
               "thresholds": {
                 "effect": -0.2,
                 "alpha": 0.05
-              }
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
             },
             "achievability": {
               "verdict": "none",
@@ -5881,9 +6862,526 @@
           }
         }
       ],
+      "symmetry": {
+        "symmetric_tests": [
+          "correlation",
+          "achievability"
+        ],
+        "directional_tests": [
+          "conditional"
+        ],
+        "n_checked": 21,
+        "n_direction_dependent": 0,
+        "mismatches": [],
+        "note": "a non-zero count means a test documented as symmetric is not, which would be a defect in that test rather than a finding"
+      },
+      "relationships": {
+        "n_relationships": 21,
+        "counts": {
+          "none": 17,
+          "weak": 4
+        },
+        "n_direction_dependent": 3,
+        "direction_comes_only_from": "conditional",
+        "relationships": [
+          {
+            "relationship": "compactness_cut <-> compactness_pp",
+            "verdict": "none",
+            "directions": {
+              "compactness_pp -> compactness_cut": "none",
+              "compactness_cut -> compactness_pp": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_pp <-> county_integrity",
+            "verdict": "none",
+            "directions": {
+              "compactness_pp -> county_integrity": "none",
+              "county_integrity -> compactness_pp": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_pp <-> fairness_eg",
+            "verdict": "none",
+            "directions": {
+              "compactness_pp -> fairness_eg": "none",
+              "fairness_eg -> compactness_pp": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_pp <-> fairness_mm",
+            "verdict": "none",
+            "directions": {
+              "compactness_pp -> fairness_mm": "none",
+              "fairness_mm -> compactness_pp": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_pp <-> competitiveness",
+            "verdict": "weak",
+            "directions": {
+              "compactness_pp -> competitiveness": "none",
+              "competitiveness -> compactness_pp": "weak"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "compactness_pp <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "compactness_pp -> population_equality": "none",
+              "population_equality -> compactness_pp": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_cut <-> county_integrity",
+            "verdict": "none",
+            "directions": {
+              "compactness_cut -> county_integrity": "none",
+              "county_integrity -> compactness_cut": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_cut <-> fairness_eg",
+            "verdict": "none",
+            "directions": {
+              "compactness_cut -> fairness_eg": "none",
+              "fairness_eg -> compactness_cut": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_cut <-> fairness_mm",
+            "verdict": "none",
+            "directions": {
+              "compactness_cut -> fairness_mm": "none",
+              "fairness_mm -> compactness_cut": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_cut <-> competitiveness",
+            "verdict": "weak",
+            "directions": {
+              "compactness_cut -> competitiveness": "none",
+              "competitiveness -> compactness_cut": "weak"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "compactness_cut <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "compactness_cut -> population_equality": "none",
+              "population_equality -> compactness_cut": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "county_integrity <-> fairness_eg",
+            "verdict": "none",
+            "directions": {
+              "county_integrity -> fairness_eg": "none",
+              "fairness_eg -> county_integrity": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "county_integrity <-> fairness_mm",
+            "verdict": "none",
+            "directions": {
+              "county_integrity -> fairness_mm": "none",
+              "fairness_mm -> county_integrity": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "competitiveness <-> county_integrity",
+            "verdict": "none",
+            "directions": {
+              "county_integrity -> competitiveness": "none",
+              "competitiveness -> county_integrity": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "county_integrity <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "county_integrity -> population_equality": "none",
+              "population_equality -> county_integrity": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "fairness_eg <-> fairness_mm",
+            "verdict": "none",
+            "directions": {
+              "fairness_eg -> fairness_mm": "none",
+              "fairness_mm -> fairness_eg": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "competitiveness <-> fairness_eg",
+            "verdict": "weak",
+            "directions": {
+              "fairness_eg -> competitiveness": "none",
+              "competitiveness -> fairness_eg": "weak"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "fairness_eg <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "fairness_eg -> population_equality": "none",
+              "population_equality -> fairness_eg": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "competitiveness <-> fairness_mm",
+            "verdict": "weak",
+            "directions": {
+              "fairness_mm -> competitiveness": "weak",
+              "competitiveness -> fairness_mm": "weak"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "fairness_mm <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "fairness_mm -> population_equality": "none",
+              "population_equality -> fairness_mm": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "competitiveness <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "competitiveness -> population_equality": "none",
+              "population_equality -> competitiveness": "none"
+            },
+            "direction_dependent": false
+          }
+        ]
+      },
+      "multiplicity": {
+        "method": "Benjamini-Hochberg",
+        "n_tests": 42,
+        "alpha": 0.05,
+        "n_verdicts_changed": 4,
+        "changed": [
+          "competitiveness -> fairness_eg",
+          "competitiveness -> compactness_pp",
+          "competitiveness -> compactness_cut",
+          "fairness_mm -> competitiveness"
+        ]
+      },
+      "detection_floor": [
+        {
+          "pair": "compactness_pp x fairness_mm",
+          "method": "anti-monotone re-pairing within each chain at a range of noise levels; each chain's B multiset is preserved exactly, so only the pairing changes",
+          "max_attainable_rho": 0.8528271792207227,
+          "points": [
+            {
+              "blend": 0.0,
+              "achieved_rho": -0.8528271792207227,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.1,
+              "achieved_rho": -0.8483999391079676,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.25,
+              "achieved_rho": -0.8275015812461222,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.5,
+              "achieved_rho": -0.7633768276055992,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 1.0,
+              "achieved_rho": -0.5959792560215023,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 2.0,
+              "achieved_rho": -0.3588574404755634,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 4.0,
+              "achieved_rho": -0.17134320599679198,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 8.0,
+              "achieved_rho": -0.07698908826035081,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 16.0,
+              "achieved_rho": -0.017119282772455863,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 32.0,
+              "achieved_rho": -0.006778813399150554,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 64.0,
+              "achieved_rho": 0.04004426671173292,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            }
+          ],
+          "floor_any_test": {
+            "fires": true,
+            "weakest_detected_rho": 0.17134320599679198,
+            "strongest_missed_rho": 0.07698908826035081,
+            "monotone": true
+          },
+          "floor_by_test": {
+            "correlation": {
+              "fires": true,
+              "weakest_detected_rho": 0.17134320599679198,
+              "strongest_missed_rho": 0.07698908826035081,
+              "monotone": true
+            },
+            "conditional": {
+              "fires": true,
+              "weakest_detected_rho": 0.17134320599679198,
+              "strongest_missed_rho": 0.07698908826035081,
+              "monotone": true
+            },
+            "achievability": {
+              "fires": true,
+              "weakest_detected_rho": 0.5959792560215023,
+              "strongest_missed_rho": 0.3588574404755634,
+              "monotone": true
+            }
+          },
+          "interpretation": "a 'none' verdict on this state means: no monotone tradeoff stronger than about this |rho|. It is not a claim about weaker dependence, nor about non-monotone dependence, which no test here can see, nor about a tradeoff confined to the frontier."
+        },
+        {
+          "pair": "compactness_pp x competitiveness",
+          "method": "anti-monotone re-pairing within each chain at a range of noise levels; each chain's B multiset is preserved exactly, so only the pairing changes",
+          "max_attainable_rho": 0.8450675683547613,
+          "points": [
+            {
+              "blend": 0.0,
+              "achieved_rho": -0.8450675683547613,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.1,
+              "achieved_rho": -0.839705085042663,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.25,
+              "achieved_rho": -0.818357637053916,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.5,
+              "achieved_rho": -0.7567804632488262,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 1.0,
+              "achieved_rho": -0.6050658841052635,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 2.0,
+              "achieved_rho": -0.3908471168879636,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 4.0,
+              "achieved_rho": -0.21058414449351257,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 8.0,
+              "achieved_rho": -0.12323723790985666,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 16.0,
+              "achieved_rho": -0.057832754309659326,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 32.0,
+              "achieved_rho": -0.04794345630611427,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 64.0,
+              "achieved_rho": 0.0003870477695101734,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            }
+          ],
+          "floor_any_test": {
+            "fires": true,
+            "weakest_detected_rho": 0.21058414449351257,
+            "strongest_missed_rho": 0.12323723790985666,
+            "monotone": true
+          },
+          "floor_by_test": {
+            "correlation": {
+              "fires": true,
+              "weakest_detected_rho": 0.21058414449351257,
+              "strongest_missed_rho": 0.12323723790985666,
+              "monotone": true
+            },
+            "conditional": {
+              "fires": true,
+              "weakest_detected_rho": 0.3908471168879636,
+              "strongest_missed_rho": 0.21058414449351257,
+              "monotone": true
+            },
+            "achievability": {
+              "fires": true,
+              "weakest_detected_rho": 0.6050658841052635,
+              "strongest_missed_rho": 0.3908471168879636,
+              "monotone": true
+            }
+          },
+          "interpretation": "a 'none' verdict on this state means: no monotone tradeoff stronger than about this |rho|. It is not a claim about weaker dependence, nor about non-monotone dependence, which no test here can see, nor about a tradeoff confined to the frontier."
+        }
+      ],
       "summary": {
         "strong": [],
         "weak": [
+          "competitiveness -> compactness_pp",
+          "competitiveness -> compactness_cut",
           "competitiveness -> fairness_eg",
           "fairness_mm -> competitiveness",
           "competitiveness -> fairness_mm"
@@ -5898,7 +7396,6 @@
           "compactness_pp -> fairness_mm",
           "fairness_mm -> compactness_pp",
           "compactness_pp -> competitiveness",
-          "competitiveness -> compactness_pp",
           "compactness_pp -> population_equality",
           "population_equality -> compactness_pp",
           "compactness_cut -> county_integrity",
@@ -5908,7 +7405,6 @@
           "compactness_cut -> fairness_mm",
           "fairness_mm -> compactness_cut",
           "compactness_cut -> competitiveness",
-          "competitiveness -> compactness_cut",
           "compactness_cut -> population_equality",
           "population_equality -> compactness_cut",
           "county_integrity -> fairness_eg",
@@ -6006,13 +7502,17 @@
                 "effect": 0.8784065704811472,
                 "p": 1.0,
                 "decile_n": 800,
+                "attainable_effect": -1.788184804193764,
                 "top_decile_median": -653.0,
                 "ensemble_median": -709.0,
                 "robust_sd": 63.751799999999996,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6055,16 +7555,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 1.0191683786718515,
+                "effect": 1.0184372825444505,
                 "p": 1.0,
-                "decile_n": 800,
-                "top_decile_median": 0.19808903256975569,
+                "decile_n": 802,
+                "attainable_effect": -1.619785930680834,
+                "top_decile_median": 0.19807358664211724,
                 "ensemble_median": 0.17655697893364078,
                 "robust_sd": 0.021127081733221365,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6110,13 +7614,17 @@
                 "effect": 0.3372453797382976,
                 "p": 1.0,
                 "decile_n": 800,
+                "attainable_effect": -2.023472278429786,
                 "top_decile_median": -21.0,
                 "ensemble_median": -22.0,
                 "robust_sd": 2.9652,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6159,16 +7667,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 0.5704693898937495,
+                "effect": 0.5882246092546505,
                 "p": 1.0,
-                "decile_n": 800,
-                "top_decile_median": 0.18860933236022695,
+                "decile_n": 1026,
+                "attainable_effect": -1.619785930680834,
+                "top_decile_median": 0.18898444833085598,
                 "ensemble_median": 0.17655697893364078,
                 "robust_sd": 0.021127081733221365,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6214,13 +7726,17 @@
                 "effect": -0.19514628954606966,
                 "p": 0.4145854145854146,
                 "decile_n": 800,
+                "attainable_effect": -1.783897383631192,
                 "top_decile_median": -0.0825123409877726,
                 "ensemble_median": -0.07283919602759724,
                 "robust_sd": 0.04956868502432762,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6266,13 +7782,17 @@
                 "effect": -0.2119375588877514,
                 "p": 0.25874125874125875,
                 "decile_n": 800,
+                "attainable_effect": -1.619785930680834,
                 "top_decile_median": 0.17207935680467984,
                 "ensemble_median": 0.17655697893364078,
                 "robust_sd": 0.021127081733221365,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6318,13 +7838,17 @@
                 "effect": 0.17370868903643016,
                 "p": 0.926073926073926,
                 "decile_n": 800,
+                "attainable_effect": -2.0227068087905233,
                 "top_decile_median": -0.012090176915716733,
                 "ensemble_median": -0.014358356234613567,
                 "robust_sd": 0.013057373994810084,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6370,13 +7894,17 @@
                 "effect": 0.11307576876994518,
                 "p": 0.6583416583416584,
                 "decile_n": 800,
+                "attainable_effect": -1.619785930680834,
                 "top_decile_median": 0.17894593994249025,
                 "ensemble_median": 0.17655697893364078,
                 "robust_sd": 0.021127081733221365,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6422,13 +7950,17 @@
                 "effect": 0.0,
                 "p": 0.8021978021978022,
                 "decile_n": 800,
+                "attainable_effect": -0.6744907594765952,
                 "top_decile_median": 2.0,
                 "ensemble_median": 2.0,
                 "robust_sd": 1.4826,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6471,16 +8003,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 0.19134336332553786,
-                "p": 0.6823176823176823,
-                "decile_n": 800,
-                "top_decile_median": 0.1805995058097289,
+                "effect": 0.04726613495162681,
+                "p": 0.5574425574425574,
+                "decile_n": 1046,
+                "attainable_effect": -1.619785930680834,
+                "top_decile_median": 0.17755557442997727,
                 "ensemble_median": 0.17655697893364078,
                 "robust_sd": 0.021127081733221365,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6526,13 +8062,17 @@
                 "effect": 0.21684946323943274,
                 "p": 0.99000999000999,
                 "decile_n": 800,
+                "attainable_effect": -1.2456872951388234,
                 "top_decile_median": -11742.0,
                 "ensemble_median": -12059.0,
                 "robust_sd": 1461.8436,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6575,16 +8115,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": -0.0635512396203458,
-                "p": 0.21578421578421578,
-                "decile_n": 800,
-                "top_decile_median": 0.1752143266999342,
+                "effect": -0.06430587920971984,
+                "p": 0.2177822177822178,
+                "decile_n": 801,
+                "attainable_effect": -1.619785930680834,
+                "top_decile_median": 0.17519838336765037,
                 "ensemble_median": 0.17655697893364078,
                 "robust_sd": 0.021127081733221365,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6629,14 +8173,18 @@
                 "verdict": "none",
                 "effect": 0.3372453797382976,
                 "p": 1.0,
-                "decile_n": 800,
+                "decile_n": 802,
+                "attainable_effect": -2.023472278429786,
                 "top_decile_median": -21.0,
                 "ensemble_median": -22.0,
                 "robust_sd": 2.9652,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6679,16 +8227,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 0.4392032852405736,
+                "effect": 0.5019466117035127,
                 "p": 1.0,
-                "decile_n": 800,
-                "top_decile_median": -681.0,
+                "decile_n": 1026,
+                "attainable_effect": -1.788184804193764,
+                "top_decile_median": -677.0,
                 "ensemble_median": -709.0,
                 "robust_sd": 63.751799999999996,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6731,16 +8283,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": -0.23798872880401684,
-                "p": 0.41358641358641357,
-                "decile_n": 800,
-                "top_decile_median": -0.08463598436502368,
+                "effect": -0.24721530001190747,
+                "p": 0.39760239760239763,
+                "decile_n": 802,
+                "attainable_effect": -1.783897383631192,
+                "top_decile_median": -0.08509333336708214,
                 "ensemble_median": -0.07283919602759724,
                 "robust_sd": 0.04956868502432762,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6786,13 +8342,17 @@
                 "effect": 0.06274332646293909,
                 "p": 0.8491508491508492,
                 "decile_n": 800,
+                "attainable_effect": -1.788184804193764,
                 "top_decile_median": -705.0,
                 "ensemble_median": -709.0,
                 "robust_sd": 63.751799999999996,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6835,16 +8395,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 0.24052493700495073,
-                "p": 0.9690309690309691,
-                "decile_n": 800,
-                "top_decile_median": -0.01121773217706179,
+                "effect": 0.23762348490046623,
+                "p": 0.968031968031968,
+                "decile_n": 802,
+                "attainable_effect": -2.0227068087905233,
+                "top_decile_median": -0.011255617522318073,
                 "ensemble_median": -0.014358356234613567,
                 "robust_sd": 0.013057373994810084,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6890,13 +8454,17 @@
                 "effect": 0.04705749484720432,
                 "p": 0.4695304695304695,
                 "decile_n": 800,
+                "attainable_effect": -1.788184804193764,
                 "top_decile_median": -706.0,
                 "ensemble_median": -709.0,
                 "robust_sd": 63.751799999999996,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6940,15 +8508,19 @@
               "conditional": {
                 "verdict": "none",
                 "effect": 0.0,
-                "p": 0.6863136863136863,
-                "decile_n": 800,
+                "p": 0.6813186813186813,
+                "decile_n": 802,
+                "attainable_effect": -0.6744907594765952,
                 "top_decile_median": 2.0,
                 "ensemble_median": 2.0,
                 "robust_sd": 1.4826,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -6991,16 +8563,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 0.14117248454161296,
-                "p": 0.3126873126873127,
-                "decile_n": 800,
-                "top_decile_median": -700.0,
+                "effect": 0.015685831615734773,
+                "p": 0.27472527472527475,
+                "decile_n": 1046,
+                "attainable_effect": -1.788184804193764,
+                "top_decile_median": -708.0,
                 "ensemble_median": -709.0,
                 "robust_sd": 63.751799999999996,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7043,16 +8619,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 0.027020674441506604,
-                "p": 0.5854145854145855,
-                "decile_n": 800,
-                "top_decile_median": -12019.5,
+                "effect": 0.022574234343537163,
+                "p": 0.5724275724275725,
+                "decile_n": 802,
+                "attainable_effect": -1.2456872951388234,
+                "top_decile_median": -12026.0,
                 "ensemble_median": -12059.0,
                 "robust_sd": 1461.8436,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7096,15 +8676,19 @@
               "conditional": {
                 "verdict": "none",
                 "effect": -0.06274332646293909,
-                "p": 0.32967032967032966,
-                "decile_n": 800,
+                "p": 0.33766233766233766,
+                "decile_n": 801,
+                "attainable_effect": -1.788184804193764,
                 "top_decile_median": -713.0,
                 "ensemble_median": -709.0,
                 "robust_sd": 63.751799999999996,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7147,16 +8731,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 0.5841782336928206,
-                "p": 0.951048951048951,
-                "decile_n": 800,
-                "top_decile_median": -0.04388224916360976,
+                "effect": 0.6085802964584838,
+                "p": 0.981018981018981,
+                "decile_n": 1026,
+                "attainable_effect": -1.783897383631192,
+                "top_decile_median": -0.04267267100043473,
                 "ensemble_median": -0.07283919602759724,
                 "robust_sd": 0.04956868502432762,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7202,13 +8790,17 @@
                 "effect": -0.3372453797382976,
                 "p": 0.5174825174825175,
                 "decile_n": 800,
+                "attainable_effect": -2.023472278429786,
                 "top_decile_median": -23.0,
                 "ensemble_median": -22.0,
                 "robust_sd": 2.9652,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7251,16 +8843,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": -0.09577832574595734,
-                "p": 0.11388611388611389,
-                "decile_n": 800,
-                "top_decile_median": -0.01560896965447528,
+                "effect": -0.07030433249281116,
+                "p": 0.22777222777222778,
+                "decile_n": 1026,
+                "attainable_effect": -2.0227068087905233,
+                "top_decile_median": -0.015276346197427682,
                 "ensemble_median": -0.014358356234613567,
                 "robust_sd": 0.013057373994810084,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7306,13 +8902,17 @@
                 "effect": 0.0,
                 "p": 0.989010989010989,
                 "decile_n": 800,
+                "attainable_effect": -2.023472278429786,
                 "top_decile_median": -22.0,
                 "ensemble_median": -22.0,
                 "robust_sd": 2.9652,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7356,15 +8956,19 @@
               "conditional": {
                 "verdict": "none",
                 "effect": 0.0,
-                "p": 0.9310689310689311,
-                "decile_n": 800,
+                "p": 0.8831168831168831,
+                "decile_n": 1026,
+                "attainable_effect": -0.6744907594765952,
                 "top_decile_median": 2.0,
                 "ensemble_median": 2.0,
                 "robust_sd": 1.4826,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7407,16 +9011,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 0.0,
-                "p": 0.9210789210789211,
-                "decile_n": 800,
-                "top_decile_median": -22.0,
+                "effect": -0.3372453797382976,
+                "p": 0.45354645354645357,
+                "decile_n": 1046,
+                "attainable_effect": -2.023472278429786,
+                "top_decile_median": -23.0,
                 "ensemble_median": -22.0,
                 "robust_sd": 2.9652,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7459,16 +9067,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 0.022574234343537163,
-                "p": 0.8011988011988012,
-                "decile_n": 800,
-                "top_decile_median": -12026.0,
+                "effect": 0.048226773370283936,
+                "p": 0.8761238761238761,
+                "decile_n": 1026,
+                "attainable_effect": -1.2456872951388234,
+                "top_decile_median": -11988.5,
                 "ensemble_median": -12059.0,
                 "robust_sd": 1461.8436,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7513,14 +9125,18 @@
                 "verdict": "none",
                 "effect": 0.0,
                 "p": 1.0,
-                "decile_n": 800,
+                "decile_n": 801,
+                "attainable_effect": -2.023472278429786,
                 "top_decile_median": -22.0,
                 "ensemble_median": -22.0,
                 "robust_sd": 2.9652,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7566,13 +9182,17 @@
                 "effect": 0.19330331849429375,
                 "p": 0.977022977022977,
                 "decile_n": 800,
+                "attainable_effect": -2.0227068087905233,
                 "top_decile_median": -0.011834322510595685,
                 "ensemble_median": -0.014358356234613567,
                 "robust_sd": 0.013057373994810084,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7618,13 +9238,17 @@
                 "effect": 0.5839548300316125,
                 "p": 0.8661338661338661,
                 "decile_n": 800,
+                "attainable_effect": -1.783897383631192,
                 "top_decile_median": -0.04389332298932547,
                 "ensemble_median": -0.07283919602759724,
                 "robust_sd": 0.04956868502432762,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7670,13 +9294,17 @@
                 "effect": 0.0,
                 "p": 0.8201798201798202,
                 "decile_n": 800,
+                "attainable_effect": -0.6744907594765952,
                 "top_decile_median": 2.0,
                 "ensemble_median": 2.0,
                 "robust_sd": 1.4826,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7719,16 +9347,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": -0.3005481369040079,
-                "p": 0.13386613386613386,
-                "decile_n": 800,
-                "top_decile_median": -0.0877369719604405,
+                "effect": -0.2610759014494273,
+                "p": 0.12487512487512488,
+                "decile_n": 1046,
+                "attainable_effect": -1.783897383631192,
+                "top_decile_median": -0.0857803851539863,
                 "ensemble_median": -0.07283919602759724,
                 "robust_sd": 0.04956868502432762,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7774,13 +9406,17 @@
                 "effect": 0.10534642693650675,
                 "p": 0.8351648351648352,
                 "decile_n": 800,
+                "attainable_effect": -1.2456872951388234,
                 "top_decile_median": -11905.0,
                 "ensemble_median": -12059.0,
                 "robust_sd": 1461.8436,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7823,16 +9459,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": -0.10810184017768085,
-                "p": 0.45354645354645357,
-                "decile_n": 800,
-                "top_decile_median": -0.0781976620939149,
+                "effect": -0.1251762628557213,
+                "p": 0.44155844155844154,
+                "decile_n": 801,
+                "attainable_effect": -1.783897383631192,
+                "top_decile_median": -0.07904401877361493,
                 "ensemble_median": -0.07283919602759724,
                 "robust_sd": 0.04956868502432762,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7878,13 +9518,17 @@
                 "effect": 0.0,
                 "p": 0.975024975024975,
                 "decile_n": 800,
+                "attainable_effect": -0.6744907594765952,
                 "top_decile_median": 2.0,
                 "ensemble_median": 2.0,
                 "robust_sd": 1.4826,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -7927,16 +9571,20 @@
               },
               "conditional": {
                 "verdict": "tradeoff",
-                "effect": -1.054907622012212,
+                "effect": -1.1840042277892109,
                 "p": 0.000999000999000999,
-                "decile_n": 800,
-                "top_decile_median": -0.02813267958520277,
+                "decile_n": 1046,
+                "attainable_effect": -2.0227068087905233,
+                "top_decile_median": -0.029818342248293606,
                 "ensemble_median": -0.014358356234613567,
                 "robust_sd": 0.013057373994810084,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.04195804195804196,
+                "fires_after_correction": true
               },
               "achievability": {
                 "verdict": "none",
@@ -7982,13 +9630,17 @@
                 "effect": -0.11765964566934521,
                 "p": 0.09090909090909091,
                 "decile_n": 800,
+                "attainable_effect": -1.2456872951388234,
                 "top_decile_median": -12231.0,
                 "ensemble_median": -12059.0,
                 "robust_sd": 1461.8436,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -8031,16 +9683,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": -0.10413764699515704,
-                "p": 0.17082917082917082,
-                "decile_n": 800,
-                "top_decile_median": -0.015718120438368843,
+                "effect": -0.10572777235837416,
+                "p": 0.16883116883116883,
+                "decile_n": 801,
+                "attainable_effect": -2.0227068087905233,
+                "top_decile_median": -0.015738883299935003,
                 "ensemble_median": -0.014358356234613567,
                 "robust_sd": 0.013057373994810084,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -8083,16 +9739,20 @@
               },
               "conditional": {
                 "verdict": "none",
-                "effect": 0.005472541659039312,
-                "p": 0.4875124875124875,
-                "decile_n": 800,
-                "top_decile_median": -12051.0,
+                "effect": 0.06635456761585166,
+                "p": 0.6523476523476524,
+                "decile_n": 1046,
+                "attainable_effect": -1.2456872951388234,
+                "top_decile_median": -11962.0,
                 "ensemble_median": -12059.0,
                 "robust_sd": 1461.8436,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -8136,15 +9796,19 @@
               "conditional": {
                 "verdict": "none",
                 "effect": 0.0,
-                "p": 0.926073926073926,
-                "decile_n": 800,
+                "p": 0.9270729270729271,
+                "decile_n": 801,
+                "attainable_effect": -0.6744907594765952,
                 "top_decile_median": 2.0,
                 "ensemble_median": 2.0,
                 "robust_sd": 1.4826,
                 "thresholds": {
                   "effect": -0.2,
                   "alpha": 0.05
-                }
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
               },
               "achievability": {
                 "verdict": "none",
@@ -8168,6 +9832,226 @@
             }
           }
         ],
+        "symmetry": {
+          "symmetric_tests": [
+            "correlation",
+            "achievability"
+          ],
+          "directional_tests": [
+            "conditional"
+          ],
+          "n_checked": 21,
+          "n_direction_dependent": 0,
+          "mismatches": [],
+          "note": "a non-zero count means a test documented as symmetric is not, which would be a defect in that test rather than a finding"
+        },
+        "relationships": {
+          "n_relationships": 21,
+          "counts": {
+            "none": 20,
+            "weak": 1
+          },
+          "n_direction_dependent": 0,
+          "direction_comes_only_from": "conditional",
+          "relationships": [
+            {
+              "relationship": "compactness_cut <-> compactness_pp",
+              "verdict": "none",
+              "directions": {
+                "compactness_pp -> compactness_cut": "none",
+                "compactness_cut -> compactness_pp": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> county_integrity",
+              "verdict": "none",
+              "directions": {
+                "compactness_pp -> county_integrity": "none",
+                "county_integrity -> compactness_pp": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> fairness_eg",
+              "verdict": "none",
+              "directions": {
+                "compactness_pp -> fairness_eg": "none",
+                "fairness_eg -> compactness_pp": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> fairness_mm",
+              "verdict": "none",
+              "directions": {
+                "compactness_pp -> fairness_mm": "none",
+                "fairness_mm -> compactness_pp": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> competitiveness",
+              "verdict": "none",
+              "directions": {
+                "compactness_pp -> competitiveness": "none",
+                "competitiveness -> compactness_pp": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "compactness_pp -> population_equality": "none",
+                "population_equality -> compactness_pp": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_cut <-> county_integrity",
+              "verdict": "none",
+              "directions": {
+                "compactness_cut -> county_integrity": "none",
+                "county_integrity -> compactness_cut": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_cut <-> fairness_eg",
+              "verdict": "none",
+              "directions": {
+                "compactness_cut -> fairness_eg": "none",
+                "fairness_eg -> compactness_cut": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_cut <-> fairness_mm",
+              "verdict": "none",
+              "directions": {
+                "compactness_cut -> fairness_mm": "none",
+                "fairness_mm -> compactness_cut": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_cut <-> competitiveness",
+              "verdict": "none",
+              "directions": {
+                "compactness_cut -> competitiveness": "none",
+                "competitiveness -> compactness_cut": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_cut <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "compactness_cut -> population_equality": "none",
+                "population_equality -> compactness_cut": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "county_integrity <-> fairness_eg",
+              "verdict": "none",
+              "directions": {
+                "county_integrity -> fairness_eg": "none",
+                "fairness_eg -> county_integrity": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "county_integrity <-> fairness_mm",
+              "verdict": "none",
+              "directions": {
+                "county_integrity -> fairness_mm": "none",
+                "fairness_mm -> county_integrity": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "competitiveness <-> county_integrity",
+              "verdict": "none",
+              "directions": {
+                "county_integrity -> competitiveness": "none",
+                "competitiveness -> county_integrity": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "county_integrity <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "county_integrity -> population_equality": "none",
+                "population_equality -> county_integrity": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "fairness_eg <-> fairness_mm",
+              "verdict": "none",
+              "directions": {
+                "fairness_eg -> fairness_mm": "none",
+                "fairness_mm -> fairness_eg": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "competitiveness <-> fairness_eg",
+              "verdict": "none",
+              "directions": {
+                "fairness_eg -> competitiveness": "none",
+                "competitiveness -> fairness_eg": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "fairness_eg <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "fairness_eg -> population_equality": "none",
+                "population_equality -> fairness_eg": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "competitiveness <-> fairness_mm",
+              "verdict": "weak",
+              "directions": {
+                "fairness_mm -> competitiveness": "weak",
+                "competitiveness -> fairness_mm": "weak"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "fairness_mm <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "fairness_mm -> population_equality": "none",
+                "population_equality -> fairness_mm": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "competitiveness <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "competitiveness -> population_equality": "none",
+                "population_equality -> competitiveness": "none"
+              },
+              "direction_dependent": false
+            }
+          ]
+        },
+        "multiplicity": {
+          "method": "Benjamini-Hochberg",
+          "n_tests": 42,
+          "alpha": 0.05,
+          "n_verdicts_changed": 0,
+          "changed": []
+        },
         "summary": {
           "strong": [],
           "weak": [
@@ -8221,9 +10105,19 @@
       },
       "contest_agreement": {
         "n_pairs_compared": 42,
-        "n_agree": 41,
-        "n_differ": 1,
+        "n_agree": 39,
+        "n_differ": 3,
         "disagreements": [
+          {
+            "pair": "competitiveness -> compactness_pp",
+            "G20PRE": "weak",
+            "G20USS": "none"
+          },
+          {
+            "pair": "competitiveness -> compactness_cut",
+            "G20PRE": "weak",
+            "G20USS": "none"
+          },
           {
             "pair": "competitiveness -> fairness_eg",
             "G20PRE": "weak",
@@ -8235,23 +10129,7 @@
       "draws_file": {
         "path": "docs/experiment-2/co-draws.csv.gz",
         "n_rows": 8000,
-        "columns": [
-          "chain_index",
-          "chain_seed",
-          "chain_completed",
-          "draw",
-          "abs_efficiency_gap@G20PRE",
-          "abs_efficiency_gap@G20USS",
-          "abs_mean_median@G20PRE",
-          "abs_mean_median@G20USS",
-          "competitive_districts@G20PRE",
-          "competitive_districts@G20USS",
-          "county_splits",
-          "cut_edges",
-          "polsby_popper_mean",
-          "population_spread"
-        ],
-        "includes_failed_chains": true
+        "reanalysed_without_sampling": true
       }
     }
   }
