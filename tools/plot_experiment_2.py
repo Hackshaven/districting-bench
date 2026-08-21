@@ -131,13 +131,16 @@ def verdict_matrix(state: dict, path: Path) -> Path:
 
     drawn = set()
     for (a, b), pair in verdicts.items():
-        key = tuple(sorted((a, b)))
+        # Canonical order is position in the criteria list, not alphabetical:
+        # sorting by name scatters the cells off the triangle.
+        key = tuple(sorted((a, b), key=lambda n: index[n]))
         if key in drawn:
             continue
         drawn.add(key)
         # lower triangle: row is the later name, so each relationship is one cell
-        row, col = index[key[1]], index[key[0]]
-        record = rel.get(f"{key[0]} <-> {key[1]}")
+        row, col = index[key[1]], index[key[0]]   # lower triangle
+        record = (rel.get(f"{key[0]} <-> {key[1]}")
+                  or rel.get(f"{key[1]} <-> {key[0]}"))
         verdict = record["verdict"] if record else pair["verdict"]
         ax.add_patch(plt.Rectangle(
             (col - 0.5, row - 0.5), 1, 1,
@@ -173,13 +176,20 @@ def verdict_matrix(state: dict, path: Path) -> Path:
     ax.tick_params(length=0)
 
     sample = state["ensemble"]["analysis_sample"]
+    floors = [f["floor_any_test"]["weakest_detected_rho"]
+              for f in state.get("detection_floor", [])
+              if f.get("floor_any_test", {}).get("fires")]
+    floor = f" · blind below |rho| ~ {min(floors):.2f}" if floors else ""
+    n_rel = state.get("relationships", {}).get("n_relationships", "?")
     ax.set_title(
-        f"{state['state']}: does prioritising the row cost the column?",
+        f"{state['state']}: do these two criteria trade off against each other?",
         fontsize=13, color=INK, fontweight="bold", pad=16, loc="left")
     fig.text(0.0, -0.03,
              f"{sample['n_draws']:,} neutral draws over {sample['n_chains']} "
-             f"completed chains · cell shows tests firing / tests able to decide"
-             f" · a blank diagonal is a criterion against itself",
+             f"completed chains · {n_rel} relationships, not ordered pairs{floor}\n"
+             f"cell shows tests firing / tests able to decide, after "
+             f"Benjamini-Hochberg correction · * marks a relationship whose two "
+             f"directions disagree, which only the conditional test can produce",
              fontsize=8.5, color=MUTED, ha="left", va="top")
 
     ax.legend(handles=[Patch(facecolor=VERDICT_COLOUR[v], label=v)
