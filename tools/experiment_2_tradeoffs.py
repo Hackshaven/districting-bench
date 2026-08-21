@@ -1426,10 +1426,16 @@ def main(argv=None) -> int:
             print(f"wrote {rows_path} ({report['draws_file']['n_rows']} rows)")
         results["states"][key] = report
 
-    path = Path(args.out)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(results, indent=2, default=str))
-    print(f"wrote {path}")
+        # Written after every state, not once at the end. This environment
+        # reclaims its container roughly every two hours and has now destroyed
+        # five runs; a file holding one finished state is worth far more than a
+        # file that would have held two.
+        results["states_complete"] = sorted(results["states"])
+        path = Path(args.out)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(results, indent=2, default=str))
+        print(f"wrote {path} ({len(results['states'])} state(s) complete)")
+
     return 0
 
 
