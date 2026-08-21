@@ -360,23 +360,40 @@ def epsilon_sweep(*, checkpoints: Path | None = None, jobs: int = 3,
         log(f"    completed {len(completed)}/{SWEEP_CHAINS}, {len(rows)} draws, "
             f"median spread {cells[-1]['population_spread']['median']}")
 
-    live = [c for c in cells if c["n_draws"] > 0]
-    comparisons = []
-    if len(live) >= 2:
-        tight, loose = live[0], live[-1]
-        for name in criteria:
-            if name == "population_equality":
-                continue
-            a = E2mod.goodness(tight["rows"], name, criteria)
-            b = E2mod.goodness(loose["rows"], name, criteria)
-            if len(set(a) | set(b)) <= 1:
-                continue
-            comparisons.append({
-                "criterion": name,
-                "delta_tight_vs_loose": cliffs_delta(a, b),
-                "tight_epsilon": tight["epsilon"],
-                "loose_epsilon": loose["epsilon"],
-            })
+    # The baseline must be the tightest cell in which EVERY chain completed.
+    # ARCHITECTURE.md section 7: surviving seeds are not a random subset of
+    # attempted seeds, so a cell with a 75% failure rate is a biased sample and
+    # differences against it are partly selection rather than tolerance. Using
+    # the tightest cell regardless -- epsilon = 1e-4, where 3 of 4 chains die --
+    # produced two tradeoffs that do not survive this correction: an efficiency
+    # gap delta of -0.413 and a competitiveness delta of +0.281, both of which
+    # collapse to noise once the baseline is unbiased.
+    usable = [c for c in cells if c["n_draws"] > 0 and c["failure_rate"] == 0.0]
+    excluded = [c for c in cells if c["n_draws"] > 0 and c["failure_rate"] > 0.0]
+    curve, comparisons = [], []
+    if len(usable) >= 2:
+        tight = usable[0]
+        for loose in usable[1:]:
+            point = {"epsilon": loose["epsilon"], "deltas": {}}
+            for name in criteria:
+                if name == "population_equality":
+                    continue
+                a = E2mod.goodness(tight["rows"], name, criteria)
+                b = E2mod.goodness(loose["rows"], name, criteria)
+                if len(set(a) | set(b)) <= 1:
+                    continue
+                point["deltas"][name] = cliffs_delta(a, b)
+            curve.append(point)
+        widest = curve[-1]["deltas"]
+        comparisons = sorted(
+            ({"criterion": name, "delta_tight_vs_loose": value,
+              "tight_epsilon": tight["epsilon"],
+              "loose_epsilon": curve[-1]["epsilon"],
+              "monotone": all(
+                  abs(p["deltas"].get(name, 0)) <= abs(q["deltas"].get(name, 0)) + 1e-9
+                  for p, q in zip(curve, curve[1:]))}
+             for name, value in widest.items()),
+            key=lambda c: c["delta_tight_vs_loose"])
 
     return {
         "state": "IA",
@@ -384,8 +401,14 @@ def epsilon_sweep(*, checkpoints: Path | None = None, jobs: int = 3,
         "chains_per_epsilon": SWEEP_CHAINS,
         "steps_per_chain": SWEEP_STEPS,
         "cells": [{k: v for k, v in c.items() if k != "rows"} for c in cells],
-        "cost_of_tight_equality": sorted(
-            comparisons, key=lambda c: c["delta_tight_vs_loose"]),
+        "baseline_epsilon": (usable[0]["epsilon"] if usable else None),
+        "excluded_from_comparison": [
+            {"epsilon": c["epsilon"], "failure_rate": c["failure_rate"],
+             "reason": "chains failed, so the surviving draws are a biased "
+                       "subset (ARCHITECTURE.md section 7)"}
+            for c in excluded],
+        "cost_curve": curve,
+        "cost_of_tight_equality": comparisons,
         "binds_on_the_search": any(c["failure_rate"] > 0 for c in cells),
         "interpretation": (
             "failure_rate against epsilon is the criterion binding on the search "

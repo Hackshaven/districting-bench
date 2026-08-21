@@ -1811,5 +1811,204 @@
         }
       ]
     }
+  },
+  "epsilon_sweep": {
+    "state": "IA",
+    "epsilons": [
+      0.0001,
+      0.0002,
+      0.0005,
+      0.001,
+      0.005,
+      0.01,
+      0.05
+    ],
+    "chains_per_epsilon": 4,
+    "steps_per_chain": 400,
+    "cells": [
+      {
+        "epsilon": 0.0001,
+        "chains_requested": 4,
+        "chains_completed": 1,
+        "failure_rate": 0.75,
+        "n_draws": 400,
+        "population_spread": {
+          "min": 55,
+          "median": 116.0,
+          "max": 149
+        }
+      },
+      {
+        "epsilon": 0.0002,
+        "chains_requested": 4,
+        "chains_completed": 4,
+        "failure_rate": 0.0,
+        "n_draws": 1600,
+        "population_spread": {
+          "min": 31,
+          "median": 208.0,
+          "max": 314
+        }
+      },
+      {
+        "epsilon": 0.0005,
+        "chains_requested": 4,
+        "chains_completed": 4,
+        "failure_rate": 0.0,
+        "n_draws": 1600,
+        "population_spread": {
+          "min": 78,
+          "median": 529.5,
+          "max": 781
+        }
+      },
+      {
+        "epsilon": 0.001,
+        "chains_requested": 4,
+        "chains_completed": 4,
+        "failure_rate": 0.0,
+        "n_draws": 1600,
+        "population_spread": {
+          "min": 124,
+          "median": 1110.0,
+          "max": 1548
+        }
+      },
+      {
+        "epsilon": 0.005,
+        "chains_requested": 4,
+        "chains_completed": 4,
+        "failure_rate": 0.0,
+        "n_draws": 1600,
+        "population_spread": {
+          "min": 454,
+          "median": 5433.0,
+          "max": 7845
+        }
+      },
+      {
+        "epsilon": 0.01,
+        "chains_requested": 4,
+        "chains_completed": 4,
+        "failure_rate": 0.0,
+        "n_draws": 1600,
+        "population_spread": {
+          "min": 1525,
+          "median": 10914.5,
+          "max": 15891
+        }
+      },
+      {
+        "epsilon": 0.05,
+        "chains_requested": 4,
+        "chains_completed": 4,
+        "failure_rate": 0.0,
+        "n_draws": 1600,
+        "population_spread": {
+          "min": 6418,
+          "median": 53882.5,
+          "max": 79160
+        }
+      }
+    ],
+    "baseline_epsilon": 0.0002,
+    "excluded_from_comparison": [
+      {
+        "epsilon": 0.0001,
+        "failure_rate": 0.75,
+        "reason": "chains failed, so the surviving draws are a biased subset (ARCHITECTURE.md section 7)"
+      }
+    ],
+    "cost_curve": [
+      {
+        "epsilon": 0.0005,
+        "deltas": {
+          "compactness_pp": -0.09035664062500004,
+          "compactness_cut": -0.129712109375,
+          "fairness_eg": -0.06584374999999998,
+          "fairness_mm": -0.05231328125000001,
+          "competitiveness": 0.06937499999999996
+        }
+      },
+      {
+        "epsilon": 0.001,
+        "deltas": {
+          "compactness_pp": -0.14481953125000002,
+          "compactness_cut": -0.15750898437500005,
+          "fairness_eg": -0.044568750000000046,
+          "fairness_mm": -0.01475273437500002,
+          "competitiveness": 0.07503710937499997
+        }
+      },
+      {
+        "epsilon": 0.005,
+        "deltas": {
+          "compactness_pp": -0.36099765625,
+          "compactness_cut": -0.36157382812500005,
+          "fairness_eg": 0.1104085937499999,
+          "fairness_mm": 0.013321874999999928,
+          "competitiveness": -0.06604726562499996
+        }
+      },
+      {
+        "epsilon": 0.01,
+        "deltas": {
+          "compactness_pp": -0.41274453125,
+          "compactness_cut": -0.36768828124999997,
+          "fairness_eg": -0.002672265625000003,
+          "fairness_mm": -0.03370625000000005,
+          "competitiveness": 0.06248671875
+        }
+      },
+      {
+        "epsilon": 0.05,
+        "deltas": {
+          "compactness_pp": -0.4171859375,
+          "compactness_cut": -0.390249609375,
+          "fairness_eg": 0.1406316406250001,
+          "fairness_mm": 0.06234765625000005,
+          "competitiveness": -0.018089062499999975
+        }
+      }
+    ],
+    "cost_of_tight_equality": [
+      {
+        "criterion": "compactness_pp",
+        "delta_tight_vs_loose": -0.4171859375,
+        "tight_epsilon": 0.0002,
+        "loose_epsilon": 0.05,
+        "monotone": true
+      },
+      {
+        "criterion": "compactness_cut",
+        "delta_tight_vs_loose": -0.390249609375,
+        "tight_epsilon": 0.0002,
+        "loose_epsilon": 0.05,
+        "monotone": true
+      },
+      {
+        "criterion": "competitiveness",
+        "delta_tight_vs_loose": -0.018089062499999975,
+        "tight_epsilon": 0.0002,
+        "loose_epsilon": 0.05,
+        "monotone": false
+      },
+      {
+        "criterion": "fairness_mm",
+        "delta_tight_vs_loose": 0.06234765625000005,
+        "tight_epsilon": 0.0002,
+        "loose_epsilon": 0.05,
+        "monotone": false
+      },
+      {
+        "criterion": "fairness_eg",
+        "delta_tight_vs_loose": 0.1406316406250001,
+        "tight_epsilon": 0.0002,
+        "loose_epsilon": 0.05,
+        "monotone": false
+      }
+    ],
+    "binds_on_the_search": true,
+    "interpretation": "failure_rate against epsilon is the criterion binding on the search itself: where it is non-zero, the tolerance is excluding plans ReCom would otherwise have reached. delta_tight_vs_loose is what insisting on the tightest tolerance costs each other criterion, negative meaning the tight ensemble is worse on it."
   }
 }
