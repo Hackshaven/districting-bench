@@ -837,3 +837,87 @@ constant by construction being excluded from the ranking rather than ranked last
 *Consequence:* the experiment no longer answers `prompt.md`'s question in
 `prompt.md`'s vocabulary. That is the right trade: the word was doing work the
 measurement cannot support.
+
+---
+
+## D-032 — The report reports; it does not resolve
+
+**Date:** 2026-08-21 · **Phase:** 2
+
+`prompt.md` Phase 2 requires every metric side by side *"with disagreements
+between them highlighted rather than resolved"*. The tempting implementation is a
+function that takes the disagreement and returns the better answer — pick the
+trusted metric, drop the untrusted ones, average the compactness measures.
+
+*Chosen:* `src/evaluate/report.py` returns every value plus a list of
+disagreements and resolves none of them. `combined_score` is an explicit `None`
+carrying the sentence from `prompt.md` that forbids it, because an absent key
+reads as an oversight while `None` with a reason reads as a choice, and a test
+asserts no other key in the report is a score.
+
+Untrusted metrics are reported **with their values** beside the trust flags rather
+than filtered out. A reader handed a filtered dict cannot tell that filtering
+happened, and cannot tell the difference between "this metric is fine" and "this
+metric was removed for you".
+
+*Consequence:* the report is harder to read than a score would be. That is the
+trade `prompt.md` is asking for — on Iowa's enacted plan the efficiency gap
+(+0.416) and mean-median (−0.024) disagree about which party the map favours, and
+any resolution step would have deleted the most informative thing in the file.
+
+---
+
+## D-033 — A membership layer and a districting layer are different objects
+
+**Date:** 2026-08-21 · **Phase:** 2
+
+`tools/prepare_municipalities.py` assigns each unit to the parent holding the
+largest share of its area, above a 50% floor. I applied that floor uniformly and
+it was wrong for half the layers.
+
+A **membership** layer — municipalities — is genuinely partial. A rural unit
+belongs to no city, `None` is the true answer, and the floor is what stops a VTD
+that clips a city's corner from counting as inside it.
+
+A **districting** layer — state house, state senate — is not partial. Every voter
+is in exactly one state house district, and a ballot style is the tuple of
+districts a voter sits in, undefined if any component is missing. Six Iowa
+counties whose area splits roughly evenly across three house districts came back
+unassigned under the floor, and `evaluate.administrative.layers` correctly refused
+the overlay because the layers no longer assigned the same units.
+
+*Chosen:* the floor applies only to layers declared partial. The distinction is in
+the layer table with the reason, not inferred from the data.
+
+*Generalisable:* "belongs to nothing" is meaningful for some layers and impossible
+for others, and a loader that cannot tell them apart will silently produce either
+invented membership or missing districts. The failure surfaced as a refusal from a
+downstream module rather than as a wrong number, which is the only reason it was
+cheap to find.
+
+---
+
+## D-034 — No community-of-interest data ships
+
+**Date:** 2026-08-21 · **Phase:** 2 · **VALUE**
+
+`prompt.md` names community-of-interest splits among the metrics to implement.
+CRITERIA.md §6 marks COI `VALUE` entirely and recommends supporting it *"as an
+input layer, never as an objective function"*.
+
+*Chosen:* the split-counting layer argument is a generic `{name: {unit: parent}}`
+mapping, so a COI layer is supplied by a user and counted exactly like
+municipalities — and **no COI dataset is included**.
+
+*Why not ship a proxy:* §6 lists the three available approaches and rejects each.
+Self-reported maps (Districtr, Representable) systematically favour well-organised
+communities. Proxy-based definitions — school districts, media markets, watersheds
+— are objective and arbitrary, and *the choice of proxy is the definition*.
+Inferred clustering risks reconstructing racial segregation under a
+neutral-sounding name and may trigger the §1 race-predominance problem. Picking
+one and shipping it would make that `VALUE` choice silently, on behalf of every
+future user, inside a file that looks like plumbing.
+
+*Consequence:* the metric `prompt.md` asked for returns nothing until someone
+supplies geometry. The report says so in a field rather than a comment, so a
+reader can tell "supported and unsupplied" from "forgotten".

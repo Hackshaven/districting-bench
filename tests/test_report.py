@@ -43,7 +43,7 @@ PROCESSED = ROOT / "data" / "processed"
 
 def test_there_is_no_combined_score():
     """The single most important property of this module."""
-    assert report.score_plan.__doc__
+    assert report.measure_plan.__doc__
     forbidden = ("fairness_score", "overall_score", "composite")
     source = (ROOT / "src" / "evaluate" / "report.py").read_text()
     for name in forbidden:
@@ -164,7 +164,7 @@ def test_ballot_styles_per_10k_is_computed_not_none():
 def test_electorate_is_required_rather_than_defaulted():
     """Defaulting it to None is how it stayed uncomputed while looking present."""
     import inspect
-    signature = inspect.signature(report.score_plan)
+    signature = inspect.signature(report.measure_plan)
     assert signature.parameters["electorate"].default is inspect.Parameter.empty
 
 
@@ -191,7 +191,7 @@ def _tiny_report(subdivisions=None, districting=None):
     dem, rep = E.two_party(el, dem_col, rep_col)
     enacted = EP.load_plan(PROCESSED / "ia_enacted_cd118.csv")
     electorate = {g: dem[g] + rep[g] for g in dem}
-    return report.score_plan(enacted, geometry=geom, adjacency=adjacency,
+    return report.measure_plan(enacted, geometry=geom, adjacency=adjacency,
                              units=units, dem=dem, rep=rep,
                              electorate=electorate,
                              subdivision_layers=(
@@ -264,7 +264,7 @@ def _colorado_report(subdivisions=None, districting=None):
     dem, rep = E.two_party(el, dem_col, rep_col)
     enacted = EP.load_plan(PROCESSED / "co_enacted_cd118.csv")
     electorate = {g: dem[g] + rep[g] for g in dem}
-    return report.score_plan(enacted, geometry=geom, adjacency=adjacency,
+    return report.measure_plan(enacted, geometry=geom, adjacency=adjacency,
                              units=counties, dem=dem, rep=rep,
                              electorate=electorate,
                              subdivision_layers=(
@@ -355,7 +355,7 @@ def _iowa_with_layers(subdivision_layers):
     dem_col, rep_col = E.two_party_columns(el, "G20PRE")
     dem, rep = E.two_party(el, dem_col, rep_col)
     enacted = EP.load_plan(PROCESSED / "ia_enacted_cd118.csv")
-    return report.score_plan(enacted, geometry=geom, adjacency=adjacency,
+    return report.measure_plan(enacted, geometry=geom, adjacency=adjacency,
                              units=units, dem=dem, rep=rep,
                              electorate={g: dem[g] + rep[g] for g in dem},
                              subdivision_layers=subdivision_layers,

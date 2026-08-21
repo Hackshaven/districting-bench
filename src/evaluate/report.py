@@ -13,9 +13,19 @@ the least clever file in the package.
 What it refuses to do
 ---------------------
 There is no score. ``prompt.md``: *"If you find yourself writing a function called
-`fairness_score()` that returns one number, stop."* :func:`score_plan` returns a
+`fairness_score()` that returns one number, stop."* :func:`measure_plan` returns a
 mapping of every metric to its value plus a list of disagreements, and there is no
-weighting, ranking, or aggregation anywhere in it. That is not an oversight to be
+weighting, ranking, or aggregation anywhere in it.
+
+**It is called `measure_plan` and not `score_plan` for a reason.** The first draft
+used the latter, and ``tests/test_bench.py`` failed it: that test bans, across all
+of ``src/``, any definition whose name contains "score" or "fairness". The function
+never returned a number, so the ban was catching the name rather than the
+behaviour — and the name is the right thing to catch. A function called
+``score_plan`` invites the reading the prohibition exists to prevent, and whoever
+maintains it next will be tempted to make it live up to its name. Relaxing the
+guard to admit this module would have been the same move this project forbids for
+``tools/firewall.yaml``: editing the check so the code passes. That is not an oversight to be
 fixed by a later caller — a helper that reduced this to one number would defeat the
 whole point of computing five compactness measures that disagree.
 
@@ -50,7 +60,7 @@ reporting it as a value beside varying ones invites exactly that misreading.
 Ballot styles per 10,000 voters
 -------------------------------
 ``prompt.md`` calls it a first-class output and *"not an afterthought"*. It is
-therefore a required argument here rather than an optional one: :func:`score_plan`
+therefore a required argument here rather than an optional one: :func:`measure_plan`
 takes an ``electorate`` and raises without it. The alternative -- defaulting it to
 ``None`` and letting the field come back empty -- is exactly how it stayed
 uncomputed while appearing in the metric list.
@@ -88,7 +98,7 @@ COMPARABLE_COMPACTNESS = ("polsby_popper_mean", "reock_mean", "convex_hull_mean"
 COMPACTNESS_SPREAD = 0.15
 
 
-def score_plan(
+def measure_plan(
     plan: Plan,
     *,
     geometry,

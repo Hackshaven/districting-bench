@@ -60,7 +60,7 @@ def build(prefix: str, contest: str = "G20PRE") -> dict:
     districting_layers = {name: layer(name) for name in DISTRICTING
                           if layer(name) is not None}
 
-    return R.score_plan(
+    return R.measure_plan(
         enacted, geometry=geometry, adjacency=adjacency, units=units,
         dem=dem, rep=rep,
         # The electorate is two-party votes cast in this contest. CRITERIA.md

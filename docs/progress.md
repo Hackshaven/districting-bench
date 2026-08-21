@@ -1707,3 +1707,190 @@ PYTHONPATH=src .venv/bin/python tools/experiment_1_sensitivity.py --epsilon-swee
 The filter half is a pure function of `docs/experiment-2/{ia,co}-draws.csv.gz`. The
 ε half re-samples Iowa and is checkpointed per (ε, chain) under
 `docs/experiment-1/checkpoints/`, so an interrupted run resumes.
+
+---
+
+# Phase 2 — build but do not optimize
+
+`prompt.md`: *"Implement fully and unit-test fully: efficiency gap, mean-median,
+declination, partisan bias, seats-votes curves, compactness (Polsby-Popper, Reock,
+Schwartzberg, convex hull, cut edges), county and municipality splits,
+community-of-interest splits, and the administrative metrics in CRITERIA.md §7. Do
+not optimize toward any of them. Report all metrics side by side, always, with
+disagreements between them highlighted rather than resolved."*
+
+**Most of the metrics already existed** — they were built in Phase 1 because the
+detector needed them, and they are tested. What did not exist was the thing the
+instruction is actually about: a surface that reports them **together**, and
+surfaces where they contradict each other. That plus three genuine data gaps is
+what Phase 2 added.
+
+---
+
+## 1. What was missing, and what it now does
+
+| Requirement | Before | Now |
+| --- | --- | --- |
+| the five partisan metrics | present, tested | unchanged |
+| the five compactness measures | present, tested | unchanged |
+| county splits, ballot styles | present, tested | unchanged |
+| **municipality splits** | **no layer on disk** | 2020 TIGER Places, both states |
+| **COI splits** | **absent** | supported as a supplied layer; no data ships |
+| **ballot styles doing work** | degenerate (= district count) | 3 layers overlaid |
+| **all metrics side by side** | **absent** | `src/evaluate/report.py` |
+| **disagreements highlighted** | **absent** | four kinds, reported last |
+
+---
+
+## 2. The report refuses to score
+
+`src/evaluate/report.py` returns every metric plus a list of disagreements.
+`combined_score` is present as an explicit `None` carrying the sentence from
+`prompt.md` that forbids it — an absent key reads as an oversight, `None` with a
+reason reads as a choice — and a test asserts no other key in the report is a
+score.
+
+It also does not decide which metrics to believe. `partisan.trusted_metrics` names
+the ones that survive this plan's regime and `partisan.caveats` says why; both are
+carried **beside** the untrusted values rather than being used to filter them. A
+reader handed a filtered dict cannot tell that filtering happened.
+
+**Four kinds of disagreement are surfaced:**
+
+- **Compactness measures spanning more than 0.15** on one plan. Schwartzberg is
+  deliberately excluded from that spread — it is a ratio where smaller is better,
+  so including it would manufacture disagreement out of a sign convention.
+- **Partisan metrics disagreeing in sign.** The most valuable one available.
+- **Metrics constant by construction** — not low scores.
+- **Metrics this plan's regime makes untrustworthy** (CRITERIA.md §5.1).
+
+---
+
+## 3. The demonstration, on real enacted plans
+
+Iowa's enacted congressional plan, 2020 presidential two-party:
+
+| metric | value |
+| --- | --- |
+| efficiency gap | **+0.416** |
+| mean-median | **−0.024** |
+| partisan bias | +0.250 |
+| trusted here | efficiency gap only |
+
+**The efficiency gap and mean-median disagree about which party the map favours.**
+Both are published, defensible definitions of partisan fairness, computed on the
+same plan and the same election, and they point in opposite directions. Meanwhile
+the regime test says only one of them is trustworthy on this plan at all, because
+one party predominates statewide.
+
+This is arXiv:2409.17186's argument reproduced on a real enacted map rather than a
+constructed one, and **no single-metric report could show it**. It is the concrete
+reason `prompt.md` forbids `fairness_score()`.
+
+Colorado's enacted plan does not trigger a sign disagreement, but its compactness
+measures span 0.476 — Polsby-Popper 0.287 against convex hull 0.763 — so which
+measure a compactness rule names decides which plans pass it.
+
+---
+
+## 4. Ballot styles per 10,000 voters
+
+`prompt.md` calls this a first-class output and *"not an afterthought"*, and
+CRITERIA.md §7 calls it *"the single best proxy for administrative burden"*.
+
+It was implemented and it was returning nothing useful, for two reasons. Nothing
+supplied an electorate, so the rate came back `None`. And a ballot style is the
+tuple of districts a unit sits in, so **with one congressional layer it is
+identically the number of districts** — 4 for Iowa, for every plan, forever.
+
+Both are fixed. The electorate is now a **required** argument rather than an
+optional one, because defaulting it is exactly how the metric stayed uncomputed
+while appearing in the metric list. And the 2020 state house and senate plans are
+overlaid:
+
+| | congressional only | three layers overlaid | per 10,000 voters |
+| --- | --- | --- | --- |
+| Iowa | 4 | **62** | 0.374 |
+| Colorado | 8 | **177** | 0.559 |
+
+Colorado's enacted map produces roughly half again as many distinct ballots per
+voter as Iowa's. That is a real administrative cost, objective, orthogonal to
+every partisan measure, and almost nobody computes it.
+
+---
+
+## 5. The municipality layer, and why the two states differ
+
+Built from **2020 TIGER/Line Places** (public domain, 17 U.S.C. §105), assigning
+each unit to the Place holding the largest share of its area, above a 50% floor.
+
+- **Colorado: 2,222 of 3,108 VTDs in one of 152 municipalities.** The enacted plan
+  splits 4 of them into 156 pieces. A live criterion.
+- **Iowa: zero.** No county has half its area inside a single city.
+
+Iowa's zero is the correct answer for whole-county units, not missing data, and
+the report says so rather than printing "0 municipality splits" — **zero splits
+from an empty layer is not the same claim as zero splits**. That distinction is
+its own disagreement record.
+
+Building these exposed a real error in my own data preparation. I applied one
+50%-area floor to every layer, but a **membership** layer and a **districting**
+layer are not the same kind of thing: a rural unit belongs to no city and that is
+a true answer, while every voter is in exactly one state house district and
+"unassigned" is not a state a voter can be in. Six Iowa counties whose area splits
+across three house districts came back unassigned, and
+`administrative.layers()` correctly refused the overlay for not covering the same
+units. The floor now applies only to partial layers.
+
+---
+
+## 6. Communities of interest — supported, and deliberately empty
+
+CRITERIA.md §6 is unambiguous: *"support COI as an input layer, never as an
+objective function. Let a user supply COI geometry and report how many are split;
+do not let the optimizer chase a COI score."*
+
+The layer argument is therefore a generic `{name: {unit: parent}}` mapping — a COI
+layer is supplied and counted exactly like municipalities — and **no COI data
+ships with this project.** §6 gives the reason: self-reported maps favour
+well-organised communities, proxy-based definitions make the choice of proxy *the*
+definition, and inferred clusters risk reconstructing racial segregation as a
+neutral-sounding criterion. Choosing one would be a `VALUE` decision made silently
+on a user's behalf.
+
+The report states this in a field, not a comment, so a reader sees that the
+criterion is supported and unsupplied rather than assuming it was forgotten.
+
+---
+
+## 7. What is wrong with this
+
+- **The compactness-spread threshold of 0.15 is ours.** CRITERIA.md §3 uses a
+  ~0.9 rank correlation over an ensemble; on a single plan there is no correlation
+  to take, so this is a different statistic with a threshold chosen here.
+- **Municipality assignment is at whole-unit resolution.** A municipality boundary
+  running through a VTD is invisible — the same approximation D-015 records for
+  Colorado's county geography.
+- **The state legislative layers are 2020 TIGER**, so they are the districts in
+  effect at that vintage, not necessarily those adopted in the 2021 cycle.
+- **The electorate is two-party votes cast in one contest.** CRITERIA.md §7 leaves
+  the choice of denominator to the caller; a registered-voter or VAP denominator
+  would give a different rate. The choice is stated in the report, not hidden.
+- **Seats-votes curves are computed but not surfaced** in the summary lines, which
+  print scalars only.
+- **Nothing here is optimized toward, which is the point** — but it also means
+  none of these metrics has been stress-tested by an adversary the way the
+  detection metrics were in Phase 1.
+
+---
+
+## 8. Reproducing this
+
+```
+PYTHONPATH=src .venv/bin/python tools/prepare_municipalities.py   # builds 3 layers/state
+PYTHONPATH=src .venv/bin/python tools/phase_2_report.py           # every metric, both states
+```
+
+`tools/check_firewall.py` prints `clean`. `src/generate` was not modified and saw
+no partisan data: the layers this phase added are geographic, and the report lives
+in `src/evaluate`, downstream of the boundary.
