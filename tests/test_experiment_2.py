@@ -797,3 +797,45 @@ def test_check_flags_a_state_whose_observation_the_arithmetic_reproduces(
     report = A.check()
     assert report["states"]["XX"]["arithmetic_explains_observation"] is True
     assert report["states"]["IA"]["arithmetic_explains_observation"] is False
+
+
+# --------------------------------------------------------------------------- #
+# determinism of the controls themselves
+# --------------------------------------------------------------------------- #
+
+def test_controls_draw_the_same_seed_in_every_process():
+    """The controls gate whether the experiment may run; they must not be flaky.
+
+    The first version seeded them with ``seed + hash(kind)``, and hash() is
+    salted per process for str, so every run drew a different seed. It surfaced
+    as an intermittent suite failure. It could equally have surfaced as an
+    experiment that ran on a day the controls happened to pass, which is the
+    same defect the controls exist to prevent, one level up.
+    """
+    import subprocess
+    script = (
+        "import sys; sys.path.insert(0, 'tools'); sys.path.insert(0, 'src');"
+        "import experiment_2_tradeoffs as X;"
+        "print(X.controls(seed=4242)['tradeoff']['got'])"
+    )
+    outputs = {
+        subprocess.run([sys.executable, "-c", script], cwd=ROOT,
+                       capture_output=True, text=True).stdout.strip()
+        for _ in range(3)
+    }
+    assert len(outputs) == 1, f"controls are not process-stable: {outputs}"
+    assert outputs.pop()
+
+
+def test_no_salted_hash_decides_anything_in_the_experiment_drivers():
+    """A regression guard on the whole class, not just the two call sites."""
+    import re
+    for name in ("experiment_1_sensitivity.py", "experiment_2_tradeoffs.py"):
+        source = (ROOT / "tools" / name).read_text()
+        for line_no, line in enumerate(source.splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            assert not re.search(r"(?<!\w)hash\(", line), (
+                f"{name}:{line_no} uses the builtin hash(), which is salted per "
+                f"process for str and bytes. Use generate.seeds.derive."
+            )

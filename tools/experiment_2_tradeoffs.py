@@ -805,7 +805,13 @@ def controls(seed: int = MASTER_SEED) -> dict:
     """
     report: dict = {}
     for kind, expected in CONTROL_EXPECTATIONS.items():
-        rng = random.Random(seed + hash(kind) % 10_000)
+        # seeds.derive, not the builtin hash: hash() is salted per process for
+        # str, so this drew a DIFFERENT seed on every run and the controls --
+        # the check that gates whether the experiment may run at all -- were
+        # themselves non-deterministic. It surfaced as an intermittent test
+        # failure; it could equally have surfaced as an experiment that ran on a
+        # day the controls happened to pass. seeds.py documents this exact trap.
+        rng = random.Random(seeds.derive(seed, f"control-{kind}", 0) % (2 ** 32))
         a, b = _synthetic(kind, rng)
         got = {name: fn(a, b, rng)["verdict"] for name, fn in TESTS.items()}
         report[kind] = {"expected": expected or "anything but 'none'", "got": got}
@@ -1028,7 +1034,11 @@ def detection_floor(rows_by_chain, a: str, b: str, criteria,
 
     points = []
     for blend in CALIBRATION_BLEND:
-        xs, ys = _inject(a_chains, b_chains, blend, random.Random(hash(blend) % 99991))
+        # Numeric hashes are not salted, but deriving it the same way as every
+        # other seed in this project removes the question.
+        injection = random.Random(
+            seeds.derive(MASTER_SEED, f"calibration-{blend}", 0) % (2 ** 32))
+        xs, ys = _inject(a_chains, b_chains, blend, injection)
         flat_x = [v for c in xs for v in c]
         flat_y = [v for c in ys for v in c]
         rho = C.spearman(flat_x, flat_y)
