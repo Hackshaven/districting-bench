@@ -777,3 +777,460 @@ k = 4 and k = 8 behave differently, and it is not a matter of search effort.
 Master seed 20260820 throughout; ensemble seeds via `generate.seeds.derive`; `node_repeats=0` everywhere. Every metric came from the committed `evaluate.partisan`, `evaluate.compactness`, `evaluate.plan` and `adversarial.gerrymander` — none was reimplemented for reporting. Verification loaded each plan CSV cold and re-derived legality, every partisan metric, every compactness measure and the seat count (twice, once without importing `evaluate.partisan`).
 
 Nothing under `src/`, `docs/` or `tools/` was modified by this experiment. `python3 tools/check_firewall.py` prints `clean`; `git status` is empty; `PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` is green at 602.
+---
+
+# Experiment 2 — the tradeoff frontier, measured
+
+Run after Experiment 3 (the sequencing error recorded at the end of the Phase 1
+section applies here too). Two states, one election, four tests per ordered pair,
+run once, not iterated. **Headline: on Colorado, compactness and partisan fairness
+do not trade off, and that one null survives the obvious objection to it. On Iowa
+they do trade off, weakly, and the entire effect is the probability of the second
+Democratic seat. Everything involving county integrity is `cannot tell`, not
+`no tradeoff`, and the difference is the most important thing in this section.**
+
+---
+
+## 1. The hypothesis, in the authors' own terms
+
+The article was fetched independently (`columbialawreview.org`), and again by the
+verifier. **Only the front matter and the Introduction are retrievable; the body of
+the article is not on the page** (SSRN/ELB return 403). Every quotation below was
+confirmed verbatim against the fetched page.
+
+The thesis: *"tradeoffs among redistricting criteria are generally weak to
+nonexistent."* Four specific claims, in the author's own words:
+
+- **Heartland:** *"within the vast majority of randomly generated maps that are in
+  the heartland of each bivariate distribution, substantial improvement along one
+  dimension can almost always be achieved without any decline in terms of the other
+  parameter."*
+- **Correlation:** *"Typically, the correlation between each pair of criteria is
+  also close to zero, and no meaningful link appears when alternative ensembles or
+  measures are used."*
+- **Frontier shape:** *"their slopes tend to be gentle, not steep. In other words,
+  only a minor setback toward one objective is typically necessary for a major gain
+  toward another goal."*
+- **Traditional criteria specifically:** *"These patterns hold among traditional
+  criteria like compactness and adherence to county boundaries, which can be
+  simultaneously increased in most cases."*
+- **Competitiveness specifically:** *"partisan fairness is often positively
+  associated with competitiveness, meaning that these goods tend to be complements,
+  not substitutes."*
+
+The author concedes a limit: *"Eventually, a Pareto frontier must be reached where
+progress on one axis requires regression on another"* — but enacted plans *"are
+rarely at these frontiers."*
+
+Measured on: *"more than fourteen billion district maps,"* covering congressional
+and state legislative maps for seven priority states plus congressional maps for
+all forty-four states with two or more districts.
+
+**Unverified, and not attributed to the paper anywhere below:** the numeric
+correlation values, how "heartland" is delimited, the sampling algorithm used, the
+fraction of maps on the frontier, and whether the author treats sampler bias. Those
+are in the body, which we could not reach.
+
+---
+
+## 2. What we ran, and the honest description of its power
+
+Colorado: 12,000 draws = 24 ReCom chains × 500 steps, k=8, ε=10⁻², VTD units,
+`node_repeats=0`, master seed 20260820. Iowa: 36,784 draws, k=4, ε=2×10⁻⁴, 47
+chains running to full length (750 draws). Generation saw adjacency and population
+only. All metrics came from the committed `evaluate.*` modules; nothing was
+reimplemented. Every headline number below was re-derived independently from the
+raw ensembles and reproduces within bootstrap noise.
+
+**Neither ensemble is converged.** Colorado split R̂ / bulk ESS: Polsby-Popper
+1.091 / 190, cut edges 1.130 / 133, |efficiency gap| 1.185 / **73**, declination
+**ESS 69**, county splits 1.138 / 122, population spread 1.017 / 1424. Iowa, on the
+47 full-length chains: R̂ 1.212 / ESS 155 (Polsby-Popper), 1.247 / 139 (cut edges),
+1.165 / 194 (efficiency gap), 1.203 / 197 (mean-median). `CRITERIA.md` §8 wants
+1.00–1.01. **The effective sample behind every Colorado statement is 69–256 draws,
+not 12,000**, and that — not the nominal ensemble size — is what sets the
+resolution floor of roughly 0.2 sd. All confidence intervals are block bootstraps
+over whole chains (24 blocks CO, 47–55 IA); an i.i.d. bootstrap over ReCom draws
+would be fiction, and on one Colorado pair it flips the verdict.
+
+**Only one of the four tests has power at the effect sizes present.** The module
+was calibrated on Gaussian-copula data at n=12,000: the Pareto "frontier binding"
+flag and the "joint top corner empty" flag first vote for a tradeoff at |ρ| ≈ 0.89,
+while the conditional-degradation test fires from |ρ| ≈ 0.2. No |ρ| anywhere in
+either ensemble exceeds 0.45, and most are under 0.13. **So "all four tests agree"
+is one informative test plus two constants plus a rank correlation that gets no
+vote.** The achievability *lift* (observed joint-corner occupancy ÷ independence)
+does carry information and is reported; the binary "a plan good on both exists" does
+not, at n = 12,000. `free_gain_ratio_a`, which three cells promoted to "the
+deciding statistic," moved non-monotonically with dependence strength under
+calibration and is not used as evidence here.
+
+One further conservatism, disclosed: the conditional test compares A's top decile
+against the whole ensemble, which contains it, attenuating every reported shift by
+exactly 1/(1−0.9) = 1.111 (measured median 1.112 CO, 1.116 IA). Reported shifts are
+therefore ~10% smaller than a top-decile-versus-complement reading.
+
+---
+
+## 3. The findings, clearest first
+
+Sign convention throughout: **negative = the second criterion degrades = tradeoff.**
+
+### 3.1 Colorado, compactness × partisan fairness — no tradeoff, and this is the one null the sampler objection does not touch
+
+Fifteen ordered pairs in the canonical direction (5 compactness measures × |EG|,
+|mean-median|, |declination|): every shift is small and every interval straddles
+zero. Polsby-Popper → |EG| **+0.082 sd, CI [−0.101, +0.260]** (positive = fairness
+slightly *better* in the compact decile); cut edges → |EG| **+0.114**; Reock → |EG|
+**−0.065**. Rank correlations |ρ| ≤ 0.06. Joint-top-quartile occupancy runs at
+0.81–1.19× independence, where a dependence of ρ = −0.29 would already push the
+lift to 0.555 and ρ = −0.48 to 0.295. **Nothing worse than about 0.2 sd of
+degradation is present.**
+
+The mechanism check explains why: the top compactness decile has essentially the
+same seat distribution as the whole ensemble (Dem seats 4/5/6/7 = 0.125–0.168 /
+0.600–0.676 / 0.167–0.241 / ≤0.013 across the five measures, against 0.163 / 0.630
+/ 0.204 / 0.003 overall). Compactness does not move the seat outcome in Colorado,
+and in Colorado the partisan metrics move mostly with the seat outcome.
+
+**Why this null is not just the sampler agreeing with itself (§5):** inside the top
+Polsby-Popper decile the ensemble already attains |EG| = 1.8×10⁻⁴, |mean-median| =
+1.0×10⁻⁵, |declination| = 5.8×10⁻⁴; inside the top cut-edges decile, 1.2×10⁻⁴ /
+4.3×10⁻⁵ / 7.2×10⁻³. Those are the metrics' optima — zero cannot be beaten from
+outside the compact region. Tested directly against structurally valid plans seven
+times less compact (Experiment 3's Colorado maps, PP 0.0152, 4,141 cut edges): they
+are **worse** on efficiency gap (3.3×10⁻³ vs 5.4×10⁻⁶) and on mean-median (9.5×10⁻³
+vs 2.2×10⁻⁶), and better on declination by 1.1×10⁻⁵ radians, i.e. by nothing.
+Within the sample there is no gradient either: Spearman by cut-edges quintile stays
+inside ±0.10 for all three metrics from the most to the least compact fifth. **This
+is a ceiling result, not a sampling result.**
+
+One dissent, recorded: in the *reverse* direction, declination → cut edges returns
+**−0.241 sd, CI [−0.476, −0.009]**, the module's only "weak tradeoff" in the cell —
+while efficiency gap → cut edges returns **+0.329, CI [+0.053, +0.544]** in the
+opposite direction on the same axis. The first does not survive stratification
+(+0.175 in the most-compact tercile, −0.078 in the least), and two fairness metrics
+disagreeing about the same compactness axis is `CRITERIA.md` §3 and §5.2 arriving on
+schedule, not a frontier.
+
+### 3.2 Colorado, competitiveness × mean-median and partisan bias — a real tradeoff, and it contradicts one sentence of the paper
+
+This is the experiment's only positive result, and it runs *against* the sampler's
+bias, which makes it the stronger half.
+
+competitive_5 → |mean-median| = **−0.966 sd, CI [−1.155, −0.782]**. competitive_5 →
+|EG| = −0.431. The structure is a flat frontier that breaks: at competitive_5 = 5
+there are **406 draws from 19 of the 24 independent chains, and every one has
+mean_median > 0**, with a minimum |mean-median| of 0.02285 against ~10⁻⁵ reachable
+everywhere else in the ensemble. Mean Democratic seats falls monotonically from
+5.34 at zero competitive districts to 4.93 at five — in a state that votes 56.94%
+Democratic.
+
+The mechanism is arithmetic and sampler-independent: at a 0.5694 statewide share, a
+symmetric plan puts the median district near the mean, i.e. near 57–43, which is not
+competitive; forcing five or more of eight districts inside 50±5 must drag the
+median below the mean, which is the definition of mean-median. It survives
+stratification — −1.056 (most compact) / −0.947 / −0.896 (least compact), material
+in all three cut-edges terciles.
+
+Against the article's *"complements, not substitutes"* sentence, **this is a
+counterexample on this state and this election.** It is also two answers to one
+question depending on which metric you pick: efficiency gap and declination stay
+near their optima where mean-median cannot, because the first two are wasted-vote
+and curve-shape statistics and the last two are median-and-seat statistics.
+`CRITERIA.md` §5.2's prohibition on single-metric scoring arriving from a new
+direction.
+
+### 3.3 Iowa, compactness × efficiency gap and mean-median — a weak tradeoff that is entirely the second seat
+
+17 of 58 ordered pairs in the cell are material (24 of 98 across all pairs the
+module produced): convex hull → |EG| **−0.801, CI [−0.963, −0.596]**; cut edges →
+|EG| −0.631; Polsby-Popper → |EG| **−0.475, CI [−0.739, −0.046]**; Reock → |EG|
+−0.106 (not material — the five measures disagree by a factor of eight on the same
+criterion). Declination goes the *other* way: Polsby-Popper → |declination|
+**+0.482**.
+
+This is real and it is within-chain, not an artifact of chains sitting at different
+seat counts: chain-centred Spearman(PP, |EG|) = +0.256 against +0.261 pooled, while
+the between-chain correlation of chain means is only +0.102; run separately inside
+each of 51 usable chains, the decile test has median shift −0.188 with 71% of chains
+negative (cut edges → |EG|: median −0.337).
+
+But **99.800% of the variance in Iowa's |EG| is explained by the integer Democratic
+seat count alone**, which takes three values (0 seats, n=593, |EG| = 0.4163, sd 0.0;
+1 seat, n=18,685, 0.1657, sd 0.0019; 2 seats, n=17,506, 0.0849, sd 0.0029).
+|mean-median| is not a seat lookup (seats explain 2.50% of it) — the same metric
+disagreement, measured. So "does compactness cost fairness in Iowa" *is* "does
+pushing compactness cost the second Democratic seat," and no ensemble size changes
+that. The enacted Iowa plan sits at the 0-seat level, |EG| = 0.4163, the worst of
+the three attainable values.
+
+Iowa gets **no ceiling protection**: the best |EG| reachable inside the top
+cut-edges decile is 0.165, at the 62nd percentile of the ensemble. Unlike Colorado,
+the compact region genuinely cannot reach the metric's optimum.
+
+Compactness × population spread: signs disagree across measures (Polsby-Popper
+−0.615, i.e. **+32.9 persons on an ideal district of 797,592**, 0.0041%) and the
+effect is immaterial in persons whatever the standardized number says. Partisan
+fairness × population spread: nothing fires on any of the eight ordered pairs.
+
+### 3.4 County integrity — `cannot tell`, on both states, for two different reasons
+
+**Iowa: structurally unmeasurable.** Units are whole counties (Iowa Code ch. 42),
+so `county_splits` is identically 0, `split_pieces` identically 99 and
+`ballot_styles` identically 4 across all 36,784 draws. A correlation against a point
+mass is undefined, not zero. Colorado is the only state in this project where the
+county leg of the hypothesis exists at all.
+
+**Colorado: measured, but in a band disjoint from every plan anyone cares about.**
+The ensemble spans 15–34 county splits and 91–115 pieces. The enacted plan sits at 9
+and 80 — outside on the good side. Experiment 3's structurally valid gerrymanders
+sit at 54–58 splits — outside on the bad side. Inside the band the numbers are
+clean and reproduce: Polsby-Popper → county splits **+0.624, CI [+0.452, +0.760]**
+(ρ = +0.401), county splits → Polsby-Popper +0.642, Reock → county splits +0.252;
+county splits → |EG| **+0.227, CI [+0.070, +0.383]**, → |declination| +0.199; the
+one pair pointing the other way, declination → county splits, is **−0.232, CI
+[−0.490, +0.024]**, not material. Within-band, compactness and county integrity are
+*allies*, and county integrity and fairness are not rivals.
+
+**That is not a finding about Colorado.** It is a finding about a 20-value band that
+excludes both the region a real commission occupies and the region a gerrymanderer
+occupies, and no ceiling argument rescues it the way one rescues §3.1. The chain is
+county-blind — there is no county-aware proposal — so this is where the sample is
+narrowest relative to the question. Reported as `cannot tell`.
+
+The same applies to competitiveness × county integrity: the measured relation is
+small and asymmetric (county splits → competitive_5 = −0.275, and it *strengthens*
+off the compact manifold), but it is measured 6+ splits away from the enacted map.
+
+### 3.5 `cannot tell` for coarseness
+
+`partisan_bias` moves in steps of 1/k. On Colorado it takes exactly three values
+over 12,000 draws (0.0, n=7,988; 0.125, n=3,918; 0.25, n=94), so its "top decile" is
+67% of the ensemble and the decile test is not the test it is named after. On Iowa
+it takes two values. Every `partisan_bias` pair in the A role is unmeasurable, in
+both states. Same failure for `competitive_10` on Colorado: five values, top decile
+= 6,734 draws = 56%, all 13 of its A-role pairs unmeasurable. `competitive_5`'s
+"top quartile" is 7,390 draws = 62%, so the achievability test is vacuous for it
+even where the decile test resolves. `ballot_styles` is structurally constant (8 on
+CO, 4 on IA) and was refused by `evaluate.administrative`'s own degeneracy flag.
+
+**20 of 44 ordered pairs in the Colorado competitiveness cell are unmeasurable for
+reasons that are structural to integer criteria and will not go away with more
+draws.**
+
+---
+
+## 4. The full table
+
+| # | State | A family | B family | Ordered pairs | Result | Rests on |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | CO | compactness (5) | partisan fairness (EG, MM, decl) | 15 | **no tradeoff**, above ~0.2 sd | decile CIs straddle 0; lift 0.81–1.19; **ceiling argument** |
+| 2 | CO | partisan fairness | compactness | 15 | no tradeoff on 14; 1 weak (decl → cut edges −0.241) which does not reproduce in either tercile | as above |
+| 3 | CO | compactness | county integrity (2) | 10 | within band: positively aligned (+0.252 to +0.695); **as a claim about Colorado: cannot tell** | band 15–34 splits, disjoint from enacted (9) and from gerrymanders (54–58) |
+| 4 | CO | county integrity | compactness | 10 | same | same |
+| 5 | CO | county integrity | partisan fairness (3) | 6 | within band: no tradeoff, two pairs *improve*; **cannot tell** about CO | same band defect |
+| 6 | CO | partisan fairness | county integrity | 6 | within band: no material tradeoff (largest −0.232, CI crosses 0); **cannot tell** | same |
+| 7 | CO | any | partisan_bias | — | **unmeasurable** | 3 distinct values |
+| 8 | CO | competitive_5 | compactness (5) | 5 | no tradeoff | CIs inside [−0.156, +0.160]; runs *with* sampler bias |
+| 9 | CO | compactness | competitive_5 | 5 | no tradeoff (1 weak, sub-material: Reock → c5 −0.144) | |
+| 10 | CO | competitive_5 | \|mean-median\| | 1 | **TRADEOFF** −0.966, CI [−1.155, −0.782] | 406/406 draws at c5=5 across 19 chains; arithmetic mechanism; survives all three terciles |
+| 11 | CO | competitive_5 | \|partisan bias\| | 1 | tradeoff in the same structure; **statistic itself unmeasurable** (3 values) | reported, not counted |
+| 12 | CO | competitive_5 | \|EG\|, \|declination\| | 2 | weak (\|EG\| −0.431); optima still reachable at c5 = 5 | |
+| 13 | CO | county integrity | competitive_5/10 | 8 | weak within band; **cannot tell** about CO | band defect |
+| 14 | CO | competitive_10 (A role) | anything | 13 | **unmeasurable** | top decile = 56% |
+| 15 | IA | compactness (5) | \|EG\|, \|mean-median\| | 10 | **weak tradeoff** (−0.475 to −0.801; Reock −0.106 not material) | within-chain confirmed; = the second-seat probability |
+| 16 | IA | compactness | \|declination\| | 5 | no tradeoff — sign is *positive* (+0.482) | |
+| 17 | IA | compactness | population spread | 10 | signs disagree across measures; immaterial in persons (32.9 of 797,592) | |
+| 18 | IA | partisan fairness | population spread | 8 | no tradeoff, no test fires | |
+| 19 | IA | any | county integrity, ballot styles | — | **unmeasurable, structurally** | whole-county units |
+| 20 | IA | any | partisan_bias | — | **unmeasurable** | 2 distinct values |
+
+Cell verdict counts, reproduced: Colorado 10 weak / 136 none over 146 ordered pairs,
+with **no** compactness×county and **no** county×partisan pair among the weak ones.
+Iowa 24 weak / 74 none over 98; 17 weak / 41 none over the 58 in-cell pairs. **Zero
+pairs in either state met all three deciding tests** — which, per §2, means very
+little, because two of those three tests could not have fired.
+
+---
+
+## 5. The sampler bias, in the body where it belongs
+
+ReCom's spanning-tree proposal makes its stationary distribution favour compact
+plans. **The non-compact region is exactly where the legal assumption of tradeoffs
+originates, and we did not sample it.** Measured, not asserted:
+
+Structurally valid Colorado plans exist (Experiment 3, measured with this repo's own
+code) at **4,141 cut edges and Polsby-Popper 0.0152**. The ensemble spans 513–932
+and 0.113–0.256. The ensemble therefore covers **11.5% of the witnessed achievable
+cut-edges range, 16.3% of Schwartzberg, 49.5% of convex hull, 59.4% of
+Polsby-Popper, 76.7% of Reock** — and all of the missing range is at the ragged end.
+Truncation also shrinks variance and attenuates every association the variable
+enters, so it biases every shift toward zero.
+
+**Direction, per family, stated plainly:**
+
+- Every "no tradeoff" involving compactness **runs with the bias** and is therefore
+  the weak kind of negative — *except* Colorado compactness × partisan fairness,
+  where the ceiling argument in §3.1 makes the sampler irrelevant: the compact
+  region already reaches the metrics' optima, and the off-support witnesses are
+  worse, not better.
+- Every county-integrity result **is region-limited in a way no ceiling argument
+  rescues**, because the county axis is truncated at *both* ends and the chain is
+  county-blind. This is why §3.4 says `cannot tell`.
+- The Colorado competitiveness × mean-median tradeoff **runs against the bias** (it
+  does not weaken off the compact manifold; −0.896 in the least-compact tercile) and
+  is the strongest positive result in the experiment.
+- Iowa's compactness × EG tradeoff also runs against the bias, and stratification
+  there *dissolves* tradeoffs toward the ragged end rather than surfacing them —
+  which is a within-support contrast and a lower bound on the bias effect, not a
+  measurement of it.
+
+Within-support stratification cannot substitute for sampling the region we skipped.
+Both terciles are inside ReCom's support; the plans at PP 0.015 are an order of
+magnitude outside it, and **this experiment says nothing about that region.**
+
+---
+
+## 6. What this says about the paper, weighted honestly
+
+Two states, one election (2020 presidential two-party via VEST), one sampler at one
+ε, effective sample size 69–256, against ~14 billion maps across 44 states and two
+electoral levels. **Agreement here is weak corroboration, not replication, and
+disagreement here is a counterexample, not a refutation.**
+
+- **The correlation claim is corroborated** where we could measure it: |ρ| ≤ 0.06 on
+  Colorado compactness × partisan fairness, ≤ 0.302 on Iowa's whole cell. Weak
+  corroboration.
+- **The heartland claim we cannot test as stated,** because "heartland" is defined in
+  the body we could not fetch, and because our Pareto and achievability tests have no
+  power below |ρ| ≈ 0.89. Our substitute — joint-corner occupancy at 0.81–1.19×
+  independence — is consistent with it on Colorado compactness × fairness.
+- **The "compactness and county boundaries can be simultaneously increased" claim
+  matches what we measured** (ρ +0.216 to +0.441, all pairs positive) **and we
+  decline to offer it as support**, because the band we measured it in contains
+  neither the enacted plan nor any gerrymander.
+- **The "complements, not substitutes" claim about competitiveness and partisan
+  fairness fails on Colorado**, hard, on mean-median and partisan bias, with a
+  mechanism that should recur in any lopsided state.
+- **The author's own concession is corroborated on Iowa**: the enacted plan is at
+  |EG| = 0.4163, the worst of the three attainable values, nowhere near any frontier.
+  (We deliberately do *not* use the enacted Colorado plan as a witness for anything —
+  see §7.)
+
+What our data actually licenses, in one sentence: *on Colorado, within the compact
+band ReCom visits and at an effective sample size under 260, no
+compactness-versus-partisan-fairness tradeoff is detectable above roughly 0.2 sd,
+and that particular null is additionally protected by a ceiling the sampler cannot
+touch; everything else is either a single-state counterexample, a weak effect that
+reduces to one seat, or `cannot tell`.*
+
+---
+
+## 7. Method failures found in this experiment, recorded as failures
+
+1. **Iowa's convergence diagnostics were a bug, and the cell built its headline
+   self-criticism on them.** `chains_of()` kept every chain with more than one draw
+   and then truncated all chains to the shortest, which after extension had 4 draws
+   — so the reported R̂ of 3.73–4.01 and ESS of 76–98 were computed on 216 of 36,784
+   draws. On the 47 full-length chains the true figures are R̂ 1.15–1.25 and ESS
+   139–221. The cell's explanation ("adding chains exposes that Iowa's 99-county
+   graph does not mix within a chain") is an artifact of truncation: R̂ rose because
+   adding chains lowered the minimum chain length. The error is conservative — no
+   Iowa finding is inflated by it — but the stated resolution floor was wrong.
+   Colorado's diagnostics are unaffected.
+2. **"All four tests agree" was not four confirmations.** Two of the three deciding
+   tests are constants over the range these data occupy (§2). The framing overstated
+   corroboration in every cell that used it.
+3. **`free_gain_ratio_a` was promoted to "the deciding statistic" in three cells and
+   does not behave well enough to carry that** — non-monotone in dependence strength
+   under calibration, and unable to separate independence from |ρ| ≈ 0.3 at the
+   observed values.
+4. **Two cells reported county-integrity results as findings about Colorado.** They
+   are findings about a band disjoint from every real Colorado plan. Reclassified to
+   `cannot tell` here.
+5. **One cell's summary field read `tradeoff_found: none` while its own module
+   returned "weak tradeoff"** for declination → cut edges (material, CI upper below
+   zero). Disclosed in that cell's prose with a defensible reason to discount it, but
+   the summary did not match the run.
+6. **One cell used the enacted Colorado plan as a positive existence witness** (PP
+   0.287, above the ensemble maximum; 9 county splits) while disclaiming it as a
+   baseline in the same paragraph. That plan carries **D-015: it is not
+   rook-contiguous at VTD units, district 4 comes in two components.** A compactness
+   score on a two-component district is not a well-defined measurement. No claim in
+   this section rests on it.
+
+---
+
+## 8. What would falsify this, and what to measure next
+
+**Falsifiers, in order of how cheaply they would overturn something:**
+
+- **A non-ReCom sample that reaches the ragged region** — a flip/boundary chain or a
+  compactness-relaxed proposal reaching Polsby-Popper ≈ 0.015 — and finds a binding
+  frontier there. Everything in §3.1 outside the ceiling argument dies if it does.
+- **A county-aware sampler** reaching county_splits < 15 on Colorado, where the
+  question is legally live. This is the single most valuable missing measurement, and
+  it would convert §3.4 from `cannot tell` to an answer either way.
+- **The ceiling argument's weak point, unchecked:** the near-zero partisan values we
+  cite as optima (|EG| = 1.8×10⁻⁴ inside the top Polsby-Popper decile) were not
+  inspected for the tie exploit Experiment 3 found on this same state — a plan whose
+  efficiency gap reads near zero because two districts are at exact ties. If the
+  ceiling plans reach their optima through near-ties, §3.1's protection weakens to
+  the same status as the rest. **This check was not run and should be run first.**
+- **A second election.** Every partisan number here is one vote pattern; Iowa's
+  entire tradeoff is one seat's probability under one election.
+- **Chains long enough for ESS in the thousands.** At ESS 69–256 a real tradeoff
+  below ~0.2 sd is invisible, and "we did not see it" is not "it is not there."
+
+**Do not** re-run this as an optimization loop, and do not read a larger ensemble as
+a fix for the sampler: more ReCom draws sharpen the estimate of what ReCom visits and
+change nothing about what it refuses to visit.
+
+---
+
+## 9. `CRITERIA.md` §5.5 — stays `EMPIRICAL`, stays open
+
+**Our data does not support promoting §5.5 to anything firmer, in either
+direction.** The section should stay `EMPIRICAL` and "genuinely open," and the
+reason should be recorded with it: on the one pair family where we can answer
+cleanly (Colorado compactness × partisan fairness) we agree with the paper and can
+defend the agreement against the sampler objection — but that is one family, one
+state, one election. On the family where the paper makes its most specific claim
+about traditional criteria (compactness × county boundaries) we cannot answer at all,
+because our sampler never visits the region where the question is decided. And on one
+sentence of the paper (competitiveness and fairness as complements) we have a
+counterexample with an arithmetic mechanism.
+
+Proposed amendment to §5.5, on this evidence: keep the hypothesis framing, and add
+that **testing it requires a sampler that reaches the non-compact and county-split
+regions**, because a ReCom ensemble is biased toward confirming it, and that
+**"no tradeoff" and "not measurable on this geometry" must be reported separately** —
+on Iowa, county integrity is not a weak tradeoff, it is undefined.
+
+---
+
+## 10. Reproduction and artifacts
+
+Master seed 20260820; `node_repeats=0` everywhere; `src/generate` saw adjacency and
+population only, and read no elections file. All metrics from committed
+`evaluate.partisan`, `evaluate.compactness`, `evaluate.administrative`,
+`evaluate.plan`. The shared tradeoff module was audited before use: the
+criterion-direction table is correct for all fifteen criteria (verified on
+known-answer synthetic pairs covering both sign traps — Schwartzberg better-smaller,
+the two-sided zero-centred metrics), and its 50-test suite killed all twelve planted
+mutants, including every direction flip, the decile inversion, the Pareto min/max
+inversion, and three hard-coded verdicts.
+
+Ensembles, per-pair JSON, diagnostics and the six PNGs
+(`exp2-CO-compactness-vs-partisan.png`, `exp2-CO-compactness-vs-county.png`,
+`exp2-CO-competitiveness-ceiling.png`, `exp2-CO-competitiveness-degradation.png`,
+`exp2-CO-competitiveness-frontiers.png`, `exp2-IA-frontiers-cell.png`,
+`exp2-IA-degradation-matrix-cell.png`) are under
+`/tmp/claude-0/-home-user-districting-bench/413b4380-574f-5ca9-91ae-b514806c3a51/scratchpad/exp2/`.
+**They are in scratch, not committed** — the same gap against `prompt.md`'s "produce
+a plot and a written finding" that Experiment 3 recorded.
+
+Nothing under `src/`, `docs/` or `tools/` was modified. `python3
+tools/check_firewall.py` prints `clean`; `git status` is empty at `11af7a6`;
+`PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` is green at 602.

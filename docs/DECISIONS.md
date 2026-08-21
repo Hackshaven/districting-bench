@@ -464,3 +464,63 @@ shape of finding as D-013, arriving from the other direction.
 *Recorded as failures rather than quietly dropped*, because a searcher's claim that
 does not survive verification is evidence about the method, and this project has
 already shipped one false headline (`FEASIBILITY.md` §5.1) by not applying that rule.
+
+---
+
+## D-019 — "no tradeoff" and "cannot tell" are reported as different findings
+
+**Date:** 2026-08-21 · **Phase:** experiments · **EMPIRICAL**
+
+Experiment 2 returned three Colorado cells at `none`, two cells at `weak`, and the
+independent verifier set `can_evidence_support_conclusion = False` for the
+experiment taken as a whole.
+
+Those are not in tension, and collapsing them would be the error. The Colorado
+compactness × partisan-fairness null is **supportable**; everything involving county
+integrity is **cannot tell**. The finding reports them separately and says which is
+which, because a reader who takes "we found no tradeoffs" from a section where half
+the cells were unmeasurable has been misled by the summary rather than the data.
+
+*What makes the compactness × fairness null different, and this is the part worth
+keeping:* it is a **ceiling result, not a sampling result**. Inside the top
+Polsby-Popper decile the ensemble already attains |EG| = 1.8×10⁻⁴, |mean-median| =
+1.0×10⁻⁵, |declination| = 5.8×10⁻⁴ — the metrics' optima. Zero cannot be beaten from
+outside the compact region, so the usual objection (a compactness-biased sampler
+never visits the region where tradeoffs live) has no purchase here. It was tested
+directly rather than argued: Experiment 3's deliberately non-compact Colorado plans,
+seven times less compact at PP 0.0152, are **worse** on efficiency gap and
+mean-median and better on declination by 1.1×10⁻⁵ radians, which is nothing.
+
+*The general lesson:* an objection to a null is answered by measuring the region the
+objection names, not by acknowledging it in a caveat. Where we could do that we
+claim the null; where we could not, we say `cannot tell`.
+
+---
+
+## D-020 — Two defects in Experiment 2's own instrumentation, recorded
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+The verifier audited the shared test module before touching any cell, killed all
+twelve planted mutants (every direction flip, the goodness sign inversion, decile
+inversion, Pareto min/max inversion, three hard-coded verdicts), and reproduced every
+headline within bootstrap noise. The module is sound and the direction table is
+correct for all fifteen criteria. Two real defects were still found:
+
+1. **Iowa's convergence diagnostics were computed on 216 of 36,784 draws.** The
+   scratch driver's `chains_of()` filtered chains by `len > 1` and then truncated all
+   of them to the shortest survivor, which had 4 draws. The reported R-hat of
+   3.73–4.01 was a statistic about four draws per chain, not about the ensemble. The
+   finding uses the 47 full-length chains instead.
+2. **"All three deciding tests agree" was one test plus two constants.** The
+   Pareto-binding and achievability tests only vote "tradeoff" at |ρ| ≳ 0.89, far
+   above anything present in these ensembles, so their agreement carried no
+   independent information. A statistic promoted to "the deciding statistic" in three
+   cells (`free_gain_ratio_a`) is also non-monotone in dependence strength and cannot
+   distinguish independence from |ρ| ≈ 0.3 at the observed values.
+
+*Recorded rather than quietly corrected* because both are the same failure this
+project keeps finding in itself: a number that looks like corroboration but is
+structurally incapable of disagreeing. Round 1's gates were tied by a constant
+detector; round 3's acceptance test was met by a function nothing called; here two
+of three "confirming" tests could not have said no.
