@@ -20,3 +20,6 @@ bench-results.json
 progress/
 *.log
 .coverage
+
+# Experiment 2 per-chain checkpoints: intermediate, regenerable, and large.
+docs/experiment-2/checkpoints/

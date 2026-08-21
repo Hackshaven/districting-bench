@@ -64,6 +64,7 @@ from __future__ import annotations
 import argparse
 import csv
 import gzip
+import hashlib
 import json
 import math
 import random
@@ -253,7 +254,89 @@ def load_context(spec: StateSpec, contests: tuple[str, ...]) -> dict:
     }
 
 
-def measure_ensemble(spec: StateSpec, ctx: dict, *, log=print) -> list[ChainResult]:
+def config_digest(spec: StateSpec) -> str:
+    """Identity of the sampling configuration a checkpoint belongs to.
+
+    A checkpoint is only reusable if it was produced by the same chain, in the
+    same state, at the same k, epsilon and length, from the same master seed. If
+    any of those change the cached rows describe a different ensemble, and
+    silently reusing them would be the worst kind of stale result -- one that
+    looks like a fresh run.
+    """
+    payload = json.dumps(
+        {"state": spec.key, "k": spec.k, "epsilon": spec.epsilon,
+         "steps": spec.steps, "master_seed": MASTER_SEED,
+         "contests": [PRIMARY_CONTEST, ALTERNATE_CONTEST],
+         "county_prefix_len": spec.county_prefix_len,
+         "criteria": sorted(CRITERIA)},
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+def checkpoint_path(spec: StateSpec, index: int, root: Path) -> Path:
+    return root / f"{spec.prefix}-chain-{index:02d}-{config_digest(spec)}.json.gz"
+
+
+def save_checkpoint(spec: StateSpec, index: int, result: "ChainResult",
+                    root: Path) -> Path:
+    """Persist one finished chain, so a container restart costs one chain.
+
+    This run has now been killed three times by the environment reclaiming its
+    container mid-sample. Chains are independent by construction -- each is
+    seeded from generate.seeds.derive(master_seed, purpose, index) and knows
+    nothing about the others -- so a chain is the natural unit to checkpoint,
+    and resuming from them is not an approximation of the un-interrupted run.
+    It is the same run.
+    """
+    path = checkpoint_path(spec, index, root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".partial")
+    with gzip.open(tmp, "wt") as handle:
+        json.dump({"index": index, "seed": result.seed,
+                   "steps_requested": result.steps_requested,
+                   "failure": result.failure, "rows": result.rows}, handle)
+    tmp.replace(path)      # atomic: a half-written file is never a checkpoint
+    return path
+
+
+def load_checkpoint(spec: StateSpec, index: int, root: Path):
+    path = checkpoint_path(spec, index, root)
+    if not path.exists():
+        return None
+    try:
+        with gzip.open(path, "rt") as handle:
+            data = json.load(handle)
+    except (OSError, EOFError, json.JSONDecodeError):
+        return None
+    expected = seeds.derive(MASTER_SEED, f"exp2-{spec.key.lower()}", index)
+    if data.get("seed") != expected:
+        return None
+    return ChainResult(seed=data["seed"],
+                       steps_requested=data["steps_requested"],
+                       rows=data["rows"], failure=data["failure"])
+
+
+def run_one_chain(args) -> tuple[int, "ChainResult", float]:
+    """Sample and measure one chain. Top level so it can be sent to a worker."""
+    spec, index, contests = args
+    ctx = load_context(spec, contests)
+    seed = seeds.derive(MASTER_SEED, f"exp2-{spec.key.lower()}", index)
+    started = time.time()
+    result = ChainResult(seed=seed, steps_requested=spec.steps)
+    try:
+        for plan in ensemble.sample(
+            ctx["adjacency"], ctx["pops"], spec.k, spec.epsilon,
+            spec.steps, seed, node_repeats=0,
+        ):
+            result.rows.append(measure_plan(plan, ctx))
+    except Exception as exc:                  # a chain dying is expected
+        result.failure = f"{type(exc).__name__}: {exc}"
+    return index, result, time.time() - started
+
+
+def measure_ensemble(spec: StateSpec, ctx: dict, *, log=print, jobs: int = 1,
+                     checkpoints: Path | None = None) -> list[ChainResult]:
     """One ReCom chain per derived seed, measured draw by draw.
 
     Metrics are computed as the chain runs and the plans are dropped, so a chain
@@ -261,24 +344,44 @@ def measure_ensemble(spec: StateSpec, ctx: dict, *, log=print) -> list[ChainResu
     reported convergence over 216 of 36,784 draws because a driver had truncated
     every chain to the shortest survivor's length; here each chain keeps its own
     full trace and :func:`diagnostics` says exactly how many draws it used.
+
+    Chains are independent, so they are run in parallel when ``jobs > 1`` and
+    each is checkpointed as it finishes. Neither changes the result: a chain's
+    seed comes from its index, not from execution order, so the ensemble is the
+    same whatever order the chains complete in and whichever of them were
+    restored from disk.
     """
-    results: list[ChainResult] = []
-    chain_seeds = seeds.stream(MASTER_SEED, f"exp2-{spec.key.lower()}", spec.chains)
-    for index, seed in enumerate(chain_seeds):
-        started = time.time()
-        result = ChainResult(seed=seed, steps_requested=spec.steps)
-        try:
-            for plan in ensemble.sample(
-                ctx["adjacency"], ctx["pops"], spec.k, spec.epsilon,
-                spec.steps, seed, node_repeats=0,
+    results: dict[int, ChainResult] = {}
+    pending: list[int] = []
+    for index in range(spec.chains):
+        cached = load_checkpoint(spec, index, checkpoints) if checkpoints else None
+        if cached is not None:
+            results[index] = cached
+            log(f"  chain {index} restored from checkpoint "
+                f"draws={len(cached.rows)} failure={cached.failure}")
+        else:
+            pending.append(index)
+
+    def finish(index: int, result: ChainResult, seconds: float) -> None:
+        results[index] = result
+        if checkpoints:
+            save_checkpoint(spec, index, result, checkpoints)
+        log(f"  chain {index} seed={result.seed} draws={len(result.rows)} "
+            f"failure={result.failure} {seconds:.0f}s")
+
+    contests = (PRIMARY_CONTEST, ALTERNATE_CONTEST)
+    if jobs > 1 and pending:
+        from concurrent.futures import ProcessPoolExecutor
+        with ProcessPoolExecutor(max_workers=min(jobs, len(pending))) as pool:
+            for index, result, seconds in pool.map(
+                run_one_chain, [(spec, i, contests) for i in pending]
             ):
-                result.rows.append(measure_plan(plan, ctx))
-        except Exception as exc:                  # a chain dying is expected
-            result.failure = f"{type(exc).__name__}: {exc}"
-        results.append(result)
-        log(f"  chain {index} seed={seed} draws={len(result.rows)} "
-            f"failure={result.failure} {time.time() - started:.0f}s")
-    return results
+                finish(index, result, seconds)
+    else:
+        for index in pending:
+            finish(*run_one_chain((spec, index, contests)))
+
+    return [results[i] for i in range(spec.chains)]
 
 
 def diagnostics(chains: list[ChainResult]) -> dict:
@@ -679,12 +782,15 @@ def compare_contests(primary: dict, replication: dict) -> dict:
     }
 
 
-def run_state(spec: StateSpec, *, log=print) -> dict:
+def run_state(spec: StateSpec, *, log=print, jobs: int = 1,
+              checkpoints: Path | None = None) -> dict:
     log(f"[{spec.key}] loading")
     ctx = load_context(spec, (PRIMARY_CONTEST, ALTERNATE_CONTEST))
     log(f"[{spec.key}] sampling {spec.chains} chains x {spec.steps} steps, "
-        f"k={spec.k}, epsilon={spec.epsilon}")
-    chains = measure_ensemble(spec, ctx, log=log)
+        f"k={spec.k}, epsilon={spec.epsilon}, jobs={jobs}, "
+        f"config={config_digest(spec)}")
+    chains = measure_ensemble(spec, ctx, log=log, jobs=jobs,
+                              checkpoints=checkpoints)
 
     completed = [c for c in chains if c.completed]
     rows_by_chain = [c.rows for c in completed]
@@ -708,6 +814,7 @@ def run_state(spec: StateSpec, *, log=print) -> dict:
             "alternate_contest": ALTERNATE_CONTEST,
             "columns": ctx["columns"],
             "county_prefix_len": spec.county_prefix_len,
+            "config_digest": config_digest(spec),
         },
         "ensemble": {
             "n_requested": spec.chains * spec.steps,
@@ -772,6 +879,13 @@ def main(argv=None) -> int:
                         help="repeatable; default is both")
     parser.add_argument("--out", default=str(OUT / "experiment-2-results.json"))
     parser.add_argument("--controls-only", action="store_true")
+    parser.add_argument("--jobs", type=int, default=3,
+                        help="chains to sample concurrently; they are "
+                             "independent and seeded by index, so this changes "
+                             "wall clock and nothing else")
+    parser.add_argument("--checkpoints", default=str(OUT / "checkpoints"),
+                        help="per-chain cache; a container restart then costs "
+                             "one chain rather than the run")
     args = parser.parse_args(argv)
 
     control_report = controls()
@@ -780,11 +894,15 @@ def main(argv=None) -> int:
         print(json.dumps(control_report, indent=2))
         return 0
 
-    keys = args.state or sorted(STATES)
+    # Iowa first: it is the cheap state, so a full result is banked early.
+    order = {"IA": 0, "CO": 1}
+    keys = sorted(args.state or STATES, key=lambda k: order.get(k, 99))
+    checkpoints = Path(args.checkpoints) if args.checkpoints else None
     results = {"master_seed": MASTER_SEED, "controls": control_report, "states": {}}
     for key in keys:
         spec = STATES[key]
-        report, chains = run_state(spec)
+        report, chains = run_state(spec, jobs=args.jobs,
+                                   checkpoints=checkpoints)
         rows_path = Path(args.out).parent / f"{spec.prefix}-draws.csv.gz"
         report["draws_file"] = write_rows(spec, chains, rows_path)
         print(f"wrote {rows_path} ({report['draws_file']['n_rows']} rows)")
