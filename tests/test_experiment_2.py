@@ -23,6 +23,9 @@ per-test output.
 
 from __future__ import annotations
 
+import dataclasses
+import gzip
+import json
 import random
 import sys
 from pathlib import Path
@@ -315,3 +318,80 @@ def test_state_specs_pin_node_repeats_free_parameters():
         "Iowa's units are the counties; a prefix map would invent splits"
     )
     assert X.COLORADO.county_prefix_len == 5, "state FIPS + county FIPS"
+
+
+# --------------------------------------------------------------------------- #
+# checkpointing and parallelism must not change the ensemble
+# --------------------------------------------------------------------------- #
+
+TINY = X.StateSpec("IA", "ia", 4, 2e-4, 2, 12, county_prefix_len=None)
+CONTESTS = (X.PRIMARY_CONTEST, X.ALTERNATE_CONTEST)
+
+
+@pytest.fixture(scope="module")
+def tiny_context():
+    if not (X.PROCESSED / "ia_units.gpkg").exists():
+        pytest.skip("Iowa data not on disk; run tools/prepare_data.py")
+    return X.load_context(TINY, CONTESTS)
+
+
+def test_resuming_from_checkpoints_reproduces_the_run(tmp_path, tiny_context):
+    """The whole point of the checkpoint: resuming is the same run, not a rerun.
+
+    If this ever fails, checkpointing is worse than useless -- it would produce
+    an ensemble that differs from the uninterrupted one while looking identical
+    in the artifact.
+    """
+    fresh = X.measure_ensemble(TINY, tiny_context, log=lambda *_: None,
+                               checkpoints=tmp_path)
+    resumed = X.measure_ensemble(TINY, tiny_context, log=lambda *_: None,
+                                 checkpoints=tmp_path)
+    assert [c.rows for c in resumed] == [c.rows for c in fresh]
+    assert [c.seed for c in resumed] == [c.seed for c in fresh]
+    assert [c.failure for c in resumed] == [c.failure for c in fresh]
+
+
+def test_parallel_chains_match_serial_chains(tmp_path, tiny_context):
+    serial = X.measure_ensemble(TINY, tiny_context, log=lambda *_: None, jobs=1)
+    parallel = X.measure_ensemble(TINY, tiny_context, log=lambda *_: None, jobs=2)
+    assert [c.rows for c in parallel] == [c.rows for c in serial]
+    assert [c.seed for c in parallel] == [c.seed for c in serial]
+
+
+def test_a_checkpoint_from_a_different_config_is_ignored(tmp_path, tiny_context):
+    """A stale checkpoint that looked like a fresh run is the worst failure here."""
+    X.measure_ensemble(TINY, tiny_context, log=lambda *_: None,
+                       checkpoints=tmp_path)
+    other = X.StateSpec("IA", "ia", 4, 2e-4, 2, 24, county_prefix_len=None)
+    assert X.config_digest(other) != X.config_digest(TINY)
+    assert X.load_checkpoint(other, 0, tmp_path) is None
+
+
+def test_a_checkpoint_whose_seed_disagrees_is_ignored(tmp_path, tiny_context):
+    """Belt and braces: the seed is re-derived, not trusted from the file."""
+    X.measure_ensemble(TINY, tiny_context, log=lambda *_: None,
+                       checkpoints=tmp_path)
+    path = X.checkpoint_path(TINY, 0, tmp_path)
+    with gzip.open(path, "rt") as handle:
+        data = json.load(handle)
+    data["seed"] += 1
+    with gzip.open(path, "wt") as handle:
+        json.dump(data, handle)
+    assert X.load_checkpoint(TINY, 0, tmp_path) is None
+
+
+def test_a_truncated_checkpoint_is_ignored_rather_than_raising(tmp_path,
+                                                              tiny_context):
+    X.measure_ensemble(TINY, tiny_context, log=lambda *_: None,
+                       checkpoints=tmp_path)
+    path = X.checkpoint_path(TINY, 0, tmp_path)
+    path.write_bytes(path.read_bytes()[: len(path.read_bytes()) // 2])
+    assert X.load_checkpoint(TINY, 0, tmp_path) is None
+
+
+def test_config_digest_covers_every_parameter_that_changes_the_ensemble():
+    base = X.COLORADO
+    for field, value in (("k", 7), ("epsilon", 0.02), ("steps", 999),
+                         ("county_prefix_len", 2), ("key", "XX")):
+        altered = dataclasses.replace(base, **{field: value})
+        assert X.config_digest(altered) != X.config_digest(base), field
