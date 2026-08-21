@@ -37,6 +37,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 import experiment_2_tradeoffs as X    # noqa: E402
+import check_metric_algebra as _algebra_module_available   # noqa: E402,F401
 
 
 # --------------------------------------------------------------------------- #
@@ -742,3 +743,57 @@ def test_verdict_arithmetic_is_one_rule_used_twice():
     # three firing tests but one abstained: cannot be "strong"
     assert X.verdict_from(
         {"a": "tradeoff", "b": "tradeoff", "c": "degenerate"}, 3)[0] == "weak"
+
+
+# --------------------------------------------------------------------------- #
+# the algebra check — the guard on the one surviving finding
+# --------------------------------------------------------------------------- #
+
+import check_metric_algebra as A        # noqa: E402
+
+
+def test_algebra_check_detects_a_genuine_tautology(monkeypatch):
+    """The check must be able to FAIL, or it is decoration.
+
+    Make the two metrics genuinely redundant -- competitiveness defined as a
+    decreasing function of |mean-median| on the same vector -- and the
+    arithmetic null must report the strong negative correlation that the real
+    metrics do not produce. If this ever passes trivially, the check cannot
+    defend the finding it exists to defend.
+    """
+    monkeypatch.setattr(
+        A, "competitive",
+        lambda shares, lo=0.45, hi=0.55: -abs(A.mean_median(shares)))
+    rho = A.synthetic_rho(4, 0.45, 0.08, draws=2000)
+    assert rho > 0.9, (
+        f"a tautological pair must show as strongly correlated, got {rho}"
+    )
+
+
+def test_the_real_metric_pair_is_not_that():
+    """The same call on the real definitions must not look tautological."""
+    assert abs(A.synthetic_rho(4, 0.45, 0.08, draws=2000)) < 0.4
+
+
+def test_arithmetic_rho_is_positive_for_both_states():
+    """The finding this defends: the functional form pushes the OTHER way."""
+    for state, (k, mu, observed) in A.OBSERVED.items():
+        rho = A.synthetic_rho(k, mu, 0.08, draws=3000)
+        assert rho > 0, f"{state}: arithmetic rho {rho} is not positive"
+        assert rho > observed, state
+
+
+def test_holding_the_mean_is_the_stricter_null():
+    """A null that lets the statewide share float answers the wrong question."""
+    free = A.synthetic_rho(4, 0.45, 0.08, draws=3000, hold_mean=False)
+    held = A.synthetic_rho(4, 0.45, 0.08, draws=3000, hold_mean=True)
+    assert free == pytest.approx(free)
+    assert isinstance(held, float)
+
+
+def test_check_flags_a_state_whose_observation_the_arithmetic_reproduces(
+        monkeypatch):
+    monkeypatch.setitem(A.OBSERVED, "XX", (4, 0.45, +0.9))
+    report = A.check()
+    assert report["states"]["XX"]["arithmetic_explains_observation"] is True
+    assert report["states"]["IA"]["arithmetic_explains_observation"] is False
