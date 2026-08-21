@@ -1234,3 +1234,249 @@ a plot and a written finding" that Experiment 3 recorded.
 Nothing under `src/`, `docs/` or `tools/` was modified. `python3
 tools/check_firewall.py` prints `clean`; `git status` is empty at `11af7a6`;
 `PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` is green at 602.
+---
+
+# Experiment 2, second pass — the tradeoff frontier, re-measured
+
+The first pass (`c902503`) is superseded, not deleted. It recorded two defects in
+its own instrumentation; an adversarial audit of that instrument
+(`docs/experiment-2/INSTRUMENT-AUDIT.md`, 20 defects alleged across five lenses,
+9 surviving independent refutation) found the fix for them was real but covered
+the wrong regime, and that **the defect it was written to prevent had recurred
+inside the gap**. It also found that three of the first pass's Colorado nulls
+were decided by the order chains happened to sit in a file. This pass is the
+corrected measurement.
+
+**Headline. Colorado: one relationship out of twenty-one shows a tradeoff. Iowa:
+five out of fifteen, four of them marginal. The same relationship survives in
+both states — competitiveness against mean-median — and it is not an artifact of
+the two metrics sharing a functional form. Every null carries a measured meaning:
+Colorado is blind below |rho| ~ 0.17, Iowa below ~0.24.**
+
+---
+
+## 1. What was measured
+
+| | Iowa | Colorado |
+| --- | --- | --- |
+| units | 99 counties | 3,108 VTDs |
+| districts | 4 | 8 |
+| epsilon | 2x10^-4 | 1x10^-2 |
+| chains requested | 12 | 8 |
+| chains completed | 8 (33% failure) | 8 (0% failure) |
+| draws analysed | 12,000 | 8,000 |
+| relationships | 15 | 21 |
+
+Master seed 20260821, `node_repeats=0`, seeds via `generate.seeds.derive`. Every
+partisan criterion measured on both the 2020 presidential and 2020 Senate
+two-party results over the *same* draws (D-024).
+
+Seven criteria, each with an explicit direction so "goodness" always means larger:
+mean Polsby-Popper, cut edges, county splits, |efficiency gap|, |mean-median|,
+districts inside 45-55%, and max-min population spread.
+
+**Iowa's county criterion is `degenerate`, not `none`.** Its units *are* the
+counties (Iowa Code ch. 42), so no plan over them can split one. Scoring that as
+"no tradeoff with county integrity" would be a false negative dressed as a
+finding. On Colorado the criterion is live for the first time — the first pass
+measured it as identically zero because `co_units.csv` carries no county column
+and `evaluate.administrative` correctly treated each VTD as its own subdivision
+(D-022). With an explicit GEOID-prefix map it recovers 64 counties, and the
+enacted plan splits 9 of them into 80 pieces.
+
+---
+
+## 2. Three tests, and what they can actually see
+
+Each ordered pair is decided by a bootstrapped Spearman rho, a
+conditional-degradation test on the best decile of A with a chain-level
+permutation null, and a joint top-tercile achievability test.
+
+**The counts are over relationships, not ordered pairs.** Spearman rho and the
+joint-tercile rate are symmetric in (A, B) by construction; only the conditional
+test is directional. The artifact verifies this rather than asserting it, and
+found **0 direction-dependent instances among the symmetric tests in either
+state**. Reporting 42 ordered Colorado pairs would have invited counting 42
+findings where there are 21 relationships.
+
+**Benjamini-Hochberg is applied to the verdicts, not reported beside them.** One
+permutation test per ordered pair per contest is 42 simultaneous tests on
+Colorado at alpha = 0.05; under a global null that produces false firings of the
+same order as the reported signal. The correction changed three Colorado verdicts
+and two Iowa verdicts, all from `weak` to `none`. `verdict_uncorrected` is kept on
+every pair.
+
+**The instrument's detection floor is measured, not assumed.** Dependence of
+known strength is injected into the real draws with each chain's marginals held
+exact, and each test's firing threshold read off in achieved rho:
+
+| | weakest detected | strongest missed | monotone |
+| --- | --- | --- | --- |
+| CO, compactness x mean-median | 0.171 | 0.077 | yes |
+| CO, compactness x competitiveness | 0.211 | 0.123 | yes |
+| IA, compactness x competitiveness | 0.256 | 0.121 | yes |
+| IA, compactness x mean-median | 0.098 | 0.044 | **no** |
+
+So **a `none` means "no monotone tradeoff stronger than about this |rho|"** — not
+"no tradeoff". Nothing here speaks to non-monotone dependence, which all three
+tests are blind to by construction.
+
+---
+
+## 3. The result
+
+### Colorado — twenty of twenty-one relationships show nothing
+
+Every pair involving compactness: none. Every pair involving county integrity:
+none. Every pair involving population equality: none. **All 42 ordered pairs
+agree across the two elections** — the presidential and Senate passes produce
+identical verdicts on the same draws.
+
+The single survivor is **competitiveness against mean-median, rho = -0.309**,
+firing in both directions, above the measured floor of 0.17.
+
+### Iowa — five of fifteen, one of them large
+
+| relationship | rho | note |
+| --- | --- | --- |
+| competitiveness <-> mean-median | **-0.768** | the only `strong` verdict anywhere; all three tests fire |
+| compactness (PP) <-> mean-median | -0.323 | correlation + conditional |
+| competitiveness <-> efficiency gap | -0.240 | conditional only |
+| compactness (cut) <-> mean-median | -0.112 | conditional only, below the floor |
+| compactness (cut) <-> efficiency gap | **+0.115** | conditional only, and **the correlation points the other way** |
+
+The last row is reported because it is evidence against itself. A relationship
+whose only firing test is the conditional one, while the rank correlation has the
+opposite sign, is more likely a false positive than a tradeoff. The calibration
+above shows the conditional test producing exactly that failure: it fires at
+|rho| = 0.098 while staying silent at 0.132, which is non-monotone and cannot be
+a detection floor. **Iowa's three conditional-only rows should be read as
+unresolved, not as findings.**
+
+Iowa's contest agreement is 24 of 30 ordered pairs, against Colorado's 42 of 42.
+Four of the six disagreements are conditional-only rows.
+
+---
+
+## 4. The one surviving finding, and the objection that would kill it
+
+Competitiveness against mean-median survives in both states, at very different
+magnitudes (-0.768 on Iowa's 4 districts, -0.309 on Colorado's 8), on different
+unit geographies. That is a cross-state replication rather than a single-state
+pattern.
+
+It is also the finding most likely to be worthless, because both metrics are
+functions of the same district vote-share vector:
+
+    mean_median(shares) = median(shares) - mean(shares)
+    competitiveness(shares) = |{s : 0.45 <= s <= 0.55}|
+
+A correlation between two functions of one vector can be a property of the
+functions. If so it would hold for any *k* numbers and say nothing about either
+state.
+
+`tools/check_metric_algebra.py` settles it by measuring what the arithmetic alone
+produces: share vectors drawn with no map behind them, shifted to hold the
+statewide mean exactly — the one constraint a map drawer genuinely faces, since
+districting cannot choose the statewide vote share.
+
+| spread | IA arithmetic rho (k=4, mu=0.45) | CO arithmetic rho (k=8, mu=0.55) |
+| --- | --- | --- |
+| 0.04 | +0.018 | +0.003 |
+| 0.08 | +0.133 | +0.082 |
+| 0.14 | +0.201 | +0.152 |
+
+**The arithmetic produces a positive correlation at every spread and both district
+counts. Both states observe a strongly negative one.** The functional form pushes
+the opposite way from the observation, so the observation is not an artifact of
+it. A sweep over the statewide share shows the arithmetic can turn negative when
+that share sits far from 50% (-0.117 at mu = 0.40), but only weakly — never
+within a factor of four of Iowa's -0.768, and Iowa sits at 0.45 where the
+arithmetic gives +0.13.
+
+This rules out the tautology objection. It does not establish causation, and it
+does not show the relationship would replicate in a third state.
+
+---
+
+## 5. Against Stephanopoulos
+
+`docs/CRITERIA.md` §5.5 marks the tradeoff question `EMPIRICAL` and "genuinely
+open", and instructs treating *Redistricting Without Tradeoffs* as a hypothesis
+rather than a premise.
+
+On these two states, with these seven criteria, the hypothesis holds for
+everything except one pair. Twenty of twenty-one Colorado relationships and ten
+of fifteen Iowa relationships show no tradeoff at all, and the survivors are
+concentrated entirely on competitiveness and the fairness metrics. **Nothing
+involving compactness, county integrity, or population equality trades off
+against anything on Colorado.** The legal assumption that partisan fairness must
+be bought with county splits is not visible here, at a resolution good enough to
+have seen it above |rho| = 0.17.
+
+That is agreement with the paper's direction, from 20,000 maps rather than
+fourteen billion, on two states rather than fifty.
+
+---
+
+## 6. What is wrong with this result
+
+**Effective sample size is in the dozens.** Split R-hat is 1.15 on Iowa's
+efficiency gap and 1.12 on Colorado's cut edges, against CRITERIA.md §8's target
+of 1.00-1.01. ESS is 35 and 38 on Iowa, 64 and 78 on Colorado; only Colorado's
+population spread (695) is comfortable. Every verdict touching those criteria
+rests on a few dozen effective draws, and the chains have not mixed to the
+standard this project set for itself. The chain-level bootstrap and the
+within-chain permutation null both resample a chain set that has not converged.
+**This is the largest single weakness of the result and it is not fixed by more
+tests.**
+
+**The achievability test is nearly inert.** Its measured floor is |rho| ~ 0.42 to
+0.66. Across 36 relationships it fired twice, both on Iowa's -0.768 pair, and
+never independently of the correlation test. "Three independent tests" is honestly
+two, plus a third that only speaks to very strong dependence.
+
+**The conditional test has a demonstrated false positive** (fires at 0.098, silent
+at 0.132) and its effect size is not comparable across pairs — a criterion whose
+median sits on a mode boundary steps discontinuously. It should be read as
+fired/not-fired.
+
+**The efficiency gap is not continuous on Colorado.** Of 8,000 draws, 4,998 sit at
+|EG| <= 0.05, 2,945 at 0.10-0.17, 57 at 0.23+, and exactly **6** fall in the whole
+band between 0.05 and 0.10. That is the seat quantum: with 8 districts one seat is
+0.125 of the seat share. Rank correlations against a three-clump variable are
+bounded well below 1 for reasons unrelated to whether a tradeoff exists. The
+mean-median results do not have this problem and agree.
+
+**Iowa's ensemble is a biased subset of attempted seeds.** Four of twelve chains
+failed at epsilon = 2x10^-4 — three on the initial cut, one at 49 draws — and the
+analysis uses the eight survivors. Surviving seeds are not a random subset
+(ARCHITECTURE.md §7). Whether the failures correlate with the criteria was not
+tested.
+
+**Two states, one election cycle, one map-drawing distribution.** ReCom favours
+compact plans, so "compactness does not trade off" may hold only inside the region
+ReCom visits. The Pareto frontier drawn in the figures is *not* evidence of a
+tradeoff — it is made of single extreme draws, and the top 0.1% of Colorado
+compactness costs 400 persons of population spread out of ~12,000, about 3%.
+
+---
+
+## 7. Reproducing this
+
+Every verdict is a pure function of two committed files:
+
+```
+PYTHONPATH=src .venv/bin/python tools/experiment_2_tradeoffs.py --from-draws
+PYTHONPATH=src .venv/bin/python tools/check_metric_algebra.py
+PYTHONPATH=src .venv/bin/python tools/plot_experiment_2.py
+```
+
+`docs/experiment-2/{ia,co}-draws.csv.gz` hold every measured value for every
+draw, dead chains included and marked; `{ia,co}-chains.json` carry every attempted
+chain so the failure rate survives. No sampling, no GerryChain, and the seed of
+every recovered chain is checked against the one its index derives.
+
+`tools/check_firewall.py` prints `clean`. `PYTHONPATH=src .venv/bin/python -m
+pytest tests/ -q` is green. `src/generate` was not modified by this experiment and
+saw no partisan data at any point.

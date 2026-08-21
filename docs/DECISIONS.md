@@ -634,3 +634,91 @@ is what Experiment 3 did and the limitation is cheap to remove here.
 *Not fixed by this:* two contests from the same election day, in the same state,
 with the same electorate is a weak form of replication. It cannot speak to turnout
 composition, to a different cycle, or to uncontested races.
+
+---
+
+## D-025 — The multiplicity correction is applied to the verdict, not reported beside it
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+Experiment 2 runs one conditional permutation test per ordered pair per contest:
+25 on Iowa, 42 on Colorado, at `alpha = 0.05`, uncorrected. Under a global null
+that produces false firings of the same order as the reported signal. The first
+implementation computed Benjamini-Hochberg q-values and attached them to each
+pair while the headline verdict was still built from the raw p.
+
+*Chosen:* the correction rewrites the verdict. `verdict_uncorrected` is kept on
+every pair so the difference is visible, and one function computes the verdict in
+both places rather than two rules that could drift apart.
+
+*Consequence, and why this is a decision rather than a detail:* it changed the
+result. Three of Colorado's four non-null relationships were carried by a single
+conditional firing at `p ~ 0.02` with rank correlations of −0.022, +0.006 and
+−0.077 — indistinguishable from zero. None survives. I had already reported those
+three to the user as a coherent "prioritising competitiveness costs compactness"
+pattern, with a geographic mechanism attached. The pattern was three false
+positives sitting beside one real effect, and the mechanism was invented for it.
+
+*Alternatives:* report both and let a reader choose — rejected, because the
+uncorrected table is the one people quote; correct only within a state — rejected
+as arbitrary, the tests are run together and are exchangeable within a state.
+
+---
+
+## D-026 — A correlation between two metrics is not a finding until the arithmetic is ruled out
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+Experiment 2's one surviving relationship on both states is competitiveness
+against mean-median. Both are functions of the same district vote-share vector,
+so a correlation between them can be a property of the two functions rather than
+of the maps — true of any *k* numbers, and silent about Iowa or Colorado.
+
+*Chosen:* `tools/check_metric_algebra.py` measures what the arithmetic alone
+produces, on share vectors with no map behind them, holding the statewide mean
+exactly — the one constraint districting actually faces, since a map cannot
+choose the statewide vote share. The arithmetic gives **+0.003 to +0.20** at
+every spread and both district counts; both states observe a strongly negative
+rho. The functional form pushes the opposite way, so the observation is not an
+artifact of it.
+
+The check is built so that it can fail: one test makes the two metrics genuinely
+redundant and asserts the null then reports the strong correlation the real pair
+does not; another asserts that a state whose observation the arithmetic *does*
+reproduce is flagged. Without those it would be decoration — the same failure
+D-021 records against the first controls.
+
+*Generalisable, and the reason this is a decision:* this project's metrics are
+mostly functions of two or three underlying vectors, so **any** future
+correlation between two of them needs this check before it is called a finding.
+It is cheap and it is the difference between a result and a tautology.
+
+---
+
+## D-027 — The experiment is a pure function of its committed draws
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+The execution environment reclaimed its container roughly every ninety minutes
+and destroyed five long runs, twice after the analysis had finished but before
+the results file was written. Nothing committed was ever lost — the remote held
+every push — but the sampling and the analysis were entangled, so losing the
+process meant re-sampling.
+
+*Chosen:* `--from-draws` re-derives every verdict from
+`docs/experiment-2/{ia,co}-draws.csv.gz` with no sampling and no GerryChain, and
+the results file is written after each state rather than once at the end. A
+`{prefix}-chains.json` sidecar carries every attempted chain including those that
+died before producing a draw, because the CSV alone understates the failure rate
+and ARCHITECTURE.md §7 makes that rate part of the result. Each recovered chain's
+seed is checked against the one its index derives, so a draws file from another
+configuration is refused rather than silently mixed in.
+
+*The better reason, independent of the environment:* a reader checking a verdict
+should spend a file read, not an hour of CPU and a working sampler. The
+separation was forced by an infrastructure problem and should have been there
+anyway.
+
+*Also recorded:* completion is now **read** from the draws file rather than
+re-derived from the row count. Recomputing it let a truncated file quietly
+re-describe a completed chain as a failed one, changing a reported number.
