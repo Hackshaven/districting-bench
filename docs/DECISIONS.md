@@ -722,3 +722,118 @@ anyway.
 *Also recorded:* completion is now **read** from the draws file rather than
 re-derived from the row count. Recomputing it let a truncated file quietly
 re-describe a completed chain as a failed one, changing a reported number.
+
+---
+
+## D-028 — "Vary each criterion's weight" is answered as tolerance, and the substitution is stated
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+`prompt.md`'s Experiment 1 asks to vary each criterion's *weight and tolerance*.
+There is no weighted objective in this repository to vary weights in, and
+`prompt.md` is the document that forbids building one. Neither jurisdiction uses
+weights either: Iowa Code ch. 42 is lexicographic and Colorado's Amendments Y and
+Z order rather than weight.
+
+*Chosen:* measure tolerance, and say plainly in the write-up that half the
+instruction was not obeyed and why.
+
+*Alternative considered and not taken:* vary the lexicographic **order** — permute
+Iowa's four ordered criteria and measure which permutations change outcomes. The
+audit raised this as a genuine gap and it is the closest available analogue to a
+weight sweep. It is not done here because two of Iowa's four ordered criteria
+(contiguity, county integrity) are constant by construction in this ensemble, so
+only two positions could actually be permuted. Recorded as a gap rather than
+argued away.
+
+*Also recorded:* "plausible range" is substituted too. Only population equality
+has a legally plausible range (*Karcher*). For every other criterion the sweep
+uses percentiles of that criterion's own ensemble distribution, which is a
+different thing and is labelled as such.
+
+---
+
+## D-029 — A verdict must clear a null computed at the ensemble's real sample size
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+Experiment 1's first version compared Cliff's delta against a fixed threshold
+(0.147, the conventional "small effect" boundary). That threshold is calibrated
+for independent observations. These ensembles have nominal sizes of 8,000 and
+12,000 draws and **effective sample sizes of 19 to 78** on the columns that carry
+the ranking.
+
+*Chosen:* every criterion's delta is compared against a within-chain
+circular-shift null on the same ensemble — the null Experiment 2 already uses,
+which preserves each chain's autocorrelation and marginal while destroying the
+cross-criterion pairing. `binds` requires clearing both the fixed threshold and
+the null.
+
+*Consequence:* it changed the result. Colorado's efficiency gap at −0.152 does not
+clear its own noise floor of −0.157, so Colorado drops from three binding criteria
+to two. And Iowa's floor is roughly double Colorado's, which means part of "Iowa
+binds harder than Colorado" was Iowa mixing worse — a statement about the sampler
+reported as a statement about the state.
+
+*Generalisable:* any threshold in this project that was chosen from a statistics
+convention assumes independent draws, and no ensemble here supplies them. The
+same correction is owed anywhere else a fixed cutoff is applied to ReCom output.
+
+---
+
+## D-030 — An effect that only exists outside the legal range is reported as legally inert
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+The epsilon sweep found tight population equality costing compactness, and the
+first write-up called it the largest tradeoff in the project. Attaching a
+chain-label permutation test to each rung, and converting each tolerance into the
+deviation the law actually speaks about, changed what it means rather than whether
+it exists.
+
+*Karcher v. Daggett* struck down a congressional plan at 0.6984% total deviation —
+5,570 persons for Iowa's ideal district. Every rung that clears its permutation
+null sits at or past that line (0.681%, 1.368%, 6.756%). Every rung a
+congressional plan could lawfully occupy (0.066%, 0.139%) is indistinguishable
+from a relabelling of the chains.
+
+*Chosen:* report the effect as **real and legally inert**, with the legal scope as
+the second sentence rather than a footnote, and record that the two undetectable
+rungs are also the two worst-mixed cells so a reader can see that "no detectable
+effect" is partly a power statement.
+
+*Why this is a decision:* the tempting write-up is "population equality trades off
+against compactness", which is true of the numbers and false of anything a
+commission could do. A finding whose entire support lies in unconstitutional
+territory has to say so, and the same check — convert the parameter into the units
+the governing authority uses — is owed by every other tolerance this project
+sweeps.
+
+---
+
+## D-031 — "Decorative" replaced by "non-displacing on this ensemble"
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+`prompt.md` asks which criteria are "decorative". Experiment 1's statistic is the
+worst displacement a criterion forces on any *other* criterion, and reporting a
+small value as "decorative" says something much stronger than the statistic
+supports.
+
+Colorado's compactness filter at its strictest removes **90% of the ensemble**,
+moves median Polsby-Popper from 0.177 to 0.212, and drags cut edges and county
+integrity strongly in the same direction. It reorganises the ensemble
+constructively, which a worst-case displacement statistic cannot see, and calling
+that "a commission could adopt it and change nothing" is false on the
+instrument's own numbers.
+
+*Chosen:* every such verdict reads "non-displacing on this ensemble", with the
+qualification spelled out once: it is a statement about the criteria in this table
+and the plans ReCom reaches, not about districting. The qualification carries three
+specific caveats — ReCom's compactness bias, Colorado's population-equality row
+being measured entirely outside the *Karcher* window, and the criteria that are
+constant by construction being excluded from the ranking rather than ranked last.
+
+*Consequence:* the experiment no longer answers `prompt.md`'s question in
+`prompt.md`'s vocabulary. That is the right trade: the word was doing work the
+measurement cannot support.

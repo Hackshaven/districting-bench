@@ -1480,3 +1480,230 @@ every recovered chain is checked against the one its index derives.
 `tools/check_firewall.py` prints `clean`. `PYTHONPATH=src .venv/bin/python -m
 pytest tests/ -q` is green. `src/generate` was not modified by this experiment and
 saw no partisan data at any point.
+
+---
+
+# Experiment 1 — criteria sensitivity: which criteria bind
+
+`prompt.md`: *"Vary each criterion's weight and tolerance across its plausible
+range; report which ones actually bind and which are decorative. Output a ranked
+list."*
+
+**Headline. Within the range where a congressional map can lawfully be drawn,
+tightening population equality has no detectable effect on compactness. The
+tradeoff between them is real and lives entirely in unconstitutional territory.
+On the plan-level criteria, only competitiveness and mean-median displace
+anything on either state — and the word "decorative" has been struck from this
+report, because the criteria that displace nothing still change the maps.**
+
+An adversarial audit (`docs/experiment-1/INSTRUMENT-AUDIT.md`, 20 defects alleged,
+5 surviving refutation) refuted this experiment's first headline **using a larger
+number than the one it claimed**. That correction is §4.
+
+---
+
+## 1. Two things the instruction presupposes that do not exist here
+
+**There are no weights.** `prompt.md` itself forbids the object whose weights
+would be varied — *"if you find yourself writing a function called
+`fairness_score()` that returns one number, stop"* — and neither jurisdiction
+uses one. Iowa Code ch. 42 is **lexicographic**: population equality, contiguity,
+county integrity, compactness, in that order. Colorado's Amendments Y and Z
+likewise order rather than weight. So this measures **tolerance**, the other half
+of the instruction's own wording.
+
+**Only one criterion has a tolerance anyone has stated.** *Karcher v. Daggett*
+gives congressional population equality a near-zero standard — it struck down a
+plan at **0.6984% total deviation**. Compactness has no threshold in CRITERIA.md
+or anywhere else; competitiveness has none; §5 calls the efficiency gap's
+*"arbitrary and sensitive to voter geography"*. A criterion for which nobody
+states a number cannot bind, because binding requires a line to be on the wrong
+side of. The sweep is therefore in percentiles of each criterion's own
+distribution — the only scale on which a criterion with no legal threshold is
+comparable to one that has.
+
+**Two of Iowa's four ordered criteria cannot appear in its ranking at all.**
+Contiguity is constant by construction of the sampler; county integrity is
+constant because the units *are* the counties. And Iowa's ranking is then
+dominated by competitiveness, mean-median and the efficiency gap — criteria Iowa
+Code ch. 42 **expressly forbids a redistricting body from considering**
+(CRITERIA.md §2.1). Iowa's table below is a measurement of what those criteria
+would do if Iowa applied them. It is not a ranking of Iowa's criteria.
+
+---
+
+## 2. The ranked list
+
+Cliff's delta between the plans a criterion keeps and the plans it excludes, at
+its strictest usable tightening, on whichever other criterion moves most. Negative
+means the kept plans are worse on that other criterion. **A verdict requires
+clearing a within-chain circular-shift null** computed on the same ensemble, which
+matters because effective sample size on these columns is 19–78 against a nominal
+8,000–12,000.
+
+### Colorado — 8,000 draws, 8 chains
+
+| criterion | delta | null p05 | clears | its own median, all → strictest |
+| --- | --- | --- | --- | --- |
+| competitiveness | −0.589 | −0.233 | **yes** | 3 → 4 districts |
+| fairness (mean-median) | −0.383 | −0.147 | **yes** | 0.0139 → 0.0013 |
+| fairness (efficiency gap) | −0.152 | −0.157 | no | 0.0161 → 0.0013 |
+| county integrity | −0.123 | −0.140 | no | 22 → 19 counties split |
+| population equality | −0.054 | −0.103 | no | 12,060 → 8,857 persons |
+| compactness (Polsby-Popper) | −0.036 | −0.133 | no | 0.177 → 0.212 |
+| compactness (cut edges) | −0.022 | −0.107 | no | 709 → 618 |
+
+### Iowa — 12,000 draws, 8 chains
+
+| criterion | delta | null p05 | clears | its own median, all → strictest |
+| --- | --- | --- | --- | --- |
+| competitiveness | −0.890 | −0.207 | yes | 2 → 3 districts |
+| fairness (mean-median) | −0.737 | −0.274 | yes | 0.0173 → 0.0061 |
+| compactness (Polsby-Popper) | −0.619 | −0.263 | yes | 0.326 → 0.372 |
+| fairness (efficiency gap) | −0.298 | −0.262 | marginal | 0.0896 → 0.0798 |
+| population equality | −0.266 | −0.122 | yes | 223 → 117 persons |
+| compactness (cut edges) | −0.167 | −0.121 | marginal | 45 → 41 |
+
+**Three things this table is not.**
+
+It is not six independent findings. Iowa's six rows rest on **five** distinct
+relationships and Colorado's seven on **six**: ranks 1 and 2 in each state are one
+relationship read from both ends, the same competitiveness ↔ mean-median pair that
+was Experiment 2's only survivor.
+
+Its *ordering* does not replicate. Re-derived on the 2020 Senate contest over the
+same draws, Kendall tau is **+0.467** on Iowa and **+0.524** on Colorado — changing
+the election reorders the list about as much as changing the state. What does
+replicate is the **classification**: the same criteria clear the null under both
+contests in both states. Only that should be read as a result.
+
+Iowa's numbers are measured against roughly double Colorado's noise floor
+(compare the null columns), so part of "Iowa binds harder" is Iowa mixing worse.
+
+---
+
+## 3. Population equality, which no filter can measure
+
+Iowa's committed ensemble was drawn at ε = 2×10⁻⁴, so every plan in it already
+satisfies a tight standard; filtering within it measures what *more* equality
+costs, not what the criterion does. Population equality is a parameter of the
+walk. So it was re-sampled at seven tolerances, and every rung carries a
+**chain-label permutation test** over all 4-versus-4 relabellings of the eight
+chains — a relabelling carries no information about ε, so a rung that is not
+extreme among them is measuring between-chain variation.
+
+| ε | chains | median spread | % of ideal | δ on Polsby-Popper | permutation p | split R̂ | ESS |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1×10⁻⁴ | **1 of 4** | 116 | 0.015% | excluded — biased sample | — | — | — |
+| 2×10⁻⁴ | 4 of 4 | 208 | 0.026% | baseline | — | 1.084 | 40 |
+| 5×10⁻⁴ | 4 of 4 | 530 | 0.066% | −0.090 | **0.271** | 1.144 | 21 |
+| 1×10⁻³ | 4 of 4 | 1,110 | 0.139% | −0.145 | **0.200** | 1.125 | 30 |
+| 5×10⁻³ | 4 of 4 | 5,433 | **0.681%** | −0.361 | 0.014 | 1.012 | 144 |
+| 1×10⁻² | 4 of 4 | 10,914 | 1.368% | −0.413 | 0.014 | 1.030 | 123 |
+| 5×10⁻² | 4 of 4 | 53,882 | 6.756% | −0.417 | 0.014 | 1.022 | 143 |
+
+**The curve splits exactly at the legal boundary.** *Karcher* struck down
+0.6984% total deviation, which for Iowa's ideal district of 797,592 is **5,570
+persons**. Every rung that clears its permutation null sits at or past that line.
+Every rung a congressional plan could lawfully occupy is indistinguishable from a
+relabelling of the chains.
+
+Two further results. **Chain failure is 75% at ε = 1×10⁻⁴ and zero at every looser
+value** — the criterion binding on the search itself rather than on the plans.
+And **median spread tracks ε almost exactly** (116 → 53,882 persons for a 500-fold
+change in tolerance), so the sampler saturates whatever it is given: the stated
+number determines the outcome.
+
+---
+
+## 4. What the audit refuted, and the number that did it
+
+The first version of this section claimed the tolerance–compactness tradeoff was
+**invisible to any within-ensemble correlation design**, and offered that as a
+critique reaching Stephanopoulos. **It is false.**
+
+Take a single ensemble at a *fixed* ε = 5×10⁻⁴ — no resampling, no tolerance
+variation — and restrict it to the draws whose population spread falls inside the
+tight ensemble's support. Cliff's delta on Polsby-Popper of that subset against
+the rest is **−0.480**, larger than the −0.417 this experiment had called its
+largest effect, and it holds in all four chains separately (−0.355, −0.810,
+−0.265, −0.573). Worse: the results file already published a within-ensemble
+version of the same effect at −0.171, above this module's own binding threshold.
+One half of the experiment measured what the other half declared unmeasurable.
+
+**What is true, and narrower.** The blindness is in the *statistic*, not the
+design. Spearman rho between population spread and compactness never exceeds
+|0.14| at any tolerance, while a tail filter on the same ensemble reaches −0.48.
+A rank-correlation summary over a whole ensemble misses a tail effect; a tail
+filter over the same ensemble does not. Separately, a single-tolerance study is
+limited by **support**: an ensemble drawn at ε = 5×10⁻² contains no plan as
+population-equal as the *worst* plan drawn at 2×10⁻⁴, so it cannot report on that
+range at all.
+
+Two other claims were struck. **"Monotonically over a 250-fold range"** — the two
+tightest rungs sit at their own null's centre (p = 0.27, 0.20); it is a threshold
+between 10⁻³ and 5×10⁻³, not a gradient. And an earlier comparison baselined on
+ε = 1×10⁻⁴, where three of four chains die, claimed two further tradeoffs
+(efficiency gap −0.413, competitiveness +0.281) that were pure selection artifact
+under ARCHITECTURE.md §7.
+
+---
+
+## 5. Why "decorative" was struck
+
+A criterion that displaces nothing still changes the maps. Colorado's compactness
+filter at its strictest **removes 90% of the ensemble**, moves median
+Polsby-Popper from 0.177 to 0.212, and drags cut edges and county integrity
+strongly in the *same* direction — it reorganises the ensemble constructively,
+which a worst-case displacement statistic cannot see.
+
+Every such verdict now reads **non-displacing on this ensemble**: over the ReCom
+ensemble drawn for this state at this tolerance, tightening this criterion does
+not move any of the other criteria measured here by more than a small effect. It
+is a statement about the columns in this table and about the plans ReCom reaches
+— not a statement that the criterion does nothing.
+
+That qualification is load-bearing three times over. **ReCom is compactness-biased
+by construction**, so the ensemble under-populates the non-compact region a
+commission can actually draw, which is part of why a compactness filter has little
+left to remove. **Colorado's population-equality row is measured entirely outside
+the window the criterion legally occupies** — that ensemble spans 0.645% to 1.996%
+of ideal district population, so its *most* equal plan sits at the *Karcher* line
+and its median is nearly twice it, while Iowa's row spans 0.002% to 0.039% and is
+entirely inside. The two rows are not comparable and only one is legally relevant.
+And contiguity, and Iowa's county integrity, are constant by construction and
+excluded from the ranking rather than ranked last.
+
+---
+
+## 6. What is wrong with this result
+
+- **The ranked list is close to Experiment 2's correlation matrix re-summarised.**
+  The audit measured rank correlation 0.93 (Iowa) and 0.96 (Colorado) between this
+  ordering and "most negative Spearman rho with any other criterion". It is not an
+  independent measurement of binding.
+- **The ordering does not survive changing the election** (τ = 0.47 / 0.52). Only
+  the binding classification replicates.
+- **Effective sample size is 19–78** on the columns carrying the ranking. The two
+  ε rungs that fail their permutation test are also the two worst-mixed cells
+  (R̂ 1.144 and 1.125), so "no detectable effect in the legal range" is partly a
+  statement about statistical power, not only about districting.
+- **The ε sweep is 4 chains × 400 steps per cell.** The audit found the committed
+  8 × 1,500 Iowa ensemble gives a *stronger* estimate (−0.48 to −0.51) at the same
+  tolerance; the −0.417 reported here is the weaker of the two available numbers.
+- **One state for the ε half.** Colorado was not re-sampled across tolerances.
+- **"Which criteria bind" is answered relative to six other criteria**, one
+  sampler, one election cycle, and two states.
+
+---
+
+## 7. Reproducing this
+
+```
+PYTHONPATH=src .venv/bin/python tools/experiment_1_sensitivity.py                  # filter half
+PYTHONPATH=src .venv/bin/python tools/experiment_1_sensitivity.py --epsilon-sweep  # both halves
+```
+
+The filter half is a pure function of `docs/experiment-2/{ia,co}-draws.csv.gz`. The
+ε half re-samples Iowa and is checkpointed per (ε, chain) under
+`docs/experiment-1/checkpoints/`, so an interrupted run resumes.
