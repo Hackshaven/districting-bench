@@ -1,0 +1,472 @@
+{
+  "IA": {
+    "contest": "G20PRE",
+    "partisan": {
+      "n_districts": 4,
+      "dem_seats": 0,
+      "rep_seats": 4,
+      "tied_districts": 0,
+      "dem_seat_share": 0.0,
+      "dem_vote_share": 0.4581673691536295,
+      "efficiency_gap": 0.4163368508987266,
+      "mean_median": -0.024255745028397946,
+      "declination": null,
+      "partisan_bias": 0.25
+    },
+    "compactness": {
+      "polsby_popper_mean": 0.3333823549525501,
+      "polsby_popper_min": 0.2755156753771399,
+      "polsby_popper_max": 0.4195181379995191,
+      "reock_mean": 0.45066429487890064,
+      "reock_min": 0.3579621093856953,
+      "reock_max": 0.5356108754544063,
+      "schwartzberg_mean": 1.7509692244373825,
+      "schwartzberg_min": 1.5439194158164162,
+      "schwartzberg_max": 1.9051397720530132,
+      "convex_hull_mean": 0.7430479307353887,
+      "convex_hull_min": 0.6761570056207054,
+      "convex_hull_max": 0.7973708113139663,
+      "cut_edges": 51,
+      "n_districts": 4
+    },
+    "administrative": {
+      "county_splits": 0,
+      "split_pieces": 99,
+      "excess_pieces": 0,
+      "ballot_styles": 4,
+      "ballot_styles_by_subdivision": 99,
+      "ballot_styles_per_10k": 0.024143902487606634,
+      "n_units": 99,
+      "n_units_in_no_subdivision": 0,
+      "n_subdivisions": 99,
+      "n_districts": 4,
+      "n_layers": 1,
+      "n_districts_by_layer": {
+        "district": 4
+      },
+      "splits_layer": "district",
+      "degeneracy": {
+        "county_splits": {
+          "constant": true,
+          "computable": true,
+          "value": 0,
+          "reason": "every one of the 99 subdivisions contains exactly one unit, so no plan over these units can split a subdivision: county_splits is identically 0 and split_pieces identically 99 (docs/FEASIBILITY.md section 5.3; for Iowa congressional the units are the counties, Iowa Code ch. 42)"
+        },
+        "split_pieces": {
+          "constant": true,
+          "computable": true,
+          "value": 99,
+          "reason": "every one of the 99 subdivisions contains exactly one unit, so no plan over these units can split a subdivision: county_splits is identically 0 and split_pieces identically 99 (docs/FEASIBILITY.md section 5.3; for Iowa congressional the units are the counties, Iowa Code ch. 42)"
+        },
+        "excess_pieces": {
+          "constant": true,
+          "computable": true,
+          "value": 0,
+          "reason": "every one of the 99 subdivisions contains exactly one unit, so no plan over these units can split a subdivision: county_splits is identically 0 and split_pieces identically 99 (docs/FEASIBILITY.md section 5.3; for Iowa congressional the units are the counties, Iowa Code ch. 42)"
+        },
+        "ballot_styles": {
+          "constant": true,
+          "computable": true,
+          "value": 4,
+          "reason": "the plan has a single districting layer ('district'), so every ballot style tuple has length 1 and ballot_styles is identically the number of districts (4); the metric varies only once a second layer is overlaid. This says nothing about the split metrics or about ballot_styles_by_subdivision, which vary under it whenever a subdivision holds more than one unit"
+        },
+        "ballot_styles_by_subdivision": {
+          "constant": true,
+          "computable": true,
+          "value": 99,
+          "reason": "every one of the 99 subdivisions contains exactly one unit, so no plan over these units can split a subdivision: county_splits is identically 0 and split_pieces identically 99 (docs/FEASIBILITY.md section 5.3; for Iowa congressional the units are the counties, Iowa Code ch. 42)"
+        },
+        "ballot_styles_per_10k": {
+          "constant": true,
+          "computable": true,
+          "value": null,
+          "reason": "the plan has a single districting layer ('district'), so every ballot style tuple has length 1 and ballot_styles is identically the number of districts (4); the metric varies only once a second layer is overlaid. This says nothing about the split metrics or about ballot_styles_by_subdivision, which vary under it whenever a subdivision holds more than one unit; the rate is that constant times 10,000 over the electorate, so it too is fixed once the electorate is"
+        },
+        "n_units": {
+          "constant": true,
+          "computable": true,
+          "value": 99,
+          "reason": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it"
+        },
+        "n_units_in_no_subdivision": {
+          "constant": true,
+          "computable": true,
+          "value": 0,
+          "reason": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it"
+        },
+        "n_subdivisions": {
+          "constant": true,
+          "computable": true,
+          "value": 99,
+          "reason": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it"
+        },
+        "n_districts": {
+          "constant": false,
+          "computable": true,
+          "value": null,
+          "reason": ""
+        },
+        "n_layers": {
+          "constant": true,
+          "computable": true,
+          "value": 1,
+          "reason": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it"
+        }
+      },
+      "constant_metrics": [
+        "county_splits",
+        "split_pieces",
+        "excess_pieces",
+        "ballot_styles",
+        "ballot_styles_by_subdivision",
+        "ballot_styles_per_10k",
+        "n_units",
+        "n_units_in_no_subdivision",
+        "n_subdivisions",
+        "n_layers"
+      ],
+      "varying_metrics": [
+        "n_districts"
+      ],
+      "unavailable_metrics": [],
+      "degeneracy_conditions": {
+        "subdivisions_are_units": true,
+        "no_subdivision_coverage": false,
+        "total_subdivision_coverage": true,
+        "single_layer": true
+      },
+      "ballot_styles_overlaid": 62,
+      "ballot_styles_overlaid_per_10k": 0.3742304885579028,
+      "districting_layers": [
+        "congressional",
+        "statehouse",
+        "statesenate"
+      ]
+    },
+    "subdivision_layers": {
+      "municipality": {
+        "layer": "municipality",
+        "splits": 0,
+        "split_pieces": 0,
+        "n_units_assigned": 0,
+        "n_units": 99,
+        "n_subdivisions": 0,
+        "informative": false,
+        "note": "a PARTIAL layer: units belonging to no subdivision are excluded from these counts, so they are not comparable to the county figures. Where no unit is assigned the counts are identically zero and the layer says nothing about the plan -- on whole-county units no county has half its area inside one city, so that is the expected result there rather than missing data."
+      }
+    },
+    "coi": {
+      "supported": true,
+      "supplied": false,
+      "note": "CRITERIA.md section 6: COI is supported as an input layer and never as an objective function. No COI data ships with this project -- self-reported maps favour the organised, proxies make the choice of proxy the definition, and inferred clusters risk reconstructing segregation as a neutral criterion. Pass one as subdivision_layers['coi'] and its splits are counted like any other layer."
+    },
+    "trust": {
+      "trusted_partisan_metrics": [
+        "efficiency_gap"
+      ],
+      "untrusted_partisan_metrics": [
+        "mean_median",
+        "declination",
+        "partisan_bias"
+      ],
+      "caveats": [
+        "One party predominates (district sweep \u2014 4 of 4 district vote shares fall on the Republican side of 0.5, 0 on the other, a minority share of 0 at or below the 0.25 threshold). CRITERIA.md section 5.1 holds that only efficiency_gap, declination should be trusted in this regime; treat mean_median, partisan_bias as unreliable here, whatever their sign says.",
+        "One party wins every seat (Republican, 4 of 4), so declination is undefined and returns None (CRITERIA.md section 5.1). The sweep cannot get any wider, so the seats-votes curve is flat on the Republican side of the observed election \u2014 but it is not flat through it, and how far it runs before it steps is a fact about this plan and not a general one. Here district 3 sits at 0.498241, so a uniform swing of 0.001759 \u2014 0.18 points of two-party vote share \u2014 moves the Democratic seat share from 0 to 0.25. Read the sweep as that margin, not as a structural fact.",
+        "Only 4 districts. Declination fits one line through the losing districts and one through the winning ones, so below 8 districts each line rests on a handful of points and the angle it returns is dominated by which side of 0.5 a single district falls on. Partisan bias is quantised to multiples of 0.125 seat share for the same reason (0.0625 where a swing splits a tied district), so it has no resolution below half a seat here.",
+        "Still usable on this plan and election: efficiency_gap (1 of 4). Do not report mean_median, declination, partisan_bias as measurements here \u2014 see the notes above for why each fails. What survives is still VALUE class and still gameable (CRITERIA.md section 5.2); surviving the regime test is not the same as being right."
+      ],
+      "note": "untrusted metrics are reported above with their values, not filtered out: a reader handed a filtered dict cannot tell that filtering happened"
+    },
+    "disagreements": [
+      {
+        "kind": "compactness_measures_disagree",
+        "magnitude": 0.4096655757828386,
+        "values": {
+          "polsby_popper_mean": 0.3333823549525501,
+          "reock_mean": 0.45066429487890064,
+          "convex_hull_mean": 0.7430479307353887
+        },
+        "meaning": "the compactness measures span 0.410 on this plan (polsby_popper_mean lowest, convex_hull_mean highest). They answer different questions -- perimeter, circumscribing circle, convex hull -- so which one a rule names decides which plans pass it. CRITERIA.md section 3."
+      },
+      {
+        "kind": "partisan_metrics_disagree_in_sign",
+        "favouring_one_party": [
+          "efficiency_gap",
+          "partisan_bias"
+        ],
+        "favouring_the_other": [
+          "mean_median"
+        ],
+        "values": {
+          "efficiency_gap": 0.4163368508987266,
+          "mean_median": -0.024255745028397946,
+          "partisan_bias": 0.25
+        },
+        "meaning": "these metrics disagree about which party this plan favours. Each is a defensible definition of fairness and they are not reconcilable by picking the 'best' one; CRITERIA.md section 5.2 and arXiv:2409.17186 are the reason all of them are reported."
+      },
+      {
+        "kind": "metrics_constant_by_construction",
+        "metrics": [
+          "ballot_styles",
+          "ballot_styles_by_subdivision",
+          "ballot_styles_per_10k",
+          "county_splits",
+          "excess_pieces",
+          "n_layers",
+          "n_subdivisions",
+          "n_units",
+          "n_units_in_no_subdivision",
+          "split_pieces"
+        ],
+        "meaning": "these do not vary over any plan on these units, so their value is a property of the inputs rather than of this plan. A constant metric is not a good score and must not be read as one.",
+        "reasons": {
+          "county_splits": "every one of the 99 subdivisions contains exactly one unit, so no plan over these units can split a subdivision: county_splits is identically 0 and split_pieces identically 99 (docs/FEASIBILITY.md section 5.3; for Iowa congressional the units are the counties, Iowa Code ch. 42)",
+          "split_pieces": "every one of the 99 subdivisions contains exactly one unit, so no plan over these units can split a subdivision: county_splits is identically 0 and split_pieces identically 99 (docs/FEASIBILITY.md section 5.3; for Iowa congressional the units are the counties, Iowa Code ch. 42)",
+          "excess_pieces": "every one of the 99 subdivisions contains exactly one unit, so no plan over these units can split a subdivision: county_splits is identically 0 and split_pieces identically 99 (docs/FEASIBILITY.md section 5.3; for Iowa congressional the units are the counties, Iowa Code ch. 42)",
+          "ballot_styles": "the plan has a single districting layer ('district'), so every ballot style tuple has length 1 and ballot_styles is identically the number of districts (4); the metric varies only once a second layer is overlaid. This says nothing about the split metrics or about ballot_styles_by_subdivision, which vary under it whenever a subdivision holds more than one unit",
+          "ballot_styles_by_subdivision": "every one of the 99 subdivisions contains exactly one unit, so no plan over these units can split a subdivision: county_splits is identically 0 and split_pieces identically 99 (docs/FEASIBILITY.md section 5.3; for Iowa congressional the units are the counties, Iowa Code ch. 42)",
+          "ballot_styles_per_10k": "the plan has a single districting layer ('district'), so every ballot style tuple has length 1 and ballot_styles is identically the number of districts (4); the metric varies only once a second layer is overlaid. This says nothing about the split metrics or about ballot_styles_by_subdivision, which vary under it whenever a subdivision holds more than one unit; the rate is that constant times 10,000 over the electorate, so it too is fixed once the electorate is",
+          "n_units": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it",
+          "n_units_in_no_subdivision": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it",
+          "n_subdivisions": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it",
+          "n_layers": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it"
+        }
+      },
+      {
+        "kind": "subdivision_layer_is_empty_on_these_units",
+        "layer": "municipality",
+        "meaning": "none of the 99 units belongs to any municipality subdivision, so its splits are identically zero and the number says nothing about this plan. On whole-county units that is the expected result -- a county is larger than the cities in it -- not missing data."
+      },
+      {
+        "kind": "partisan_metrics_not_trustworthy_here",
+        "metrics": [
+          "mean_median",
+          "declination",
+          "partisan_bias"
+        ],
+        "meaning": "reported above with their values, but this plan and election sit in a regime where they stop meaning what they appear to mean. CRITERIA.md section 5.1."
+      }
+    ],
+    "combined_score": null,
+    "combined_score_note": "deliberately absent. prompt.md: 'If you find yourself writing a function called fairness_score() that returns one number, stop.' The five compactness measures disagree with each other and the partisan metrics disagree in sign; a single number would hide exactly the information this report exists to show."
+  },
+  "CO": {
+    "contest": "G20PRE",
+    "partisan": {
+      "n_districts": 8,
+      "dem_seats": 5,
+      "rep_seats": 3,
+      "tied_districts": 0,
+      "dem_seat_share": 0.625,
+      "dem_vote_share": 0.5693831949230015,
+      "efficiency_gap": 0.014742380699781853,
+      "mean_median": 0.02000123520087793,
+      "declination": 0.0726132997043703,
+      "partisan_bias": 0.0
+    },
+    "compactness": {
+      "polsby_popper_mean": 0.2869738432028552,
+      "polsby_popper_min": 0.08970356469854351,
+      "polsby_popper_max": 0.5847505703478957,
+      "reock_mean": 0.3963984799453435,
+      "reock_min": 0.1826619644477965,
+      "reock_max": 0.6421364557046951,
+      "schwartzberg_mean": 2.105357937173788,
+      "schwartzberg_min": 1.3077197204524742,
+      "schwartzberg_max": 3.3388364740669205,
+      "convex_hull_mean": 0.7630395735868831,
+      "convex_hull_min": 0.4936093922183176,
+      "convex_hull_max": 0.9123655969666027,
+      "cut_edges": 617,
+      "n_districts": 8
+    },
+    "administrative": {
+      "county_splits": 9,
+      "split_pieces": 80,
+      "excess_pieces": 16,
+      "ballot_styles": 8,
+      "ballot_styles_by_subdivision": 80,
+      "ballot_styles_per_10k": 0.025244883256615187,
+      "n_units": 3108,
+      "n_units_in_no_subdivision": 0,
+      "n_subdivisions": 64,
+      "n_districts": 8,
+      "n_layers": 1,
+      "n_districts_by_layer": {
+        "district": 8
+      },
+      "splits_layer": "district",
+      "degeneracy": {
+        "county_splits": {
+          "constant": false,
+          "computable": true,
+          "value": null,
+          "reason": ""
+        },
+        "split_pieces": {
+          "constant": false,
+          "computable": true,
+          "value": null,
+          "reason": ""
+        },
+        "excess_pieces": {
+          "constant": false,
+          "computable": true,
+          "value": null,
+          "reason": ""
+        },
+        "ballot_styles": {
+          "constant": true,
+          "computable": true,
+          "value": 8,
+          "reason": "the plan has a single districting layer ('district'), so every ballot style tuple has length 1 and ballot_styles is identically the number of districts (8); the metric varies only once a second layer is overlaid. This says nothing about the split metrics or about ballot_styles_by_subdivision, which vary under it whenever a subdivision holds more than one unit"
+        },
+        "ballot_styles_by_subdivision": {
+          "constant": false,
+          "computable": true,
+          "value": null,
+          "reason": ""
+        },
+        "ballot_styles_per_10k": {
+          "constant": true,
+          "computable": true,
+          "value": null,
+          "reason": "the plan has a single districting layer ('district'), so every ballot style tuple has length 1 and ballot_styles is identically the number of districts (8); the metric varies only once a second layer is overlaid. This says nothing about the split metrics or about ballot_styles_by_subdivision, which vary under it whenever a subdivision holds more than one unit; the rate is that constant times 10,000 over the electorate, so it too is fixed once the electorate is"
+        },
+        "n_units": {
+          "constant": true,
+          "computable": true,
+          "value": 3108,
+          "reason": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it"
+        },
+        "n_units_in_no_subdivision": {
+          "constant": true,
+          "computable": true,
+          "value": 0,
+          "reason": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it"
+        },
+        "n_subdivisions": {
+          "constant": true,
+          "computable": true,
+          "value": 64,
+          "reason": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it"
+        },
+        "n_districts": {
+          "constant": false,
+          "computable": true,
+          "value": null,
+          "reason": ""
+        },
+        "n_layers": {
+          "constant": true,
+          "computable": true,
+          "value": 1,
+          "reason": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it"
+        }
+      },
+      "constant_metrics": [
+        "ballot_styles",
+        "ballot_styles_per_10k",
+        "n_units",
+        "n_units_in_no_subdivision",
+        "n_subdivisions",
+        "n_layers"
+      ],
+      "varying_metrics": [
+        "county_splits",
+        "split_pieces",
+        "excess_pieces",
+        "ballot_styles_by_subdivision",
+        "n_districts"
+      ],
+      "unavailable_metrics": [],
+      "degeneracy_conditions": {
+        "subdivisions_are_units": false,
+        "no_subdivision_coverage": false,
+        "total_subdivision_coverage": true,
+        "single_layer": true
+      },
+      "ballot_styles_overlaid": 177,
+      "ballot_styles_overlaid_per_10k": 0.558543042052611,
+      "districting_layers": [
+        "congressional",
+        "statehouse",
+        "statesenate"
+      ]
+    },
+    "subdivision_layers": {
+      "municipality": {
+        "layer": "municipality",
+        "splits": 4,
+        "split_pieces": 156,
+        "n_units_assigned": 2222,
+        "n_units": 3108,
+        "n_subdivisions": 152,
+        "informative": true,
+        "note": "a PARTIAL layer: units belonging to no subdivision are excluded from these counts, so they are not comparable to the county figures. Where no unit is assigned the counts are identically zero and the layer says nothing about the plan -- on whole-county units no county has half its area inside one city, so that is the expected result there rather than missing data."
+      }
+    },
+    "coi": {
+      "supported": true,
+      "supplied": false,
+      "note": "CRITERIA.md section 6: COI is supported as an input layer and never as an objective function. No COI data ships with this project -- self-reported maps favour the organised, proxies make the choice of proxy the definition, and inferred clusters risk reconstructing segregation as a neutral criterion. Pass one as subdivision_layers['coi'] and its splits are counted like any other layer."
+    },
+    "trust": {
+      "trusted_partisan_metrics": [
+        "efficiency_gap",
+        "declination"
+      ],
+      "untrusted_partisan_metrics": [
+        "mean_median",
+        "partisan_bias"
+      ],
+      "caveats": [
+        "One party predominates (statewide margin \u2014 the two-party Democratic share is 0.569383, 0.069383 from 0.5 and outside the +/-0.05 band, a Democratic lead). CRITERIA.md section 5.1 holds that only efficiency_gap, declination should be trusted in this regime; treat mean_median, partisan_bias as unreliable here, whatever their sign says.",
+        "Still usable on this plan and election: efficiency_gap, declination (2 of 4). Do not report mean_median, partisan_bias as measurements here \u2014 see the notes above for why each fails. What survives is still VALUE class and still gameable (CRITERIA.md section 5.2); surviving the regime test is not the same as being right."
+      ],
+      "note": "untrusted metrics are reported above with their values, not filtered out: a reader handed a filtered dict cannot tell that filtering happened"
+    },
+    "disagreements": [
+      {
+        "kind": "compactness_measures_disagree",
+        "magnitude": 0.47606573038402794,
+        "values": {
+          "polsby_popper_mean": 0.2869738432028552,
+          "reock_mean": 0.3963984799453435,
+          "convex_hull_mean": 0.7630395735868831
+        },
+        "meaning": "the compactness measures span 0.476 on this plan (polsby_popper_mean lowest, convex_hull_mean highest). They answer different questions -- perimeter, circumscribing circle, convex hull -- so which one a rule names decides which plans pass it. CRITERIA.md section 3."
+      },
+      {
+        "kind": "metrics_constant_by_construction",
+        "metrics": [
+          "ballot_styles",
+          "ballot_styles_per_10k",
+          "n_layers",
+          "n_subdivisions",
+          "n_units",
+          "n_units_in_no_subdivision"
+        ],
+        "meaning": "these do not vary over any plan on these units, so their value is a property of the inputs rather than of this plan. A constant metric is not a good score and must not be read as one.",
+        "reasons": {
+          "ballot_styles": "the plan has a single districting layer ('district'), so every ballot style tuple has length 1 and ballot_styles is identically the number of districts (8); the metric varies only once a second layer is overlaid. This says nothing about the split metrics or about ballot_styles_by_subdivision, which vary under it whenever a subdivision holds more than one unit",
+          "ballot_styles_per_10k": "the plan has a single districting layer ('district'), so every ballot style tuple has length 1 and ballot_styles is identically the number of districts (8); the metric varies only once a second layer is overlaid. This says nothing about the split metrics or about ballot_styles_by_subdivision, which vary under it whenever a subdivision holds more than one unit; the rate is that constant times 10,000 over the electorate, so it too is fixed once the electorate is",
+          "n_units": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it",
+          "n_units_in_no_subdivision": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it",
+          "n_subdivisions": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it",
+          "n_layers": "a property of the inputs rather than of the assignment: it is the same for every plan over these units, so it is a label on the ensemble, not a metric of a plan within it"
+        }
+      },
+      {
+        "kind": "partisan_metrics_not_trustworthy_here",
+        "metrics": [
+          "mean_median",
+          "partisan_bias"
+        ],
+        "meaning": "reported above with their values, but this plan and election sit in a regime where they stop meaning what they appear to mean. CRITERIA.md section 5.1."
+      }
+    ],
+    "combined_score": null,
+    "combined_score_note": "deliberately absent. prompt.md: 'If you find yourself writing a function called fairness_score() that returns one number, stop.' The five compactness measures disagree with each other and the partisan metrics disagree in sign; a single number would hide exactly the information this report exists to show."
+  }
+}

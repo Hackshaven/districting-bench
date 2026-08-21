@@ -97,7 +97,8 @@ def score_plan(
     dem: Mapping[str, int],
     rep: Mapping[str, int],
     electorate: Any,
-    subdivisions: Any = None,
+    subdivision_layers: Mapping[str, Mapping[str, Any]] | None = None,
+    districting_layers: Mapping[str, Plan] | None = None,
     contest: str | None = None,
 ) -> dict:
     """Every metric for one plan, side by side, with disagreements listed.
@@ -113,9 +114,21 @@ def score_plan(
         electorate: total voters, or ``{unit: voters}``. Required:
             ``prompt.md`` makes ballot styles per 10,000 voters a first-class
             output and it cannot be computed without a denominator.
-        subdivisions: optional second subdivision layer (municipalities), for the
-            municipality-splits metrics. ``None`` omits them rather than
-            silently reporting the county numbers under a municipality label.
+        subdivision_layers: optional ``{name: {unit: parent}}`` layers to count
+            splits against — municipalities, and **communities of interest**.
+            CRITERIA.md section 6 is explicit that COI should be *"an input
+            layer, never an objective function: let a user supply COI geometry
+            and report how many are split"*, so it is supplied here rather than
+            built in. **No COI data ships with this project**: every available
+            approach is unsatisfactory and the choice of proxy *is* the
+            definition, which is a VALUE choice this code must not make on a
+            user's behalf. Omitting a layer reports nothing for it rather than
+            silently reporting the county numbers under another label.
+        districting_layers: optional ``{name: plan}`` overlaid on ``plan`` for
+            the ballot style count. With one layer a ballot style is a 1-tuple
+            and the count is identically the number of districts; overlay a
+            state house and senate plan and it becomes what an election office
+            actually prints. CRITERIA.md section 7.
         contest: the election these votes came from, recorded in the report so a
             reader is never left guessing which one produced the partisan half.
 
@@ -127,26 +140,33 @@ def score_plan(
     votes = partisan.all_metrics(plan, dem, rep)
     admin = administrative.all_metrics(plan, units, voters=electorate)
 
-    municipal = None
-    if subdivisions is not None:
-        assigned = sum(1 for value in subdivisions.values() if value)
-        municipal = {
-            "layer": "municipality",
-            "splits": administrative.county_splits(plan, subdivisions),
-            "split_pieces": administrative.split_pieces(plan, subdivisions),
-            "n_units_in_a_municipality": assigned,
-            "n_units": len(subdivisions),
-            "n_municipalities": len({v for v in subdivisions.values() if v}),
-            "degeneracy": administrative.degeneracy(plan, subdivisions),
-            "note": ("municipalities are a PARTIAL layer: units in no "
-                     "municipality are excluded from these counts, so they are "
-                     "not comparable to the county figures. Where no unit is in "
-                     "any municipality the counts are identically zero and the "
-                     "layer says nothing about the plan -- on whole-county units "
-                     "no county has half its area inside one city, so this is "
-                     "the expected result there rather than missing data."),
+    overlaid = {"congressional": plan, **(districting_layers or {})}
+    admin["ballot_styles_overlaid"] = administrative.ballot_styles(
+        overlaid, units)
+    admin["ballot_styles_overlaid_per_10k"] = administrative.ballot_styles_per_10k(
+        overlaid, units, electorate)
+    admin["districting_layers"] = sorted(overlaid)
+
+    split_layers = {}
+    for name, mapping in (subdivision_layers or {}).items():
+        assigned = sum(1 for value in mapping.values() if value)
+        split_layers[name] = {
+            "layer": name,
+            "splits": administrative.county_splits(plan, mapping),
+            "split_pieces": administrative.split_pieces(plan, mapping),
+            "n_units_assigned": assigned,
+            "n_units": len(mapping),
+            "n_subdivisions": len({v for v in mapping.values() if v}),
             "informative": assigned > 0,
+            "note": ("a PARTIAL layer: units belonging to no subdivision are "
+                     "excluded from these counts, so they are not comparable to "
+                     "the county figures. Where no unit is assigned the counts "
+                     "are identically zero and the layer says nothing about the "
+                     "plan -- on whole-county units no county has half its area "
+                     "inside one city, so that is the expected result there "
+                     "rather than missing data."),
         }
+    municipal = split_layers or None
 
     trusted = partisan.trusted_metrics(plan, dem, rep)
     report = {
@@ -154,7 +174,18 @@ def score_plan(
         "partisan": votes,
         "compactness": shape,
         "administrative": admin,
-        "municipal": municipal,
+        "subdivision_layers": municipal,
+        "coi": {
+            "supported": True,
+            "supplied": bool(subdivision_layers and "coi" in subdivision_layers),
+            "note": ("CRITERIA.md section 6: COI is supported as an input layer "
+                     "and never as an objective function. No COI data ships with "
+                     "this project -- self-reported maps favour the organised, "
+                     "proxies make the choice of proxy the definition, and "
+                     "inferred clusters risk reconstructing segregation as a "
+                     "neutral criterion. Pass one as subdivision_layers['coi'] "
+                     "and its splits are counted like any other layer."),
+        },
         "trust": {
             "trusted_partisan_metrics": list(trusted),
             "untrusted_partisan_metrics": [
@@ -240,17 +271,18 @@ def find_disagreements(report: Mapping[str, Any]) -> list[dict]:
             "reasons": {name: degeneracy[name].get("reason") for name in constant},
         })
 
-    municipal = report.get("municipal")
-    if municipal is not None and not municipal.get("informative"):
-        found.append({
-            "kind": "municipality_layer_is_empty_on_these_units",
-            "meaning": (
-                f"none of the {municipal['n_units']} units sits inside a "
-                f"municipality, so municipality splits are identically zero and "
-                f"the number says nothing about this plan. On whole-county units "
-                f"that is the expected result -- a county is larger than the "
-                f"cities in it -- not missing data."),
-        })
+    for name, block in (report.get("subdivision_layers") or {}).items():
+        if not block.get("informative"):
+            found.append({
+                "kind": "subdivision_layer_is_empty_on_these_units",
+                "layer": name,
+                "meaning": (
+                    f"none of the {block['n_units']} units belongs to any "
+                    f"{name} subdivision, so its splits are identically zero and "
+                    f"the number says nothing about this plan. On whole-county "
+                    f"units that is the expected result -- a county is larger "
+                    f"than the cities in it -- not missing data."),
+            })
 
     untrusted = (report.get("trust") or {}).get("untrusted_partisan_metrics") or []
     if untrusted:

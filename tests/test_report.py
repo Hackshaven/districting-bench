@@ -180,7 +180,7 @@ def test_summary_lines_print_every_family_and_end_on_disagreements():
 # a real plan, end to end
 # --------------------------------------------------------------------------- #
 
-def _tiny_report(subdivisions=None):
+def _tiny_report(subdivisions=None, districting=None):
     if not (PROCESSED / "ia_units.gpkg").exists():
         pytest.skip("Iowa data not on disk; run tools/prepare_data.py")
     geom = GU.load_geometry(PROCESSED / "ia_units.gpkg")
@@ -193,7 +193,11 @@ def _tiny_report(subdivisions=None):
     electorate = {g: dem[g] + rep[g] for g in dem}
     return report.score_plan(enacted, geometry=geom, adjacency=adjacency,
                              units=units, dem=dem, rep=rep,
-                             electorate=electorate, subdivisions=subdivisions,
+                             electorate=electorate,
+                             subdivision_layers=(
+                                 {"municipality": subdivisions} if subdivisions
+                                 else None),
+                             districting_layers=districting,
                              contest="G20PRE")
 
 
@@ -229,9 +233,9 @@ def _municipalities(prefix):
 def test_a_populated_municipality_layer_is_reported_and_informative():
     muni = _municipalities("co")
     built = _colorado_report(muni)
-    block = built["municipal"]
+    block = built["subdivision_layers"]["municipality"]
     assert block["informative"] is True
-    assert block["n_municipalities"] > 0
+    assert block["n_subdivisions"] > 0
     assert block["splits"] > 0, "Colorado's enacted plan does split municipalities"
 
 
@@ -239,17 +243,17 @@ def test_an_empty_municipality_layer_is_flagged_not_reported_as_zero_splits():
     """Zero splits from an empty layer is not the same claim as zero splits."""
     muni = _municipalities("ia")
     built = _tiny_report(subdivisions=muni)
-    assert built["municipal"]["informative"] is False
+    assert built["subdivision_layers"]["municipality"]["informative"] is False
     kinds = [d["kind"] for d in built["disagreements"]]
-    assert "municipality_layer_is_empty_on_these_units" in kinds
+    assert "subdivision_layer_is_empty_on_these_units" in kinds
 
 
 def test_omitting_the_layer_reports_none_rather_than_county_numbers():
     built = _tiny_report()
-    assert built["municipal"] is None
+    assert built["subdivision_layers"] is None
 
 
-def _colorado_report(subdivisions=None):
+def _colorado_report(subdivisions=None, districting=None):
     if not (PROCESSED / "co_units.gpkg").exists():
         pytest.skip("Colorado data not on disk")
     geom = GU.load_geometry(PROCESSED / "co_units.gpkg")
@@ -262,7 +266,11 @@ def _colorado_report(subdivisions=None):
     electorate = {g: dem[g] + rep[g] for g in dem}
     return report.score_plan(enacted, geometry=geom, adjacency=adjacency,
                              units=counties, dem=dem, rep=rep,
-                             electorate=electorate, subdivisions=subdivisions,
+                             electorate=electorate,
+                             subdivision_layers=(
+                                 {"municipality": subdivisions} if subdivisions
+                                 else None),
+                             districting_layers=districting,
                              contest="G20PRE")
 
 
@@ -270,3 +278,85 @@ def test_colorado_county_splits_are_live_with_an_explicit_county_map():
     """D-022: the units table has no county column, so the map must be passed."""
     built = _colorado_report()
     assert built["administrative"]["county_splits"] == 9
+
+
+# --------------------------------------------------------------------------- #
+# ballot styles — prompt.md's first-class output, degenerate on one layer
+# --------------------------------------------------------------------------- #
+
+def _layer(prefix, name):
+    import json
+    path = PROCESSED / f"{prefix}_{name}.json"
+    if not path.exists():
+        pytest.skip(f"{path} not on disk; run tools/prepare_municipalities.py")
+    return json.loads(path.read_text())
+
+
+def test_one_layer_makes_ballot_styles_identically_the_district_count():
+    """The degenerate case CRITERIA.md section 7 warns about."""
+    built = _tiny_report()
+    assert built["administrative"]["ballot_styles"] == \
+        built["administrative"]["n_districts"]
+
+
+def test_overlaying_legislative_layers_makes_ballot_styles_do_work():
+    built = _tiny_report(districting={
+        "statehouse": _layer("ia", "statehouse"),
+        "statesenate": _layer("ia", "statesenate"),
+    })
+    overlaid = built["administrative"]["ballot_styles_overlaid"]
+    assert overlaid > built["administrative"]["n_districts"], (
+        "with three layers a ballot style is a 3-tuple and must exceed the "
+        "congressional district count"
+    )
+    assert built["administrative"]["ballot_styles_overlaid_per_10k"] > 0
+    assert built["administrative"]["districting_layers"] == [
+        "congressional", "statehouse", "statesenate"]
+
+
+def test_coi_is_declared_supported_and_unsupplied_by_default():
+    """CRITERIA.md section 6: an input layer, never an objective, no data shipped."""
+    built = _tiny_report()
+    assert built["coi"]["supported"] is True
+    assert built["coi"]["supplied"] is False
+    assert "never as an objective function" in built["coi"]["note"]
+
+
+def test_a_supplied_coi_layer_is_counted_like_any_other():
+    """Section 6's mechanism: a COI layer is a plain {unit: parent} map."""
+    units = sorted(_layer("ia", "statehouse"))
+    coi = {k: ("north" if i % 2 else "south") for i, k in enumerate(units)}
+    built = _iowa_with_layers({"coi": coi})
+    assert built["coi"]["supplied"] is True
+    block = built["subdivision_layers"]["coi"]
+    assert block["n_subdivisions"] == 2
+    assert block["splits"] >= 0 and block["informative"] is True
+
+
+def test_districting_layers_assign_every_unit():
+    """A ballot style is undefined if any component district is missing."""
+    for prefix in ("ia", "co"):
+        for name in ("statehouse", "statesenate"):
+            mapping = _layer(prefix, name)
+            unassigned = [u for u, v in mapping.items() if not v]
+            assert unassigned == [], (
+                f"{prefix}/{name}: {len(unassigned)} units in no district; a "
+                f"districting layer is not partial"
+            )
+
+
+def _iowa_with_layers(subdivision_layers):
+    if not (PROCESSED / "ia_units.gpkg").exists():
+        pytest.skip("Iowa data not on disk")
+    geom = GU.load_geometry(PROCESSED / "ia_units.gpkg")
+    adjacency = GU.load_adjacency(PROCESSED / "ia_adjacency.json")
+    units = EP.load_units(PROCESSED / "ia_units.csv")
+    el = E.load_elections(PROCESSED / "ia_elections.csv")
+    dem_col, rep_col = E.two_party_columns(el, "G20PRE")
+    dem, rep = E.two_party(el, dem_col, rep_col)
+    enacted = EP.load_plan(PROCESSED / "ia_enacted_cd118.csv")
+    return report.score_plan(enacted, geometry=geom, adjacency=adjacency,
+                             units=units, dem=dem, rep=rep,
+                             electorate={g: dem[g] + rep[g] for g in dem},
+                             subdivision_layers=subdivision_layers,
+                             contest="G20PRE")
