@@ -11,11 +11,19 @@ not have. Read down a row for "what does prioritising this criterion cost".
 
 **The frontier panels.** For the pairs the law actually argues about, the
 ensemble as a density with its Pareto frontier drawn on top. This is the chart
-that shows *why* the verdict is what it is: a real tradeoff makes the frontier a
-long arc with the cloud pressed underneath it, and its absence makes the frontier
-collapse toward a corner that a single plan occupies. The axes are always
+that shows the *shape* behind the verdict: whether the cloud is one blob, whether
+a criterion is secretly discrete, where the extremes sit. The axes are always
 goodness -- larger is better on both -- so up and to the right is unambiguously
-better and a downward-sloping frontier is unambiguously a tradeoff.
+better.
+
+The frontier line is drawn but deliberately not trusted. Its points are the
+non-dominated draws, so once it leaves the dense part of the cloud every point on
+it is a single plan, and it will fall steeply on a few extreme draws even when the
+bulk shows nothing. Colorado's compactness-against-population-equality panel is
+exactly that: a dramatic-looking frontier over an ensemble whose top 0.1% of
+compactness costs about 3% of population spread. The verdict comes from the three
+tests, which are bulk and tail-quantile tests; the line is there to show what the
+tests are summarising, not to be read as a result.
 
 No verdict is drawn without its sample size, and a pair no test could decide is
 drawn in the degenerate colour rather than left blank, so that "we could not
@@ -143,11 +151,11 @@ def verdict_matrix(state: dict, path: Path) -> Path:
     ax.set_title(
         f"{state['state']}: does prioritising the row cost the column?",
         fontsize=13, color=INK, fontweight="bold", pad=16, loc="left")
-    ax.text(0, -1.35,
-            f"{sample['n_draws']:,} neutral draws over {sample['n_chains']} "
-            f"completed chains · cell shows tests firing / tests able to decide",
-            fontsize=8.5, color=MUTED, transform=ax.get_yaxis_transform(),
-            ha="left")
+    fig.text(0.0, -0.03,
+             f"{sample['n_draws']:,} neutral draws over {sample['n_chains']} "
+             f"completed chains · cell shows tests firing / tests able to decide"
+             f" · a blank diagonal is a criterion against itself",
+             fontsize=8.5, color=MUTED, ha="left", va="top")
 
     ax.legend(handles=[Patch(facecolor=VERDICT_COLOUR[v], label=v)
                        for v in ("none", "weak", "strong", "degenerate")],
@@ -214,8 +222,15 @@ def frontier_panels(state: dict, chains, path: Path) -> Path:
     for ax in flat[len(available):]:
         ax.axis("off")
 
-    note = (f"{len(pooled):,} neutral draws · red line is the Pareto frontier · "
-            f"both axes are goodness, so a falling frontier is a tradeoff")
+    note = (f"{len(pooled):,} neutral draws · both axes are goodness, so up and to "
+            f"the right is better on both\n"
+            f"red line is the Pareto frontier. Read it with care: its points are "
+            f"non-dominated draws, so away from the cloud each one is a single "
+            f"plan.\nA frontier can fall steeply on a handful of extreme draws "
+            f"while the bulk shows no tradeoff at all -- which is the case here "
+            f"for compactness against population equality, where the top 0.1% of "
+            f"compactness costs about 3% of population spread. The verdict comes "
+            f"from the three tests, not from this line.")
     if missing:
         note += ("\nnot shown, no varying pair on this state: "
                  + "; ".join(f"{m[0]} vs {m[1]}" for m in missing))
