@@ -524,3 +524,113 @@ project keeps finding in itself: a number that looks like corroboration but is
 structurally incapable of disagreeing. Round 1's gates were tied by a constant
 detector; round 3's acceptance test was met by a function nothing called; here two
 of three "confirming" tests could not have said no.
+
+---
+
+## D-021 — The tradeoff instrument carries its own controls, and the run aborts if they fail
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+Experiment 2 decides each criterion pair by three tests — a bootstrapped Spearman
+rho, a conditional-degradation test on the best decile, and a joint-achievability
+test. The previous run of this experiment reported that all three agreed; the
+verification pass found that **two of the three were constants and could not have
+disagreed**. The finding was therefore one test wearing three hats.
+
+*Chosen:* every test is run against synthetic tradeoff, independent and
+synergistic data before any real data is loaded, and `tools/experiment_2_tradeoffs.py`
+raises rather than proceeding if a test does not return the verdict that structure
+demands. `tests/test_experiment_2.py` then asserts that the control *fails* when a
+test is stubbed to a constant in either direction, so the control cannot decay into
+a formality that always passes.
+
+*Alternatives:* fix the two tests and re-run — rejected as insufficient, because it
+leaves nothing that would catch the same defect the next time a test is edited;
+report the tests separately and let a reader judge — rejected, because "all three
+agree" is exactly the claim a reader cannot check without the controls.
+
+*Generalisable:* a test that cannot produce both verdicts is not evidence, and a
+pipeline that reports its own defaults as a finding will do so silently. The check
+belongs in the instrument, not in the review of the instrument.
+
+---
+
+## D-022 — Colorado's county integrity is measured from an explicit GEOID-prefix map
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+`data/processed/co_units.csv` carries `GEOID`, `NAME` and `pop` and no county
+column, so `evaluate.administrative.subdivision_map` correctly falls through to its
+documented degenerate case: **each VTD is its own subdivision, county splits are
+identically zero, and every county-integrity result is vacuous.** The module says
+so in its own `degeneracy` report; nothing was broken, and nothing said "no county
+tradeoff" was a false negative either.
+
+*Chosen:* the experiment driver passes an explicit `{VTD: county}` map built from
+the GEOID prefix — 11-character VTD GEOIDs are state FIPS (2) + county FIPS (3) +
+VTD (6), and `[:5]` recovers 64 distinct counties, which is Colorado's county
+count. The enacted plan then splits 9 counties into 80 pieces, so the criterion
+varies and the pair tests are live.
+
+*Alternatives:* add a `county` column to `co_units.csv` — rejected for now, because
+that file is a *neutral* artifact read by `src/generate` under the schema allowlist
+of ARCHITECTURE.md §4, and widening that allowlist to carry a column only
+`evaluate` needs weakens the guard for no gain; derive the parent spatially —
+rejected, the id prefix is exact and a spatial test would reintroduce exactly the
+class of error D-016 records.
+
+*Consequence:* the county criterion is measured at whole-VTD resolution, so a
+county split that falls inside a VTD is invisible. That is the same D-015
+approximation the rest of the Colorado work carries.
+
+---
+
+## D-023 — A test that cannot decide is not a vote against a tradeoff
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+Two things were being conflated under `degenerate`: a criterion that does not vary
+at all, and a *test* that cannot answer for this pair while the other two can.
+
+*Chosen:* a pair's verdict is taken over the tests that could decide. `strong` is
+reserved for pairs where all three answered and all three fired; anything else with
+at least one firing test is `weak`; zero firing tests is `none`; and only a pair no
+test could decide is `degenerate`. Each pair records `n_deciding`, a `partial` flag,
+and the names of the tests that abstained.
+
+The conditional test was also abstaining on criteria that plainly vary. Its effect
+size is measured in robust SDs, and for a small-integer criterion — competitiveness
+is a count of districts, county splits a count of counties — more than half the
+ensemble can sit on the median, making the MAD exactly zero. The scale estimator now
+falls back to the plain SD, so only a genuinely constant criterion returns zero.
+
+*Why this is a decision and not a bug fix:* the previous rule was defensible —
+"if any test could not answer, do not report a verdict" is conservative. It is also
+the rule that turns a partially-instrumented pair into a silent no-finding, and
+`none` and `cannot tell` were exactly the two things the last run of this experiment
+was criticised for merging.
+
+---
+
+## D-024 — Both elections, one ensemble
+
+**Date:** 2026-08-21 · **Phase:** experiments
+
+`docs/progress.md` records "one election" as the first limitation of Experiment 3.
+The neutral ensemble knows nothing about any election — that is what the firewall
+guarantees — so scoring the same draws twice costs no sampling.
+
+*Chosen:* every partisan criterion is measured on both the 2020 presidential and
+the 2020 US Senate two-party results, the entire pair analysis runs against each,
+and the artifact carries a `contest_agreement` block naming every pair where the two
+elections disagree. A verdict that flips when the office changes is a finding about
+the office, and it should not take a second experiment to see it.
+
+*Alternatives:* run the experiment twice with a `--contest` flag — rejected, it
+doubles the sampling cost for nothing and invites the two runs to drift apart on
+seeds; report the presidential result only and list the limitation — rejected, that
+is what Experiment 3 did and the limitation is cheap to remove here.
+
+*Not fixed by this:* two contests from the same election day, in the same state,
+with the same electorate is a weak form of replication. It cannot speak to turnout
+composition, to a different cycle, or to uncontested races.
