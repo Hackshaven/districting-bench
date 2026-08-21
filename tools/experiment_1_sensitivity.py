@@ -295,9 +295,116 @@ def rank(state: str, prefix: str, *, log=print) -> dict:
     }
 
 
+# --------------------------------------------------------------------------- #
+# the sampler half: population equality, the one criterion with a legal tolerance
+# --------------------------------------------------------------------------- #
+
+#: Epsilon values swept, from tighter than Iowa's enacted congressional plan to
+#: looser than any congressional standard would permit. Karcher requires near-zero
+#: deviation for congressional districts -- single-digit persons in practice -- so
+#: the lower end is the legally interesting one and the upper end is included to
+#: show what the criterion is holding back.
+EPSILON_SWEEP = (1e-4, 2e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2)
+SWEEP_CHAINS = 4
+SWEEP_STEPS = 400
+
+
+def epsilon_sweep(*, checkpoints: Path | None = None, jobs: int = 3,
+                  log=print) -> dict:
+    """Re-sample Iowa across population tolerances and measure what changes.
+
+    The filter sweep above is structurally unable to answer this. Iowa's committed
+    ensemble was drawn at epsilon = 2e-4, so every plan in it already satisfies a
+    tight population standard; filtering within that measures how much *more*
+    equality costs, not what the criterion is doing. Population equality is a
+    parameter of the walk -- it decides which plans ReCom can reach at all -- and
+    no post-hoc filter recovers the plans a looser tolerance would have admitted.
+
+    Two things are measured. **Chain failure rate against epsilon**, which is the
+    criterion binding on the search itself rather than on the plans: at Iowa's
+    tightest tolerances ReCom cannot find a balanced cut and chains die, and that
+    is the tolerance doing work. And **Cliff's delta between the loosest and
+    tightest ensembles on every other criterion**, which is what a commission
+    gives up elsewhere by insisting on population equality.
+    """
+    import experiment_2_tradeoffs as E2mod
+
+    base = E2mod.IOWA
+    ctx = E2mod.load_context(base, (E2mod.PRIMARY_CONTEST, E2mod.ALTERNATE_CONTEST))
+    criteria = E2mod.criteria_for(E2mod.PRIMARY_CONTEST)
+
+    import dataclasses
+    cells = []
+    for epsilon in EPSILON_SWEEP:
+        spec = dataclasses.replace(base, epsilon=epsilon,
+                                   chains=SWEEP_CHAINS, steps=SWEEP_STEPS)
+        log(f"  [IA] epsilon={epsilon:g} sampling {SWEEP_CHAINS}x{SWEEP_STEPS}")
+        chains = E2mod.measure_ensemble(spec, ctx, log=lambda *_: None, jobs=jobs,
+                                        checkpoints=checkpoints)
+        completed = [c for c in chains if c.completed]
+        rows = [row for c in completed for row in c.rows]
+        cells.append({
+            "epsilon": epsilon,
+            "chains_requested": SWEEP_CHAINS,
+            "chains_completed": len(completed),
+            "failure_rate": 1 - len(completed) / SWEEP_CHAINS,
+            "n_draws": len(rows),
+            "rows": rows,
+            "population_spread": {
+                "min": min((r["population_spread"] for r in rows), default=None),
+                "median": (st.median([r["population_spread"] for r in rows])
+                           if rows else None),
+                "max": max((r["population_spread"] for r in rows), default=None),
+            },
+        })
+        log(f"    completed {len(completed)}/{SWEEP_CHAINS}, {len(rows)} draws, "
+            f"median spread {cells[-1]['population_spread']['median']}")
+
+    live = [c for c in cells if c["n_draws"] > 0]
+    comparisons = []
+    if len(live) >= 2:
+        tight, loose = live[0], live[-1]
+        for name in criteria:
+            if name == "population_equality":
+                continue
+            a = E2mod.goodness(tight["rows"], name, criteria)
+            b = E2mod.goodness(loose["rows"], name, criteria)
+            if len(set(a) | set(b)) <= 1:
+                continue
+            comparisons.append({
+                "criterion": name,
+                "delta_tight_vs_loose": cliffs_delta(a, b),
+                "tight_epsilon": tight["epsilon"],
+                "loose_epsilon": loose["epsilon"],
+            })
+
+    return {
+        "state": "IA",
+        "epsilons": list(EPSILON_SWEEP),
+        "chains_per_epsilon": SWEEP_CHAINS,
+        "steps_per_chain": SWEEP_STEPS,
+        "cells": [{k: v for k, v in c.items() if k != "rows"} for c in cells],
+        "cost_of_tight_equality": sorted(
+            comparisons, key=lambda c: c["delta_tight_vs_loose"]),
+        "binds_on_the_search": any(c["failure_rate"] > 0 for c in cells),
+        "interpretation": (
+            "failure_rate against epsilon is the criterion binding on the search "
+            "itself: where it is non-zero, the tolerance is excluding plans ReCom "
+            "would otherwise have reached. delta_tight_vs_loose is what insisting "
+            "on the tightest tolerance costs each other criterion, negative "
+            "meaning the tight ensemble is worse on it."
+        ),
+    }
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", default=str(OUT / "experiment-1-results.json"))
+    parser.add_argument("--epsilon-sweep", action="store_true",
+                        help="also re-sample Iowa across population tolerances; "
+                             "the filter sweep cannot measure that criterion")
+    parser.add_argument("--jobs", type=int, default=3)
+    parser.add_argument("--checkpoints", default=str(OUT / "checkpoints"))
     args = parser.parse_args(argv)
 
     report = {"tightening": list(TIGHTENING), "binds_at": BINDS_AT, "states": {}}
@@ -307,6 +414,12 @@ def main(argv=None) -> int:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(report, indent=2))
         print(f"wrote {path} ({len(report['states'])} state(s))")
+
+    if args.epsilon_sweep:
+        report["epsilon_sweep"] = epsilon_sweep(
+            checkpoints=Path(args.checkpoints), jobs=args.jobs)
+        Path(args.out).write_text(json.dumps(report, indent=2))
+        print(f"wrote {args.out} (with epsilon sweep)")
     return 0
 
 
