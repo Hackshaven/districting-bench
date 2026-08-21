@@ -487,12 +487,51 @@ def _circular_shift(chain: list[float], offset: int) -> list[float]:
 
 
 def _conditional_effect(xs, ys, scale) -> tuple[float, float, int]:
-    """Median goodness(B) in the best decile of A, as a robust-SD shift."""
-    order = sorted(range(len(xs)), key=lambda i: xs[i], reverse=True)
+    """Median goodness(B) in the best decile of A, as a robust-SD shift.
+
+    The decile is **tie-inclusive**: every draw whose A-goodness ties the decile
+    boundary is in, so the selection is a property of the values and not of the
+    order the draws happen to sit in.
+
+    Taking the first ``cut`` of a descending sort instead -- the obvious way to
+    write this, and how it was written -- breaks ties by position in the file.
+    Three of Colorado's thirty-nine null verdicts flipped to ``tradeoff`` under a
+    relabelling of the eight exchangeable chains, which carries no information
+    whatsoever: `competitiveness -> compactness_cut` moved between -0.016 and
+    -0.455 across eight orderings and fired in three of them. Many criteria here
+    are small integers, so ties are the normal case rather than an edge case, and
+    the permutation null cannot detect the problem because ``_circular_shift``
+    preserves each chain's multiset and so reproduces the same tie structure on
+    every replicate. :func:`test_achievability` already used ``>=``; this makes
+    the two agree.
+    """
     cut = max(1, int(round(DECILE * len(xs))))
-    top = [ys[i] for i in order[:cut]]
+    boundary = sorted(xs, reverse=True)[cut - 1]
+    top = [y for x, y in zip(xs, ys) if x >= boundary]
     shift = median(top) - median(ys)
-    return shift / scale, median(top), cut
+    return shift / scale, median(top), len(top)
+
+
+def _attainable_effect(xs, ys, scale) -> float:
+    """The most negative effect ANY ordering of A could produce for this B.
+
+    Achieved by handing the decile the worst possible draws of B. If even that
+    cannot reach :data:`EFFECT_TRADEOFF`, no arrangement of A can make the
+    conditional test fire, and the test must abstain rather than return "none".
+
+    This is not hypothetical. On the Iowa ensemble, ``competitiveness`` under the
+    presidential contest has its median at the bottom of its attainable range --
+    more than half the draws sit on the minimum -- so the worst decile's median
+    equals the ensemble median and the best attainable effect is exactly +0.000,
+    against a firing threshold of -0.20. The test was a proven constant on that
+    column and reported ``none`` five times in Iowa's shipped results, each time
+    inside a pair claiming ``n_deciding: 3``. That is the same defect the controls
+    were written to prevent, recurring in the one regime the controls -- which
+    generate only continuous Gaussian data -- never exercise.
+    """
+    cut = max(1, int(round(DECILE * len(xs))))
+    worst = sorted(ys)[:cut]
+    return (median(worst) - median(ys)) / scale
 
 
 def test_conditional(a_chains, b_chains, rng: random.Random) -> dict:
@@ -506,6 +545,18 @@ def test_conditional(a_chains, b_chains, rng: random.Random) -> dict:
     if scale == 0.0:
         return {"verdict": "degenerate", "effect": None,
                 "reason": "goodness(B) has zero robust spread"}
+
+    attainable = _attainable_effect(xs, ys, scale)
+    if attainable > EFFECT_TRADEOFF:
+        return {"verdict": "degenerate", "effect": None,
+                "attainable_effect": attainable,
+                "reason": (f"no ordering of this criterion could reach the "
+                           f"firing threshold: the worst possible decile of "
+                           f"goodness(B) shifts its median by {attainable:+.3f} "
+                           f"robust SD against a threshold of "
+                           f"{EFFECT_TRADEOFF}, because goodness(B) is coarse "
+                           f"enough that its median does not move")}
+
     effect, top_median, cut = _conditional_effect(xs, ys, scale)
 
     worse = 0
@@ -524,9 +575,15 @@ def test_conditional(a_chains, b_chains, rng: random.Random) -> dict:
     return {
         "verdict": "tradeoff" if fires else "none",
         "effect": effect, "p": p, "decile_n": cut,
+        "attainable_effect": attainable,
         "top_decile_median": top_median, "ensemble_median": median(ys),
         "robust_sd": scale,
         "thresholds": {"effect": EFFECT_TRADEOFF, "alpha": ALPHA},
+        # The effect is NOT a comparable magnitude across pairs: a criterion
+        # whose ensemble median sits on a mode boundary steps discontinuously as
+        # dependence increases (Iowa's efficiency gap moved from -0.00 to -4.95
+        # between two adjacent injected dependence levels). Read fired/not-fired.
+        "effect_is_comparable": False,
     }
 
 
@@ -658,18 +715,57 @@ def _synthetic(kind: str, rng: random.Random, chains=8, steps=400):
                 b.append(xa + 0.3 * noise)
             elif kind == "independent":
                 b.append(noise)
+            elif kind == "discrete_tradeoff":
+                # A perfect tradeoff, then B quantised onto the real frequencies
+                # of Iowa's competitiveness column under the presidential
+                # contest: most of the mass on the lowest of three levels, so the
+                # median sits at the bottom of the range. See _attainable_effect.
+                b.append(-xa)
             else:                                  # pragma: no cover
                 raise ValueError(kind)
         a_chains.append(a)
         b_chains.append(b)
+
+    if kind == "discrete_tradeoff":
+        b_chains = _quantise(b_chains, DISCRETE_CONTROL_LEVELS)
     return a_chains, b_chains
 
 
-#: what each test must return on each synthetic structure
-CONTROL_EXPECTATIONS = {
+#: ``(value, cumulative share)`` -- the real shape of a coarse criterion. Taken
+#: from Iowa's ``competitive_districts@G20PRE``, where 62% of draws sit on the
+#: lowest of three attainable values. A control arm that does not reproduce this
+#: shape cannot exercise the regime in which the conditional test was a constant.
+DISCRETE_CONTROL_LEVELS = ((0.0, 0.62), (1.0, 0.93), (2.0, 1.0))
+
+
+def _quantise(chains, levels):
+    """Map continuous chains onto discrete levels at the given cumulative shares."""
+    pooled = sorted(v for chain in chains for v in chain)
+    cuts = [(_quantile(pooled, share), value) for value, share in levels]
+
+    def bucket(v):
+        for edge, value in cuts:
+            if v <= edge:
+                return value
+        return cuts[-1][1]
+
+    return [[bucket(v) for v in chain] for chain in chains]
+
+
+#: What each test must return on each synthetic structure. ``None`` means "any
+#: verdict except ``none``": on data carrying a perfect tradeoff a test may
+#: detect it or abstain, but it may not deny it, and which of those is right
+#: depends on whether the effect is attainable for that test at all.
+CONTROL_EXPECTATIONS: dict[str, str | None] = {
     "tradeoff": "tradeoff",
     "independent": "none",
     "synergy": "none",
+    # The regime the original controls never generated. Every test here saw only
+    # continuous Gaussian AR(1) data, so none of them was ever exercised against
+    # a criterion taking three values -- which is what competitiveness and county
+    # splits actually are. The conditional test returns "none" on a *perfect*
+    # tradeoff in this regime; with the attainability guard it abstains instead.
+    "discrete_tradeoff": None,
 }
 
 
@@ -686,19 +782,24 @@ def controls(seed: int = MASTER_SEED) -> dict:
         rng = random.Random(seed + hash(kind) % 10_000)
         a, b = _synthetic(kind, rng)
         got = {name: fn(a, b, rng)["verdict"] for name, fn in TESTS.items()}
-        report[kind] = {"expected": expected, "got": got}
+        report[kind] = {"expected": expected or "anything but 'none'", "got": got}
         for name, verdict in got.items():
-            if verdict != expected:
+            ok = (verdict != "none") if expected is None else (verdict == expected)
+            if not ok:
                 raise AssertionError(
                     f"control failed: on synthetic {kind!r} data the {name!r} "
-                    f"test returned {verdict!r}, expected {expected!r}. The "
-                    f"instrument cannot be trusted to report a tradeoff, so the "
-                    f"experiment is not run."
+                    f"test returned {verdict!r}, expected "
+                    f"{expected or 'anything but none'}. The instrument cannot "
+                    f"be trusted to report a tradeoff, so the experiment is not "
+                    f"run."
                 )
     report["conclusion"] = (
         "each of the three tests returned 'tradeoff' on synthetic tradeoff data "
         "and 'none' on both independent and synergistic data, so each can "
-        "produce either verdict and none is a constant"
+        "produce either verdict and none is a constant; and on a perfect "
+        "tradeoff between a continuous criterion and a three-valued one, no test "
+        "denied it -- the regime in which the conditional test was previously a "
+        "proven constant"
     )
     return report
 
@@ -706,6 +807,227 @@ def controls(seed: int = MASTER_SEED) -> dict:
 # --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
+
+
+# --------------------------------------------------------------------------- #
+# symmetry, multiplicity, and the instrument's own detection floor
+# --------------------------------------------------------------------------- #
+
+#: Tests whose statistic is mathematically symmetric in (A, B). Spearman rho is
+#: symmetric by definition; the joint top-tercile rate and its independence
+#: expectation are both symmetric in the two indicator sets. Only the conditional
+#: test is directional -- it conditions on A's decile and measures B.
+SYMMETRIC_TESTS = ("correlation", "achievability")
+
+
+def check_symmetry(pairs: list[dict]) -> dict:
+    """Verify empirically that the symmetric tests really are symmetric.
+
+    This matters for how the result is *counted*. Reporting 42 ordered pairs
+    invites a reader to treat them as 42 findings when two of the three tests
+    cannot distinguish direction at all; Colorado has 21 relationships, not 42,
+    and every directional disagreement in the matrix is produced by the single
+    test that carries every defect the audit found. The claim is checked here
+    rather than asserted, because a silent asymmetry would mean one of the two
+    is not the statistic it is documented to be.
+    """
+    index = {(p["a"], p["b"]): p for p in pairs}
+    mismatches, seen = [], set()
+    for (a, b), pair in index.items():
+        other = index.get((b, a))
+        if other is None or tuple(sorted((a, b))) in seen:
+            continue
+        seen.add(tuple(sorted((a, b))))
+        for name in SYMMETRIC_TESTS:
+            if pair["tests"][name]["verdict"] != other["tests"][name]["verdict"]:
+                mismatches.append({"pair": f"{a} <-> {b}", "test": name})
+    return {
+        "symmetric_tests": list(SYMMETRIC_TESTS),
+        "directional_tests": ["conditional"],
+        "n_checked": len(seen),
+        "n_direction_dependent": len(mismatches),
+        "mismatches": mismatches,
+        "note": ("a non-zero count means a test documented as symmetric is not, "
+                 "which would be a defect in that test rather than a finding"),
+    }
+
+
+def relationships(pairs: list[dict]) -> dict:
+    """Collapse ordered pairs to unordered relationships.
+
+    The headline count is over relationships. Direction is reported where it
+    exists -- only the conditional test can produce it -- and a relationship whose
+    two directions disagree is labelled as such rather than counted twice.
+    """
+    index = {(p["a"], p["b"]): p for p in pairs}
+    seen, out = set(), []
+    for (a, b), pair in index.items():
+        key = tuple(sorted((a, b)))
+        if key in seen:
+            continue
+        seen.add(key)
+        other = index.get((b, a))
+        verdicts = [pair["verdict"]] + ([other["verdict"]] if other else [])
+        out.append({
+            "relationship": f"{key[0]} <-> {key[1]}",
+            "verdict": ("strong" if all(v == "strong" for v in verdicts)
+                        else "none" if all(v == "none" for v in verdicts)
+                        else "degenerate" if all(v == "degenerate" for v in verdicts)
+                        else "weak"),
+            "directions": {f"{p['a']} -> {p['b']}": p["verdict"]
+                           for p in (pair, other) if p},
+            "direction_dependent": len(set(verdicts)) > 1,
+        })
+    counts: dict[str, int] = {}
+    for r in out:
+        counts[r["verdict"]] = counts.get(r["verdict"], 0) + 1
+    return {
+        "n_relationships": len(out),
+        "counts": counts,
+        "n_direction_dependent": sum(1 for r in out if r["direction_dependent"]),
+        "direction_comes_only_from": "conditional",
+        "relationships": out,
+    }
+
+
+def adjust_multiplicity(pairs: list[dict]) -> dict:
+    """Benjamini-Hochberg across every conditional permutation test.
+
+    Each state runs one permutation test per ordered pair per contest at
+    alpha=0.05 with no correction, which under a global null produces false
+    firings of the same order as the reported signal. The adjusted q-value is
+    added to each pair and the verdict is recomputed from it; the raw p is kept
+    so the correction is visible rather than silently applied.
+    """
+    live = [p for p in pairs
+            if p["tests"]["conditional"].get("p") is not None]
+    ranked = sorted(live, key=lambda p: p["tests"]["conditional"]["p"])
+    n = len(ranked)
+    running = 1.0
+    for rank in range(n, 0, -1):
+        pair = ranked[rank - 1]
+        raw = pair["tests"]["conditional"]["p"]
+        running = min(running, raw * n / rank)
+        pair["tests"]["conditional"]["q_value"] = running
+        pair["tests"]["conditional"]["fires_after_correction"] = (
+            running < ALPHA
+            and pair["tests"]["conditional"]["effect"] <= EFFECT_TRADEOFF
+        )
+    changed = [p for p in ranked
+               if (p["tests"]["conditional"]["verdict"] == "tradeoff")
+               != p["tests"]["conditional"]["fires_after_correction"]]
+    return {
+        "method": "Benjamini-Hochberg",
+        "n_tests": n,
+        "alpha": ALPHA,
+        "n_verdicts_changed": len(changed),
+        "changed": [f"{p['a']} -> {p['b']}" for p in changed],
+    }
+
+
+#: Noise weights swept when measuring the instrument's detection floor. The grid
+#: must reach far enough at BOTH ends: 0 gives the strongest dependence the
+#: marginals permit, and the large values must push the achieved rho close enough
+#: to zero that every test has stopped firing, or the floor is merely "somewhere
+#: below the weakest thing tried".
+CALIBRATION_BLEND = (0.0, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0)
+
+
+def _inject(a_chains, b_chains, blend: float, rng: random.Random):
+    """Re-pair B against A to induce anti-monotone dependence of a given strength.
+
+    Each chain keeps its own multiset of B values exactly -- only the pairing
+    changes -- so the marginals, the discreteness and the between-chain
+    heterogeneity of the real ensemble are all preserved. ``blend`` is the weight
+    on noise: 0 gives a perfect within-chain reversal, large values give
+    independence.
+    """
+    out = []
+    for a, b in zip(a_chains, b_chains):
+        n = len(a)
+        ranks = {i: r for r, i in enumerate(sorted(range(n), key=lambda i: a[i]))}
+        keys = [ranks[i] + blend * n * rng.random() for i in range(n)]
+        order = sorted(range(n), key=lambda i: keys[i])
+        values = sorted(b, reverse=True)      # best B to lowest-A slot
+        paired = [0.0] * n
+        for slot, i in enumerate(order):
+            paired[i] = values[slot]
+        out.append(paired)
+    return a_chains, out
+
+
+def detection_floor(rows_by_chain, a: str, b: str, criteria,
+                    rng: random.Random, *, log=print) -> dict:
+    """The weakest tradeoff this instrument can see, measured on the real draws.
+
+    Without this number a null verdict is uninterpretable: "no tradeoff" and "no
+    tradeoff my tests could resolve" are different claims and the artifact has to
+    say which one it is making. Dependence of known strength is injected into the
+    real ensemble, marginals held exact, and each test's firing threshold is read
+    off in units of the achieved Spearman rho.
+    """
+    a_chains = [goodness(rows, a, criteria) for rows in rows_by_chain]
+    b_chains = [goodness(rows, b, criteria) for rows in rows_by_chain]
+
+    points = []
+    for blend in CALIBRATION_BLEND:
+        xs, ys = _inject(a_chains, b_chains, blend, random.Random(hash(blend) % 99991))
+        flat_x = [v for c in xs for v in c]
+        flat_y = [v for c in ys for v in c]
+        rho = C.spearman(flat_x, flat_y)
+        fired = {name: fn(xs, ys, rng)["verdict"] for name, fn in TESTS.items()}
+        points.append({"blend": blend, "achieved_rho": rho, "verdicts": fired,
+                       "any_fired": any(v == "tradeoff" for v in fired.values())})
+        log(f"    calibration {a} x {b} blend={blend:<5} rho={rho:+.3f} "
+            f"{ {k: v[:4] for k, v in fired.items()} }")
+
+    # The strongest dependence the marginals permit. For a criterion taking three
+    # values against a continuous one this can be small, and when it is, "the
+    # test never fired" says nothing about the test -- no tradeoff of detectable
+    # strength is even expressible in that pairing. The two cases are reported
+    # separately because conflating them is exactly the error this block exists
+    # to prevent.
+    max_attainable = max(abs(p["achieved_rho"]) for p in points)
+
+    def bracket(predicate):
+        """(strongest that did not fire, weakest that did) -- the floor is between."""
+        fired = [abs(p["achieved_rho"]) for p in points if predicate(p)]
+        quiet = [abs(p["achieved_rho"]) for p in points if not predicate(p)]
+        if not fired:
+            return {"fires": False,
+                    "reason": ("never fired at any injected strength; the "
+                               "strongest dependence these marginals permit is "
+                               f"|rho|={max_attainable:.3f}"
+                               + (", which is itself below any plausible "
+                                  "detection threshold, so this is a limit of "
+                                  "the criterion's coarseness rather than of the "
+                                  "test" if max_attainable < 0.2 else ""))}
+        weakest_fired = min(fired)
+        below = [q for q in quiet if q < weakest_fired]
+        return {"fires": True,
+                "weakest_detected_rho": weakest_fired,
+                "strongest_missed_rho": max(below) if below else None,
+                "monotone": not any(q > weakest_fired for q in quiet)}
+
+    return {
+        "pair": f"{a} x {b}",
+        "method": ("anti-monotone re-pairing within each chain at a range of "
+                   "noise levels; each chain's B multiset is preserved exactly, "
+                   "so only the pairing changes"),
+        "max_attainable_rho": max_attainable,
+        "points": points,
+        "floor_any_test": bracket(lambda p: p["any_fired"]),
+        "floor_by_test": {
+            name: bracket(lambda p, n=name: p["verdicts"][n] == "tradeoff")
+            for name in TESTS
+        },
+        "interpretation": (
+            "a 'none' verdict on this state means: no monotone tradeoff stronger "
+            "than about this |rho|. It is not a claim about weaker dependence, "
+            "nor about non-monotone dependence, which no test here can see, nor "
+            "about a tradeoff confined to the frontier."
+        ),
+    }
 
 
 def analyse(rows_by_chain, contest: str, *, log=print) -> dict:
@@ -744,6 +1066,8 @@ def analyse(rows_by_chain, contest: str, *, log=print) -> dict:
             log(f"  [{contest}] {a} x {b}: "
                 f"{pairs[-2]['verdict']} / {pairs[-1]['verdict']}")
 
+    multiplicity = adjust_multiplicity(pairs)
+
     return {
         "contest": contest,
         "criteria": {
@@ -753,6 +1077,9 @@ def analyse(rows_by_chain, contest: str, *, log=print) -> dict:
                             for n, (k, d, s) in criteria.items()},
         },
         "pairs": pairs,
+        "symmetry": check_symmetry(pairs),
+        "relationships": relationships(pairs),
+        "multiplicity": multiplicity,
         "summary": {
             v: [f"{p['a']} -> {p['b']}" for p in pairs if p["verdict"] == v]
             for v in ("strong", "weak", "none", "degenerate")
@@ -805,6 +1132,19 @@ def run_state(spec: StateSpec, *, log=print, jobs: int = 1,
     pairs = analysis["pairs"]
     all_rows = [row for rows in rows_by_chain for row in rows]
 
+    # What a "none" on this state actually means. Measured on a continuous pair
+    # and on a coarse one, because the audit found the floor is higher when the
+    # costed criterion takes few values.
+    log(f"[{spec.key}] measuring the detection floor")
+    criteria = criteria_for(PRIMARY_CONTEST)
+    floor_rng = random.Random(MASTER_SEED + 11)
+    floors = [
+        detection_floor(rows_by_chain, "compactness_pp", "fairness_mm",
+                        criteria, floor_rng, log=log),
+        detection_floor(rows_by_chain, "compactness_pp", "competitiveness",
+                        criteria, floor_rng, log=log),
+    ]
+
     report = {
         "state": spec.key,
         "config": {
@@ -835,6 +1175,10 @@ def run_state(spec: StateSpec, *, log=print, jobs: int = 1,
         "convergence": diagnostics(chains),
         "criteria": analysis["criteria"],
         "pairs": pairs,
+        "symmetry": analysis["symmetry"],
+        "relationships": analysis["relationships"],
+        "multiplicity": analysis["multiplicity"],
+        "detection_floor": floors,
         "summary": analysis["summary"],
         "replication": replication,
         "contest_agreement": compare_contests(analysis, replication),

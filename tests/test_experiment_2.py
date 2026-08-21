@@ -53,10 +53,41 @@ def test_each_test_decides_correctly_on_known_structure(name, kind, expected):
     assert X.TESTS[name](a, b, rng)["verdict"] == expected
 
 
+@pytest.mark.parametrize("name", sorted(X.TESTS))
+def test_no_test_denies_a_perfect_tradeoff_on_a_coarse_criterion(name):
+    """The regime the original controls never generated.
+
+    The conditional test was a proven constant here: with more than half the mass
+    on the lowest of three values, the decile median cannot move, so it returned
+    "none" on a perfect tradeoff. Detecting it or abstaining are both acceptable;
+    denying it is not.
+    """
+    rng = random.Random(11)
+    a, b = X._synthetic("discrete_tradeoff", rng)
+    assert X.TESTS[name](a, b, rng)["verdict"] != "none"
+
+
+def test_the_discrete_control_really_is_coarse():
+    """Guard the guard: a control arm that drifted continuous would test nothing."""
+    _, b = X._synthetic("discrete_tradeoff", random.Random(5))
+    values = {v for chain in b for v in chain}
+    assert len(values) == len(X.DISCRETE_CONTROL_LEVELS) <= 3
+    pooled = [v for chain in b for v in chain]
+    commonest = max(set(pooled), key=pooled.count)
+    assert pooled.count(commonest) / len(pooled) > 0.5, (
+        "the median must sit on the modal level, which is what makes the "
+        "conditional effect unattainable"
+    )
+
+
 def test_controls_pass_on_the_real_tests():
     report = X.controls(seed=4242)
     for kind, expectation in X.CONTROL_EXPECTATIONS.items():
-        assert set(report[kind]["got"].values()) == {expectation}
+        got = set(report[kind]["got"].values())
+        if expectation is None:
+            assert "none" not in got, kind
+        else:
+            assert got == {expectation}, kind
 
 
 def test_controls_reject_a_test_that_can_never_say_tradeoff(monkeypatch):
@@ -395,3 +426,155 @@ def test_config_digest_covers_every_parameter_that_changes_the_ensemble():
                          ("county_prefix_len", 2), ("key", "XX")):
         altered = dataclasses.replace(base, **{field: value})
         assert X.config_digest(altered) != X.config_digest(base), field
+
+
+# --------------------------------------------------------------------------- #
+# the tie-break: a verdict must not depend on the order draws sit in
+# --------------------------------------------------------------------------- #
+
+def test_the_decile_is_tie_inclusive():
+    """Ties at the boundary are all in, so selection depends on values only."""
+    xs = [5.0] * 10 + [1.0] * 90
+    ys = list(range(100))
+    _, _, n = X._conditional_effect(xs, [float(y) for y in ys], 1.0)
+    assert n == 10
+    xs = [5.0] * 30 + [1.0] * 70          # decile boundary lands inside the tie
+    _, _, n = X._conditional_effect(xs, [float(y) for y in ys], 1.0)
+    assert n == 30, "every draw tying the boundary must be included"
+
+
+def test_conditional_verdict_is_invariant_to_chain_relabelling():
+    """The defect that stopped the first Colorado write-up.
+
+    Three of Colorado's thirty-nine nulls flipped to 'tradeoff' when the eight
+    exchangeable chains were relabelled -- a permutation carrying no information.
+    Built here from a coarse A, which is what makes ties the normal case.
+    """
+    rng = random.Random(7)
+    a_chains = [[float(rng.randrange(4)) for _ in range(150)] for _ in range(6)]
+    b_chains = [[rng.gauss(0, 1) for _ in range(150)] for _ in range(6)]
+
+    verdicts, effects = set(), set()
+    for shuffle_seed in range(8):
+        order = list(range(len(a_chains)))
+        random.Random(shuffle_seed).shuffle(order)
+        result = X.test_conditional([a_chains[i] for i in order],
+                                    [b_chains[i] for i in order],
+                                    random.Random(0))
+        verdicts.add(result["verdict"])
+        if result.get("effect") is not None:
+            effects.add(round(result["effect"], 9))
+    assert len(verdicts) == 1, f"verdict depends on chain order: {verdicts}"
+    assert len(effects) <= 1, f"effect depends on chain order: {sorted(effects)}"
+
+
+# --------------------------------------------------------------------------- #
+# the attainability guard
+# --------------------------------------------------------------------------- #
+
+def test_conditional_abstains_when_no_ordering_could_make_it_fire():
+    """More than half the mass on the minimum: the decile median cannot move."""
+    rng = random.Random(3)
+    b_chains = [[0.0] * 120 + [1.0] * 40 + [2.0] * 20 for _ in range(4)]
+    a_chains = [[rng.gauss(0, 1) for _ in range(180)] for _ in range(4)]
+    result = X.test_conditional(a_chains, b_chains, rng)
+    assert result["verdict"] == "degenerate"
+    assert "no ordering" in result["reason"]
+    assert result["attainable_effect"] > X.EFFECT_TRADEOFF
+
+
+def test_attainable_effect_is_the_worst_case_and_is_reachable_when_it_should_be():
+    ys = [float(i) for i in range(100)]
+    xs = [float(i) for i in range(100)]
+    worst = X._attainable_effect(xs, ys, 1.0)
+    assert worst < X.EFFECT_TRADEOFF, "a continuous criterion must be reachable"
+    flat = [0.0] * 95 + [1.0] * 5
+    assert X._attainable_effect(xs, flat, 1.0) == 0.0
+
+
+# --------------------------------------------------------------------------- #
+# symmetry, multiplicity, detection floor
+# --------------------------------------------------------------------------- #
+
+def _fake_pairs(verdict_ab, verdict_ba, sym="none"):
+    def pair(a, b, v):
+        return {"a": a, "b": b, "verdict": v,
+                "tests": {"correlation": {"verdict": sym},
+                          "achievability": {"verdict": sym},
+                          "conditional": {"verdict": v, "p": 0.5, "effect": 0.0}}}
+    return [pair("x", "y", verdict_ab), pair("y", "x", verdict_ba)]
+
+
+def test_symmetry_check_reports_zero_when_symmetric_tests_agree():
+    out = X.check_symmetry(_fake_pairs("none", "weak"))
+    assert out["n_direction_dependent"] == 0
+    assert out["directional_tests"] == ["conditional"]
+
+
+def test_symmetry_check_catches_a_symmetric_test_that_disagrees():
+    pairs = _fake_pairs("none", "none")
+    pairs[1]["tests"]["correlation"]["verdict"] = "tradeoff"
+    assert X.check_symmetry(pairs)["n_direction_dependent"] == 1
+
+
+def test_relationships_collapse_two_directions_into_one():
+    out = X.relationships(_fake_pairs("none", "weak"))
+    assert out["n_relationships"] == 1
+    assert out["n_direction_dependent"] == 1
+    assert out["relationships"][0]["verdict"] == "weak"
+    assert len(out["relationships"][0]["directions"]) == 2
+
+
+def test_relationships_agree_gives_one_undivided_verdict():
+    out = X.relationships(_fake_pairs("none", "none"))
+    assert out["counts"] == {"none": 1}
+    assert out["n_direction_dependent"] == 0
+
+
+def test_benjamini_hochberg_is_monotone_and_never_below_the_raw_p():
+    pairs = []
+    for i, p in enumerate([0.001, 0.01, 0.02, 0.04, 0.5]):
+        pairs.append({"a": f"a{i}", "b": "b", "verdict": "none",
+                      "tests": {"conditional": {"verdict": "none", "p": p,
+                                                "effect": -1.0}}})
+    X.adjust_multiplicity(pairs)
+    qs = [p["tests"]["conditional"]["q_value"] for p in pairs]
+    assert qs == sorted(qs), "q-values must be monotone in p"
+    for pair, q in zip(pairs, qs):
+        assert q >= pair["tests"]["conditional"]["p"] - 1e-12
+
+
+def test_injection_preserves_each_chain_marginal_exactly():
+    """The detection floor is only meaningful if only the pairing changed."""
+    rng = random.Random(4)
+    a = [[rng.gauss(0, 1) for _ in range(60)] for _ in range(3)]
+    b = [[float(rng.randrange(5)) for _ in range(60)] for _ in range(3)]
+    for blend in (0.0, 0.3, 2.0):
+        _, injected = X._inject(a, b, blend, random.Random(1))
+        for before, after in zip(b, injected):
+            assert sorted(before) == sorted(after)
+
+
+def test_the_calibration_grid_reaches_negligible_dependence():
+    """A floor of 'below the weakest thing I tried' is not a floor."""
+    assert min(X.CALIBRATION_BLEND) == 0.0, "must include the strongest reversal"
+    rng = random.Random(4)
+    a = [[rng.gauss(0, 1) for _ in range(300)] for _ in range(3)]
+    b = [[rng.gauss(0, 1) for _ in range(300)] for _ in range(3)]
+    _, weakest = X._inject(a, b, max(X.CALIBRATION_BLEND), random.Random(1))
+    rho = X.C.spearman([v for c in a for v in c],
+                       [v for c in weakest for v in c])
+    assert abs(rho) < 0.10, (
+        f"the weakest grid point still carries |rho|={abs(rho):.3f}; every test "
+        f"must have stopped firing before the grid runs out"
+    )
+
+
+def test_injection_at_zero_blend_is_a_strong_reversal():
+    rng = random.Random(4)
+    a = [[rng.gauss(0, 1) for _ in range(200)] for _ in range(3)]
+    b = [[rng.gauss(0, 1) for _ in range(200)] for _ in range(3)]
+    _, injected = X._inject(a, b, 0.0, random.Random(1))
+    flat_a = [v for c in a for v in c]
+    flat_b = [v for c in injected for v in c]
+    assert X.C.spearman(flat_a, flat_b) < -0.9
