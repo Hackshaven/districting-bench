@@ -578,3 +578,20 @@ def test_injection_at_zero_blend_is_a_strong_reversal():
     flat_a = [v for c in a for v in c]
     flat_b = [v for c in injected for v in c]
     assert X.C.spearman(flat_a, flat_b) < -0.9
+
+
+def test_written_draws_are_byte_stable_across_runs(tmp_path):
+    """gzip stamps the clock into its header unless told not to.
+
+    A committed artifact whose bytes change on every identical re-run cannot be
+    diffed, and the reason for committing the draws at all is that a reader can
+    check them without re-sampling.
+    """
+    keys = sorted({key for contest in (X.PRIMARY_CONTEST, X.ALTERNATE_CONTEST)
+                   for key, _, _ in X.criteria_for(contest).values()})
+    rows = [{k: float(i) for k in keys} for i in range(5)]
+    chains = [X.ChainResult(seed=1, steps_requested=5, rows=rows)]
+    first, second = tmp_path / "a.csv.gz", tmp_path / "b.csv.gz"
+    X.write_rows(TINY, chains, first)
+    X.write_rows(TINY, chains, second)
+    assert first.read_bytes() == second.read_bytes()

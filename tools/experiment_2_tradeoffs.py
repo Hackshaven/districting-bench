@@ -65,6 +65,7 @@ import argparse
 import csv
 import gzip
 import hashlib
+import io
 import json
 import math
 import random
@@ -254,6 +255,21 @@ def load_context(spec: StateSpec, contests: tuple[str, ...]) -> dict:
     }
 
 
+def _deterministic_gzip(path: Path):
+    """A gzip writer whose bytes depend only on the data written.
+
+    ``gzip`` stamps the wall clock *and* the source filename into its header, so
+    an unchanged artifact re-written by an identical run produces a different
+    file and a spurious diff. The reason for committing these draws is that a
+    reader can check them without re-sampling, which requires the bytes to be a
+    function of the data alone. ``gzip.open`` exposes neither field, so the
+    ``GzipFile`` is built directly with both pinned.
+    """
+    raw = open(path, "wb")
+    binary = gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0)
+    return io.TextIOWrapper(binary, newline="", write_through=True)
+
+
 def config_digest(spec: StateSpec) -> str:
     """Identity of the sampling configuration a checkpoint belongs to.
 
@@ -292,7 +308,7 @@ def save_checkpoint(spec: StateSpec, index: int, result: "ChainResult",
     path = checkpoint_path(spec, index, root)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".partial")
-    with gzip.open(tmp, "wt") as handle:
+    with _deterministic_gzip(tmp) as handle:
         json.dump({"index": index, "seed": result.seed,
                    "steps_requested": result.steps_requested,
                    "failure": result.failure, "rows": result.rows}, handle)
@@ -1200,7 +1216,11 @@ def write_rows(spec: StateSpec, chains: list[ChainResult], path: Path) -> dict:
                    for key, _, _ in criteria_for(contest).values()})
     path.parent.mkdir(parents=True, exist_ok=True)
     n = 0
-    with gzip.open(path, "wt", newline="") as handle:
+    # mtime=0: gzip stamps the wall clock into its header by default, so an
+    # unchanged artifact re-written by an identical run produces a different file
+    # and a spurious diff. The point of committing these draws is that a reader
+    # can check them, which requires the bytes to depend only on the data.
+    with _deterministic_gzip(path) as handle:
         out = csv.writer(handle)
         out.writerow(["chain_index", "chain_seed", "chain_completed", "draw", *keys])
         for index, chain in enumerate(chains):
