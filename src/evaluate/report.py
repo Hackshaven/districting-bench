@@ -129,13 +129,23 @@ def score_plan(
 
     municipal = None
     if subdivisions is not None:
+        assigned = sum(1 for value in subdivisions.values() if value)
         municipal = {
+            "layer": "municipality",
             "splits": administrative.county_splits(plan, subdivisions),
             "split_pieces": administrative.split_pieces(plan, subdivisions),
-            "layer": "municipality",
-            "note": ("municipalities are a partial layer: units in no "
-                     "municipality are excluded from these counts, which is why "
-                     "they are not comparable to the county figures above"),
+            "n_units_in_a_municipality": assigned,
+            "n_units": len(subdivisions),
+            "n_municipalities": len({v for v in subdivisions.values() if v}),
+            "degeneracy": administrative.degeneracy(plan, subdivisions),
+            "note": ("municipalities are a PARTIAL layer: units in no "
+                     "municipality are excluded from these counts, so they are "
+                     "not comparable to the county figures. Where no unit is in "
+                     "any municipality the counts are identically zero and the "
+                     "layer says nothing about the plan -- on whole-county units "
+                     "no county has half its area inside one city, so this is "
+                     "the expected result there rather than missing data."),
+            "informative": assigned > 0,
         }
 
     trusted = partisan.trusted_metrics(plan, dem, rep)
@@ -228,6 +238,18 @@ def find_disagreements(report: Mapping[str, Any]) -> list[dict]:
                 "constant metric is not a good score and must not be read as "
                 "one."),
             "reasons": {name: degeneracy[name].get("reason") for name in constant},
+        })
+
+    municipal = report.get("municipal")
+    if municipal is not None and not municipal.get("informative"):
+        found.append({
+            "kind": "municipality_layer_is_empty_on_these_units",
+            "meaning": (
+                f"none of the {municipal['n_units']} units sits inside a "
+                f"municipality, so municipality splits are identically zero and "
+                f"the number says nothing about this plan. On whole-county units "
+                f"that is the expected result -- a county is larger than the "
+                f"cities in it -- not missing data."),
         })
 
     untrusted = (report.get("trust") or {}).get("untrusted_partisan_metrics") or []
