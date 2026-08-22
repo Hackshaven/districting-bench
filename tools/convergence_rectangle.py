@@ -61,10 +61,18 @@ COLUMNS = ("compactness_cut", "fairness_eg", "population_equality")
 #: itself so noisy that the statistic says little.
 MIN_CHAINS = 4
 
+#: And at least this many draws per chain. split_rhat needs 4 to split at all,
+#: but a rectangle that short says nothing about mixing: a chain that died at 49
+#: draws would otherwise define a 12-chain rectangle of 49 draws and score
+#: beautifully, because no chain has had time to go anywhere. The floor is the
+#: point below which agreement between chains is evidence of nothing.
+MIN_PREFIX = 500
+
 
 def rectangles(chains, criteria) -> list[dict]:
     """R-hat and ESS at every prefix length a distinct chain count allows."""
-    lengths = sorted({len(c.rows) for c in chains if c.rows}, reverse=True)
+    lengths = sorted({len(c.rows) for c in chains if len(c.rows) >= MIN_PREFIX},
+                     reverse=True)
     out = []
     for length in lengths:
         usable = [c for c in chains if len(c.rows) >= length]
@@ -122,8 +130,11 @@ def main(argv=None) -> int:
     criteria = E2.criteria_for(E2.PRIMARY_CONTEST)
 
     dead_at_zero = [i for i, c in enumerate(chains) if not c.rows]
+    too_short = [i for i, c in enumerate(chains)
+                 if 0 < len(c.rows) < MIN_PREFIX]
     print(f"{args.state}: {len(chains)} chains requested at {args.steps} steps")
     print(f"  unusable seeds (no initial partition): {dead_at_zero or 'none'}")
+    print(f"  died before {MIN_PREFIX} draws: {too_short or 'none'}")
     print(f"  draws reached: {[len(c.rows) for c in chains]}")
 
     records = rectangles(chains, criteria)
@@ -145,6 +156,8 @@ def main(argv=None) -> int:
               f"worst R-hat {worst:.3f}")
     print(json.dumps({"state": args.state, "requested_steps": args.steps,
                       "unusable_seeds": dead_at_zero,
+                      "died_before_min_prefix": too_short,
+                      "min_prefix": MIN_PREFIX, "min_chains": MIN_CHAINS,
                       "draws_reached": [len(c.rows) for c in chains],
                       "rectangles": records, "chosen": chosen},
                      indent=2, default=str),
