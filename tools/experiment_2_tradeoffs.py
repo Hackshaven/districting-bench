@@ -125,6 +125,43 @@ IOWA = StateSpec("IA", "ia", 4, 2e-4, 12, 1500, county_prefix_len=None)
 COLORADO = StateSpec("CO", "co", 8, 1e-2, 8, 1000, county_prefix_len=5)
 STATES = {"IA": IOWA, "CO": COLORADO}
 
+#: Named ensembles. Both stay addressable so a published number never describes a
+#: sample that has been replaced underneath it: v1 is what Experiments 1 and 2
+#: were first written against, v2 is the convergence re-sample.
+#:
+#: v1's chains are too short to mix -- split R-hat 1.15 on Iowa and 1.12 on
+#: Colorado against CRITERIA.md section 8's 1.00-1.01 target, with effective
+#: sample sizes of 35 to 78 against nominal draw counts in the thousands. v2
+#: raises the chain length, which the diagnostic identified as the lever: the
+#: chains overlapped heavily rather than sitting in separate modes, and each was
+#: still drifting between its own halves.
+#: ``rectangle`` is the prefix length every chain is truncated to before analysis,
+#: or None to use whole completed chains. It exists because raising the chain
+#: length to fix R-hat destroys the completed-chain sample: of Iowa's 12 chains at
+#: 12,000 steps only 2 finish, so "completed chains only" would analyse 24,000
+#: draws from 2 chains and no chain-level bootstrap would be possible. Truncating
+#: to a common prefix uses 6 chains and 27,564 draws, and is *less* selective --
+#: a chain that died at step 6,496 is excluded by completion for a property of its
+#: tail, while its first 6,495 draws are as valid as any others. D-035, and
+#: tools/convergence_rectangle.py reports the tradeoff at every prefix length.
+ENSEMBLES = {
+    "v1": {"IA": (12, 1500), "CO": (8, 1000), "suffix": "",
+           "rectangle": {"IA": None, "CO": None}},
+    "v2": {"IA": (12, 12000), "CO": (8, 2500), "suffix": "-v2",
+           "rectangle": {"IA": 4594, "CO": None}},
+}
+
+
+def ensemble_spec(key: str, version: str) -> StateSpec:
+    """The state's spec at a named ensemble version."""
+    import dataclasses
+    chains, steps = ENSEMBLES[version][key]
+    return dataclasses.replace(STATES[key], chains=chains, steps=steps)
+
+
+def draws_path(prefix: str, version: str) -> Path:
+    return OUT / f"{prefix}-draws{ENSEMBLES[version]['suffix']}.csv.gz"
+
 
 # --------------------------------------------------------------------------- #
 # criteria — the value choices, each one explicit and each one directional
@@ -1432,6 +1469,10 @@ def main(argv=None) -> int:
                              "shorter one")
     parser.add_argument("--chains", type=int,
                         help="override the chain count for every state")
+    parser.add_argument("--ensemble", default="v1", choices=sorted(ENSEMBLES),
+                        help="which named ensemble to sample or re-analyse; "
+                             "both stay on disk so a published number never "
+                             "describes a sample replaced underneath it")
     parser.add_argument("--from-draws", action="store_true",
                         help="re-derive every verdict from the committed draws "
                              "files instead of sampling; the whole analysis is "
@@ -1448,16 +1489,19 @@ def main(argv=None) -> int:
     order = {"IA": 0, "CO": 1}
     keys = sorted(args.state or STATES, key=lambda k: order.get(k, 99))
     checkpoints = Path(args.checkpoints) if args.checkpoints else None
-    results = {"master_seed": MASTER_SEED, "controls": control_report, "states": {}}
+    results = {"master_seed": MASTER_SEED, "ensemble": args.ensemble,
+               "controls": control_report, "states": {}}
     for key in keys:
-        spec = STATES[key]
+        spec = ensemble_spec(key, args.ensemble)
         if args.steps or args.chains:
             import dataclasses
             spec = dataclasses.replace(
                 spec,
                 steps=args.steps or spec.steps,
                 chains=args.chains or spec.chains)
-        rows_path = Path(args.out).parent / f"{spec.prefix}-draws.csv.gz"
+        rows_path = (draws_path(spec.prefix, args.ensemble)
+                     if Path(args.out).parent == OUT
+                     else Path(args.out).parent / f"{spec.prefix}-draws.csv.gz")
 
         if args.from_draws:
             report, chains = run_state(spec, draws=rows_path)

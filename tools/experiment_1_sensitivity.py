@@ -178,18 +178,9 @@ def robust_sd(values) -> float:
     return math.sqrt(sum((v - mean) ** 2 for v in values) / len(values))
 
 
-def load_rows(prefix: str) -> list[dict]:
-    """Completed-chain draws from the committed Experiment 2 file."""
-    path = E2.OUT / f"{prefix}-draws.csv.gz"
-    keys = sorted({key for contest in (E2.PRIMARY_CONTEST, E2.ALTERNATE_CONTEST)
-                   for key, _, _ in E2.criteria_for(contest).values()})
-    rows = []
-    with gzip.open(path, "rt", newline="") as handle:
-        for record in csv.DictReader(handle):
-            if record["chain_completed"] != "1":
-                continue
-            rows.append({key: float(record[key]) for key in keys})
-    return rows
+def load_rows(prefix: str, version: str = "v1") -> list[dict]:
+    """Pooled draws for the analysis sample of a named ensemble."""
+    return [row for chain in load_rows_by_chain(prefix, version) for row in chain]
 
 
 def _shift(values, offset):
@@ -315,19 +306,32 @@ def sweep_one(rows, criteria, target: str, others: list[str]) -> dict:
     }
 
 
-def load_rows_by_chain(prefix: str) -> list[list[dict]]:
-    """Draws grouped by chain, for the within-chain null."""
-    path = E2.OUT / f"{prefix}-draws.csv.gz"
+def load_rows_by_chain(prefix: str, version: str = "v1") -> list[list[dict]]:
+    """Draws grouped by chain, as the ensemble's analysis sample defines it.
+
+    Two regimes, and which one applies is a property of the named ensemble rather
+    than of this function. Where the ensemble declares no rectangle, the sample is
+    the whole completed chains, which is what Experiments 1 and 2 were first
+    written against. Where it declares one, every chain reaching that prefix is
+    truncated to it and partial chains are included -- see D-035: raising the
+    chain length to fix R-hat destroys the completed-chain sample, and selecting
+    on completion selects on a chain's whole path while a common prefix was drawn
+    before any chain knew it was going to die.
+    """
+    path = E2.draws_path(prefix, version)
+    rectangle = E2.ENSEMBLES[version]["rectangle"][prefix.upper()]
     keys = sorted({key for contest in (E2.PRIMARY_CONTEST, E2.ALTERNATE_CONTEST)
                    for key, _, _ in E2.criteria_for(contest).values()})
     by: dict[int, list[dict]] = {}
     with gzip.open(path, "rt", newline="") as handle:
         for record in csv.DictReader(handle):
-            if record["chain_completed"] != "1":
+            if rectangle is None and record["chain_completed"] != "1":
                 continue
             by.setdefault(int(record["chain_index"]), []).append(
                 {key: float(record[key]) for key in keys})
-    return [by[i] for i in sorted(by)]
+    if rectangle is None:
+        return [by[i] for i in sorted(by)]
+    return [by[i][:rectangle] for i in sorted(by) if len(by[i]) >= rectangle]
 
 
 #: Ideal district population per state, for translating a tolerance into the
@@ -339,9 +343,9 @@ KARCHER_STRUCK_DOWN = 0.006984
 
 
 def rank(state: str, prefix: str, contest: str = E2.PRIMARY_CONTEST,
-         *, log=print) -> dict:
-    rows = load_rows(prefix)
-    by_chain = load_rows_by_chain(prefix)
+         *, version: str = "v1", log=print) -> dict:
+    rows = load_rows(prefix, version)
+    by_chain = load_rows_by_chain(prefix, version)
     criteria = E2.criteria_for(contest)
 
     varying, degenerate = [], {}
@@ -432,6 +436,7 @@ def rank(state: str, prefix: str, contest: str = E2.PRIMARY_CONTEST,
 
     return {
         "state": state,
+        "ensemble": version,
         "contest": contest,
         "n_draws": len(rows),
         "n_chains": len(by_chain),
@@ -632,6 +637,8 @@ def kendall_tau(a: list[str], b: list[str]) -> float:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", default=str(OUT / "experiment-1-results.json"))
+    parser.add_argument("--ensemble", default="v1", choices=sorted(E2.ENSEMBLES),
+                        help="which named ensemble to rank against")
     parser.add_argument("--epsilon-sweep", action="store_true",
                         help="also re-sample Iowa across population tolerances; "
                              "the filter sweep cannot measure that criterion")
@@ -641,15 +648,16 @@ def main(argv=None) -> int:
 
     report = {"tightening": list(TIGHTENING), "binds_at": BINDS_AT,
               "min_side": MIN_SIDE, "null_replicates": NULL_REPLICATES,
-              "states": {}}
+              "ensemble": args.ensemble, "states": {}}
     for state, prefix in (("IA", "ia"), ("CO", "co")):
-        primary = rank(state, prefix, E2.PRIMARY_CONTEST)
+        primary = rank(state, prefix, E2.PRIMARY_CONTEST, version=args.ensemble)
         # The ranking is re-derived under the other 2020 contest on the same
         # draws. Experiment 2 established that a verdict which flips when the
         # office changes is a finding about the office; a ranked list that
         # reorders is the same problem, and this experiment shipped without the
         # check until the audit asked for it.
-        alternate = rank(state, prefix, E2.ALTERNATE_CONTEST, log=lambda *_: None)
+        alternate = rank(state, prefix, E2.ALTERNATE_CONTEST,
+                         version=args.ensemble, log=lambda *_: None)
         primary["replication"] = {
             "contest": E2.ALTERNATE_CONTEST,
             "ranked": alternate["ranked"],
