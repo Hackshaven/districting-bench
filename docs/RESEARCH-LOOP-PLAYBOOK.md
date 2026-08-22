@@ -73,13 +73,63 @@ Three separate wins, and only the first was the motivation:
   reproducing an hour of CPU with a working sampler. This is the reason to do it
   even in a stable environment.
 
-### 2.2 Checkpoint at the natural unit of independence
+### 2.2 Checkpoint at the natural unit of independence — *durably*
 
 Find the unit that shares no state with its siblings — a chain, a shard, a
 document, a pair — and checkpoint per unit. Write with temp-file-plus-atomic-
 rename so a half-written file is never mistaken for a complete one.
 
-Then a reclaim costs **one unit**, not the run.
+> **Correction.** An earlier draft of this document ended here with "then a
+> reclaim costs one unit, not the run." **That is false, and I proved it twice
+> after writing it.** A checkpoint only bounds the loss if the checkpoint itself
+> outlives the failure. Both times I wrote one to a gitignored directory, and both
+> times a reclaim destroyed every checkpoint and the entire run with it — twelve
+> sampling checkpoints, then, hours later, the cache I had added specifically to
+> stop that happening.
+
+**Crash-safe is not reclaim-safe.** These are different guarantees and it is easy
+to build the first while believing you have the second:
+
+| failure | survived by |
+| --- | --- |
+| process crash, OOM, killed job | any on-disk checkpoint |
+| **container reclaim / host loss** | **only a pushed commit** |
+
+A gitignored checkpoint buys you the first row. If the second row is your actual
+failure mode — and in an ephemeral environment it is — the checkpoint is
+decoration.
+
+**So: track the checkpoints, and push them while the run is going.** They are
+usually tiny; the cache that cost this project four re-runs was 1.1 KB per entry
+and under 100 KB in total, so there was never a size argument for excluding it.
+Default to committing them, and size the artifact to make that possible rather
+than reaching for `.gitignore`.
+
+### 2.2a Bank progress on a timer, not only at the end
+
+A checkpoint written to a tracked path still only survives if something commits
+it. Run a background loop alongside the job:
+
+```bash
+while pgrep -f "$JOB" >/dev/null; do
+  if <new results since last time>; then
+    git add "$CACHE_DIR" && git commit -q -m "Bank N results" && git push -q  # with retry
+  fi
+  sleep 180
+done
+```
+
+Then a reclaim costs *the units in flight at that moment*, which is the guarantee
+the earlier draft claimed without earning.
+
+**The meta-lesson, and the reason this correction is kept rather than edited
+away:** Part 1 of this document already said "the only durable thing is a pushed
+commit; everything else is a cache." I wrote that sentence and then, four hours
+later, built a cache that assumed otherwise — the same mistake that had already
+cost twelve checkpoints. **Stating a rule is not applying it.** The rule needs to
+fire at a specific moment: *whenever you create a new artifact directory, before
+writing anything to it, decide whether it is tracked.* That is why it is a
+checklist item in Part 5 and not only a principle here.
 
 ### 2.3 Key every cache by everything that changes the result
 
@@ -214,7 +264,11 @@ Before starting a long research loop in an uncontrolled environment:
 - [ ] Measure the durability hierarchy. Do not assume gitignored survives.
 - [ ] Split measurement from analysis; make analysis a pure function of committed
       files, with a `--from-committed` path.
-- [ ] Identify the unit of independence; checkpoint per unit, atomically.
+- [ ] Identify the unit of independence; checkpoint per unit, atomically, **to a
+      tracked path**. Ask at the moment you create the directory: is this
+      gitignored? If yes, it does not survive a reclaim and it is decoration.
+- [ ] Run a banker loop that commits and pushes checkpoints on a timer while the
+      job runs. A tracked checkpoint nobody commits is still lost.
 - [ ] Time one unit. If it exceeds the shortest plausible window, make it smaller
       — not slower to lose.
 - [ ] Write outputs incrementally.
