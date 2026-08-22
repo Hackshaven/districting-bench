@@ -933,6 +933,1164 @@
         "kendall_tau": 0.7333333333333333,
         "binds_agree": true
       }
+    },
+    "CO": {
+      "state": "CO",
+      "ensemble": "v2",
+      "contest": "G20PRE",
+      "n_draws": 20000,
+      "n_chains": 8,
+      "distinct_relationships_behind_ranking": 6,
+      "population_equality_legal_scope": {
+        "ideal_district": 721714,
+        "spread_min_pct_of_ideal": 0.3772962697134876,
+        "spread_max_pct_of_ideal": 1.9958044322266162,
+        "karcher_struck_down_pct": 0.6984,
+        "entirely_inside_karcher": false,
+        "entirely_outside_karcher": false
+      },
+      "source": "docs/experiment-2/co-draws.csv.gz",
+      "tightening_levels": [
+        0.0,
+        0.25,
+        0.5,
+        0.75,
+        0.9
+      ],
+      "binds_at": 0.147,
+      "realistic_level": 0.5,
+      "degenerate": {},
+      "ranked": [
+        {
+          "rank": 1,
+          "criterion": "competitiveness",
+          "worst_delta": -0.6899643336635689,
+          "displaces": "fairness_mm",
+          "binds": true,
+          "binds_at_realistic": true
+        },
+        {
+          "rank": 2,
+          "criterion": "fairness_mm",
+          "worst_delta": -0.4569636,
+          "displaces": "competitiveness",
+          "binds": true,
+          "binds_at_realistic": true
+        },
+        {
+          "rank": 3,
+          "criterion": "fairness_eg",
+          "worst_delta": -0.15288425728910415,
+          "displaces": "competitiveness",
+          "binds": true,
+          "binds_at_realistic": false
+        },
+        {
+          "rank": 4,
+          "criterion": "county_integrity",
+          "worst_delta": -0.14335158554975946,
+          "displaces": "competitiveness",
+          "binds": false,
+          "binds_at_realistic": false
+        },
+        {
+          "rank": 5,
+          "criterion": "compactness_cut",
+          "worst_delta": -0.09107738239713503,
+          "displaces": "competitiveness",
+          "binds": false,
+          "binds_at_realistic": false
+        },
+        {
+          "rank": 6,
+          "criterion": "compactness_pp",
+          "worst_delta": -0.04569753333333337,
+          "displaces": "population_equality",
+          "binds": false,
+          "binds_at_realistic": false
+        },
+        {
+          "rank": 7,
+          "criterion": "population_equality",
+          "worst_delta": -0.03170116666666667,
+          "displaces": "compactness_cut",
+          "binds": false,
+          "binds_at_realistic": false
+        }
+      ],
+      "detail": [
+        {
+          "criterion": "compactness_pp",
+          "distinct_values": 19543,
+          "levels": [
+            {
+              "tightening": 0.0,
+              "kept_fraction": 1.0,
+              "n_kept": 20000,
+              "delta": {
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.0,
+                "fairness_mm": 0.0,
+                "competitiveness": 0.0,
+                "population_equality": 0.0
+              },
+              "median_shift_sd": {
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.0,
+                "fairness_mm": 0.0,
+                "competitiveness": 0.0,
+                "population_equality": 0.0
+              },
+              "worst_delta": 0.0,
+              "worst_criterion": null
+            },
+            {
+              "tightening": 0.25,
+              "kept_fraction": 0.75,
+              "n_kept": 15000,
+              "n_excluded": 5000,
+              "delta": {
+                "compactness_cut": 0.56279784,
+                "county_integrity": 0.34499199999999997,
+                "fairness_eg": 0.042147813333333284,
+                "fairness_mm": 0.04484066666666675,
+                "competitiveness": 0.0031995733333334275,
+                "population_equality": -0.04569753333333337
+              },
+              "median_shift_sd": {
+                "compactness_cut": 0.2303139178700569,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.01890532126398101,
+                "fairness_mm": 0.029981587353928252,
+                "competitiveness": 0.0,
+                "population_equality": -0.02138629237364814
+              },
+              "worst_delta": -0.04569753333333337,
+              "worst_criterion": "population_equality"
+            },
+            {
+              "tightening": 0.5,
+              "kept_fraction": 0.5,
+              "n_kept": 10000,
+              "n_excluded": 10000,
+              "delta": {
+                "compactness_cut": 0.5430766899999999,
+                "county_integrity": 0.3400047399999999,
+                "fairness_eg": 0.06824347000000008,
+                "fairness_mm": 0.029128279999999895,
+                "competitiveness": 0.0015303499999999026,
+                "population_equality": -0.02460165999999997
+              },
+              "median_shift_sd": {
+                "compactness_cut": 0.4441768416065383,
+                "county_integrity": 0.3372453797382976,
+                "fairness_eg": 0.050715641629191316,
+                "fairness_mm": 0.04351978654426408,
+                "competitiveness": 0.0,
+                "population_equality": -0.020399232725633612
+              },
+              "worst_delta": -0.02460165999999997,
+              "worst_criterion": "population_equality"
+            },
+            {
+              "tightening": 0.75,
+              "kept_fraction": 0.25005,
+              "n_kept": 5001,
+              "n_excluded": 14999,
+              "delta": {
+                "compactness_cut": 0.5626006874096878,
+                "county_integrity": 0.3407514910112184,
+                "fairness_eg": 0.09238123040102963,
+                "fairness_mm": 0.026649927031728193,
+                "competitiveness": 0.007232142477431536,
+                "population_equality": 0.003602346401844425
+              },
+              "median_shift_sd": {
+                "compactness_cut": 0.7073927477437462,
+                "county_integrity": 0.3372453797382976,
+                "fairness_eg": 0.09310547738662178,
+                "fairness_mm": 0.05220136379168618,
+                "competitiveness": 0.0,
+                "population_equality": 0.0046062783574011374
+              },
+              "worst_delta": 0.003602346401844425,
+              "worst_criterion": "population_equality"
+            },
+            {
+              "tightening": 0.9,
+              "kept_fraction": 0.1,
+              "n_kept": 2000,
+              "n_excluded": 18000,
+              "delta": {
+                "compactness_cut": 0.5981256666666668,
+                "county_integrity": 0.3701976944444445,
+                "fairness_eg": 0.12395525000000007,
+                "fairness_mm": 0.03694055555555553,
+                "competitiveness": 0.027501250000000033,
+                "population_equality": 0.03745183333333335
+              },
+              "median_shift_sd": {
+                "compactness_cut": 0.9294811685470153,
+                "county_integrity": 0.3372453797382976,
+                "fairness_eg": 0.1335932971474862,
+                "fairness_mm": 0.1136877079510779,
+                "competitiveness": 0.0,
+                "population_equality": 0.06909417536101707
+              },
+              "worst_delta": 0.027501250000000033,
+              "worst_criterion": "competitiveness"
+            }
+          ],
+          "worst_delta_at_realistic": -0.02460165999999997,
+          "worst_delta_anywhere": -0.04569753333333337,
+          "binds": false,
+          "binds_at_realistic": false,
+          "decorative": true,
+          "strictest_kept_fraction": 0.1,
+          "n_levels_refused": 0,
+          "distinct_cuts": 5,
+          "raw_medians": {
+            "criterion_median_all": 0.1758601307251068,
+            "criterion_median_strictest": 0.21113579417681883
+          },
+          "measure": "Cliffs delta, kept vs excluded; negative means the kept plans are worse on the displaced criterion",
+          "null": {
+            "n": 60,
+            "median": -0.043283583333333375,
+            "p05": -0.08529694444444447
+          },
+          "clears_null": false
+        },
+        {
+          "criterion": "compactness_cut",
+          "distinct_values": 387,
+          "levels": [
+            {
+              "tightening": 0.0,
+              "kept_fraction": 1.0,
+              "n_kept": 20000,
+              "delta": {
+                "compactness_pp": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.0,
+                "fairness_mm": 0.0,
+                "competitiveness": 0.0,
+                "population_equality": 0.0
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.0,
+                "fairness_mm": 0.0,
+                "competitiveness": 0.0,
+                "population_equality": 0.0
+              },
+              "worst_delta": 0.0,
+              "worst_criterion": null
+            },
+            {
+              "tightening": 0.25,
+              "kept_fraction": 0.7507,
+              "n_kept": 15014,
+              "n_excluded": 4986,
+              "delta": {
+                "compactness_pp": 0.5482012482960816,
+                "county_integrity": 0.2754538737504575,
+                "fairness_eg": 0.0060059601545310315,
+                "fairness_mm": 0.06102145284804639,
+                "competitiveness": -0.06437424014628734,
+                "population_equality": -0.003949182127166662
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.22517097681056664,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.003933225532521512,
+                "fairness_mm": 0.03860423711315328,
+                "competitiveness": 0.0,
+                "population_equality": 0.0013160795306860393
+              },
+              "worst_delta": -0.06437424014628734,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.5,
+              "kept_fraction": 0.50505,
+              "n_kept": 10101,
+              "n_excluded": 9899,
+              "delta": {
+                "compactness_pp": 0.5426429650088604,
+                "county_integrity": 0.2860138562734784,
+                "fairness_eg": 0.06101543418444111,
+                "fairness_mm": 0.05190118443982472,
+                "competitiveness": -0.061313534593663954,
+                "population_equality": -0.015512002379362677
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.46428541598928086,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.04500241622063808,
+                "fairness_mm": 0.06524227301091301,
+                "competitiveness": 0.0,
+                "population_equality": -0.01645099413357549
+              },
+              "worst_delta": -0.061313534593663954,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.75,
+              "kept_fraction": 0.25025,
+              "n_kept": 5005,
+              "n_excluded": 14995,
+              "delta": {
+                "compactness_pp": 0.568627651108478,
+                "county_integrity": 0.30284232606339967,
+                "fairness_eg": 0.06691193434774623,
+                "fairness_mm": 0.06957048286824885,
+                "competitiveness": -0.07250463441193689,
+                "population_equality": -0.01872327072727209
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.7619066863032603,
+                "county_integrity": 0.3372453797382976,
+                "fairness_eg": 0.062328705336526576,
+                "fairness_mm": 0.11135759226260686,
+                "competitiveness": 0.0,
+                "population_equality": -0.030927868971121927
+              },
+              "worst_delta": -0.07250463441193689,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.9,
+              "kept_fraction": 0.1023,
+              "n_kept": 2046,
+              "n_excluded": 17954,
+              "delta": {
+                "compactness_pp": 0.6285060409076264,
+                "county_integrity": 0.30819773917726745,
+                "fairness_eg": 0.0740079105166227,
+                "fairness_mm": 0.11796084508787574,
+                "competitiveness": -0.09107738239713503,
+                "population_equality": -0.043620652801103166
+              },
+              "median_shift_sd": {
+                "compactness_pp": 1.056910631908258,
+                "county_integrity": 0.3372453797382976,
+                "fairness_eg": 0.06387185039034442,
+                "fairness_mm": 0.2612894036627617,
+                "competitiveness": 0.0,
+                "population_equality": -0.07633261277979028
+              },
+              "worst_delta": -0.09107738239713503,
+              "worst_criterion": "competitiveness"
+            }
+          ],
+          "worst_delta_at_realistic": -0.061313534593663954,
+          "worst_delta_anywhere": -0.09107738239713503,
+          "binds": false,
+          "binds_at_realistic": false,
+          "decorative": true,
+          "strictest_kept_fraction": 0.1023,
+          "n_levels_refused": 0,
+          "distinct_cuts": 5,
+          "raw_medians": {
+            "criterion_median_all": 705.0,
+            "criterion_median_strictest": 612.0
+          },
+          "measure": "Cliffs delta, kept vs excluded; negative means the kept plans are worse on the displaced criterion",
+          "null": {
+            "n": 60,
+            "median": -0.04300958210680905,
+            "p05": -0.10702067333800036
+          },
+          "clears_null": false
+        },
+        {
+          "criterion": "county_integrity",
+          "distinct_values": 21,
+          "levels": [
+            {
+              "tightening": 0.0,
+              "kept_fraction": 1.0,
+              "n_kept": 20000,
+              "delta": {
+                "compactness_pp": 0.0,
+                "compactness_cut": 0.0,
+                "fairness_eg": 0.0,
+                "fairness_mm": 0.0,
+                "competitiveness": 0.0,
+                "population_equality": 0.0
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.0,
+                "compactness_cut": 0.0,
+                "fairness_eg": 0.0,
+                "fairness_mm": 0.0,
+                "competitiveness": 0.0,
+                "population_equality": 0.0
+              },
+              "worst_delta": 0.0,
+              "worst_criterion": null
+            },
+            {
+              "tightening": 0.25,
+              "kept_fraction": 0.76825,
+              "n_kept": 15365,
+              "n_excluded": 4635,
+              "delta": {
+                "compactness_pp": 0.3768180600708191,
+                "compactness_cut": 0.29861217388740213,
+                "fairness_eg": 0.15249254125871325,
+                "fairness_mm": 0.028037762170499914,
+                "competitiveness": -0.12272367009036844,
+                "population_equality": 0.0055251027584442
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.15334489212873373,
+                "compactness_cut": 0.13160795306860393,
+                "fairness_eg": 0.05176354478201635,
+                "fairness_mm": 0.013689858219906266,
+                "competitiveness": 0.0,
+                "population_equality": 0.001974119296029059
+              },
+              "worst_delta": -0.12272367009036844,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.5,
+              "kept_fraction": 0.52465,
+              "n_kept": 10493,
+              "n_excluded": 9507,
+              "delta": {
+                "compactness_pp": 0.34189217551366413,
+                "compactness_cut": 0.28644452054273395,
+                "fairness_eg": 0.11826701680166618,
+                "fairness_mm": 0.00786989770767943,
+                "competitiveness": -0.09301900175357203,
+                "population_equality": -0.01786885006138572
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.29256230332021216,
+                "compactness_cut": 0.24676491200363238,
+                "fairness_eg": 0.08978950987562735,
+                "fairness_mm": 0.003645326662113048,
+                "competitiveness": 0.0,
+                "population_equality": -0.011186676010831335
+              },
+              "worst_delta": -0.09301900175357203,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.75,
+              "kept_fraction": 0.25245,
+              "n_kept": 5049,
+              "n_excluded": 14951,
+              "delta": {
+                "compactness_pp": 0.33402640081319857,
+                "compactness_cut": 0.29284767687471414,
+                "fairness_eg": 0.0902401995856299,
+                "fairness_mm": 0.02300824271811841,
+                "competitiveness": -0.13439818108402146,
+                "population_equality": -0.02438111722165115
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.44798202774657037,
+                "compactness_cut": 0.37837286507223633,
+                "fairness_eg": 0.11864273367259151,
+                "fairness_mm": 0.05036536981198625,
+                "competitiveness": -0.6744907594765952,
+                "population_equality": -0.05593338005415668
+              },
+              "worst_delta": -0.13439818108402146,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.9,
+              "kept_fraction": 0.1352,
+              "n_kept": 2704,
+              "n_excluded": 17296,
+              "delta": {
+                "compactness_pp": 0.3670308557165456,
+                "compactness_cut": 0.3275264332417387,
+                "fairness_eg": 0.0852063864340491,
+                "fairness_mm": 0.005716040990426441,
+                "competitiveness": -0.14335158554975946,
+                "population_equality": -0.02565194469836718
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.5575439770562712,
+                "compactness_cut": 0.49352982400726475,
+                "fairness_eg": 0.13754087751771754,
+                "fairness_mm": 0.029283496647736582,
+                "competitiveness": -0.6744907594765952,
+                "population_equality": -0.07468751336643273
+              },
+              "worst_delta": -0.14335158554975946,
+              "worst_criterion": "competitiveness"
+            }
+          ],
+          "worst_delta_at_realistic": -0.09301900175357203,
+          "worst_delta_anywhere": -0.14335158554975946,
+          "binds": false,
+          "binds_at_realistic": false,
+          "decorative": true,
+          "strictest_kept_fraction": 0.1352,
+          "n_levels_refused": 0,
+          "distinct_cuts": 5,
+          "raw_medians": {
+            "criterion_median_all": 22.0,
+            "criterion_median_strictest": 19.0
+          },
+          "measure": "Cliffs delta, kept vs excluded; negative means the kept plans are worse on the displaced criterion",
+          "null": {
+            "n": 60,
+            "median": -0.05499655493762623,
+            "p05": -0.1211425864105119
+          },
+          "clears_null": true
+        },
+        {
+          "criterion": "fairness_eg",
+          "distinct_values": 9850,
+          "levels": [
+            {
+              "tightening": 0.0,
+              "kept_fraction": 1.0,
+              "n_kept": 20000,
+              "delta": {
+                "compactness_pp": 0.0,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_mm": 0.0,
+                "competitiveness": 0.0,
+                "population_equality": 0.0
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.0,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_mm": 0.0,
+                "competitiveness": 0.0,
+                "population_equality": 0.0
+              },
+              "worst_delta": 0.0,
+              "worst_criterion": null
+            },
+            {
+              "tightening": 0.25,
+              "kept_fraction": 0.7501,
+              "n_kept": 15002,
+              "n_excluded": 4998,
+              "delta": {
+                "compactness_pp": 0.060300029890639095,
+                "compactness_cut": -0.013699267201881415,
+                "county_integrity": 0.10296218207320251,
+                "fairness_mm": 0.14453180285579093,
+                "competitiveness": -0.15288425728910415,
+                "population_equality": 0.031177769067899153
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.02432897035966606,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_mm": 0.0598645527554115,
+                "competitiveness": 0.0,
+                "population_equality": 0.016780014016247003
+              },
+              "worst_delta": -0.15288425728910415,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.5,
+              "kept_fraction": 0.5,
+              "n_kept": 10000,
+              "n_excluded": 10000,
+              "delta": {
+                "compactness_pp": 0.08614491999999996,
+                "compactness_cut": 0.05543882999999994,
+                "county_integrity": 0.1684750100000001,
+                "fairness_mm": 0.05898880000000006,
+                "competitiveness": -0.08408126999999999,
+                "population_equality": 0.035022169999999964
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.08604015281991896,
+                "compactness_cut": 0.08225497066787746,
+                "county_integrity": 0.0,
+                "fairness_mm": 0.03214349030700525,
+                "competitiveness": 0.0,
+                "population_equality": 0.03290198826715098
+              },
+              "worst_delta": -0.08408126999999999,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.75,
+              "kept_fraction": 0.25,
+              "n_kept": 5000,
+              "n_excluded": 15000,
+              "delta": {
+                "compactness_pp": 0.06356906666666662,
+                "compactness_cut": 0.09390776,
+                "county_integrity": 0.04187472000000003,
+                "fairness_mm": 0.031505813333333244,
+                "competitiveness": -0.07903609333333328,
+                "population_equality": 0.021772173333333367
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.08956585660646446,
+                "compactness_cut": 0.16450994133575492,
+                "county_integrity": 0.0,
+                "fairness_mm": 0.02577501910211378,
+                "competitiveness": 0.0,
+                "population_equality": 0.038824346155238165
+              },
+              "worst_delta": -0.07903609333333328,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.9,
+              "kept_fraction": 0.1,
+              "n_kept": 2000,
+              "n_excluded": 18000,
+              "delta": {
+                "compactness_pp": 0.10636472222222215,
+                "compactness_cut": 0.147371861111111,
+                "county_integrity": 0.06925030555555556,
+                "fairness_mm": 0.0963641111111111,
+                "competitiveness": -0.10050916666666665,
+                "population_equality": 0.031579500000000094
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.17764182993214486,
+                "compactness_cut": 0.24676491200363238,
+                "county_integrity": 0.0,
+                "fairness_mm": 0.19245447321520046,
+                "competitiveness": -0.6744907594765952,
+                "population_equality": 0.030927868971121927
+              },
+              "worst_delta": -0.10050916666666665,
+              "worst_criterion": "competitiveness"
+            }
+          ],
+          "worst_delta_at_realistic": -0.08408126999999999,
+          "worst_delta_anywhere": -0.15288425728910415,
+          "binds": true,
+          "binds_at_realistic": false,
+          "decorative": false,
+          "strictest_kept_fraction": 0.1,
+          "n_levels_refused": 0,
+          "distinct_cuts": 5,
+          "raw_medians": {
+            "criterion_median_all": 0.017767664397046475,
+            "criterion_median_strictest": 0.0016492797792587409
+          },
+          "measure": "Cliffs delta, kept vs excluded; negative means the kept plans are worse on the displaced criterion",
+          "null": {
+            "n": 60,
+            "median": -0.06640083333333335,
+            "p05": -0.12008750000000001
+          },
+          "clears_null": true
+        },
+        {
+          "criterion": "fairness_mm",
+          "distinct_values": 19462,
+          "levels": [
+            {
+              "tightening": 0.0,
+              "kept_fraction": 1.0,
+              "n_kept": 20000,
+              "delta": {
+                "compactness_pp": 0.0,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.0,
+                "competitiveness": 0.0,
+                "population_equality": 0.0
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.0,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.0,
+                "competitiveness": 0.0,
+                "population_equality": 0.0
+              },
+              "worst_delta": 0.0,
+              "worst_criterion": null
+            },
+            {
+              "tightening": 0.25,
+              "kept_fraction": 0.75,
+              "n_kept": 15000,
+              "n_excluded": 5000,
+              "delta": {
+                "compactness_pp": 0.011698266666666735,
+                "compactness_cut": 0.05043358666666675,
+                "county_integrity": 0.018222253333333382,
+                "fairness_eg": 0.09745850666666667,
+                "competitiveness": -0.4569636,
+                "population_equality": -0.009802439999999968
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.005084287042991907,
+                "compactness_cut": 0.01645099413357549,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.022831369377647556,
+                "competitiveness": 0.0,
+                "population_equality": -0.005922357888087177
+              },
+              "worst_delta": -0.4569636,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.5,
+              "kept_fraction": 0.5,
+              "n_kept": 10000,
+              "n_excluded": 10000,
+              "delta": {
+                "compactness_pp": 0.038622479999999904,
+                "compactness_cut": 0.07973373000000006,
+                "county_integrity": 0.017232579999999942,
+                "fairness_eg": 0.06840415000000011,
+                "competitiveness": -0.30605655,
+                "population_equality": -0.007104820000000012
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.03831257456029422,
+                "compactness_cut": 0.06580397653430196,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.019852740552836517,
+                "competitiveness": -0.6744907594765952,
+                "population_equality": -0.013818835072203413
+              },
+              "worst_delta": -0.30605655,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.75,
+              "kept_fraction": 0.25005,
+              "n_kept": 5001,
+              "n_excluded": 14999,
+              "delta": {
+                "compactness_pp": 0.05531650520352627,
+                "compactness_cut": 0.06542677063627211,
+                "county_integrity": 0.024240914867896368,
+                "fairness_eg": 0.08837861736273322,
+                "competitiveness": -0.23352149358114238,
+                "population_equality": -0.015177816493505136
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.07349436072103836,
+                "compactness_cut": 0.06580397653430196,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.06085015705240359,
+                "competitiveness": -0.6744907594765952,
+                "population_equality": -0.028953749675092868
+              },
+              "worst_delta": -0.23352149358114238,
+              "worst_criterion": "competitiveness"
+            },
+            {
+              "tightening": 0.9,
+              "kept_fraction": 0.1,
+              "n_kept": 2000,
+              "n_excluded": 18000,
+              "delta": {
+                "compactness_pp": -0.0016490000000000116,
+                "compactness_cut": 0.031595472222222254,
+                "county_integrity": -0.006754000000000038,
+                "fairness_eg": 0.07316727777777787,
+                "competitiveness": -0.18557563888888884,
+                "population_equality": 0.006909111111111033
+              },
+              "median_shift_sd": {
+                "compactness_pp": -0.020885317457426153,
+                "compactness_cut": 0.01645099413357549,
+                "county_integrity": -0.3372453797382976,
+                "fairness_eg": 0.056651367022248336,
+                "competitiveness": -0.6744907594765952,
+                "population_equality": -0.004277258474729628
+              },
+              "worst_delta": -0.18557563888888884,
+              "worst_criterion": "competitiveness"
+            }
+          ],
+          "worst_delta_at_realistic": -0.30605655,
+          "worst_delta_anywhere": -0.4569636,
+          "binds": true,
+          "binds_at_realistic": true,
+          "decorative": false,
+          "strictest_kept_fraction": 0.1,
+          "n_levels_refused": 0,
+          "distinct_cuts": 5,
+          "raw_medians": {
+            "criterion_median_all": 0.013833122092476946,
+            "criterion_median_strictest": 0.001270327366039825
+          },
+          "measure": "Cliffs delta, kept vs excluded; negative means the kept plans are worse on the displaced criterion",
+          "null": {
+            "n": 60,
+            "median": -0.0440072777777778,
+            "p05": -0.07708083333333338
+          },
+          "clears_null": true
+        },
+        {
+          "criterion": "competitiveness",
+          "distinct_values": 7,
+          "levels": [
+            {
+              "tightening": 0.0,
+              "kept_fraction": 1.0,
+              "n_kept": 20000,
+              "delta": {
+                "compactness_pp": 0.0,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.0,
+                "fairness_mm": 0.0,
+                "population_equality": 0.0
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.0,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.0,
+                "fairness_mm": 0.0,
+                "population_equality": 0.0
+              },
+              "worst_delta": 0.0,
+              "worst_criterion": null
+            },
+            {
+              "tightening": 0.25,
+              "kept_fraction": 0.8901,
+              "n_kept": 17802,
+              "n_excluded": 2198,
+              "delta": {
+                "compactness_pp": 0.022747339325237537,
+                "compactness_cut": -0.05021764533720896,
+                "county_integrity": -0.23528855832926732,
+                "fairness_eg": -0.05893076802056474,
+                "fairness_mm": -0.14021402549672113,
+                "population_equality": 0.0054593041912149864
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.002711330280777183,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": -0.009825886412448736,
+                "fairness_mm": -0.02341495802634453,
+                "population_equality": 0.0
+              },
+              "worst_delta": -0.23528855832926732,
+              "worst_criterion": "county_integrity"
+            },
+            {
+              "tightening": 0.5,
+              "kept_fraction": 0.57805,
+              "n_kept": 11561,
+              "n_excluded": 8439,
+              "delta": {
+                "compactness_pp": 0.014325564027014792,
+                "compactness_cut": -0.05945733947707932,
+                "county_integrity": -0.1340041881946178,
+                "fairness_eg": -0.12815045914969714,
+                "fairness_mm": -0.2919646540375094,
+                "population_equality": 0.004696500616794497
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.00613552963878202,
+                "compactness_cut": -0.03290198826715098,
+                "county_integrity": -0.3372453797382976,
+                "fairness_eg": -0.06458241485698606,
+                "fairness_mm": -0.24940339754432977,
+                "population_equality": 0.011186676010831335
+              },
+              "worst_delta": -0.2919646540375094,
+              "worst_criterion": "fairness_mm"
+            },
+            {
+              "tightening": 0.75,
+              "kept_fraction": 0.57805,
+              "n_kept": 11561,
+              "n_excluded": 8439,
+              "delta": {
+                "compactness_pp": 0.014325564027014792,
+                "compactness_cut": -0.05945733947707932,
+                "county_integrity": -0.1340041881946178,
+                "fairness_eg": -0.12815045914969714,
+                "fairness_mm": -0.2919646540375094,
+                "population_equality": 0.004696500616794497
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.00613552963878202,
+                "compactness_cut": -0.03290198826715098,
+                "county_integrity": -0.3372453797382976,
+                "fairness_eg": -0.06458241485698606,
+                "fairness_mm": -0.24940339754432977,
+                "population_equality": 0.011186676010831335
+              },
+              "worst_delta": -0.2919646540375094,
+              "worst_criterion": "fairness_mm"
+            },
+            {
+              "tightening": 0.9,
+              "kept_fraction": 0.16775,
+              "n_kept": 3355,
+              "n_excluded": 16645,
+              "delta": {
+                "compactness_pp": -0.028193677115570637,
+                "compactness_cut": -0.11343700014191327,
+                "county_integrity": -0.07374996138795631,
+                "fairness_eg": -0.13954730120841152,
+                "fairness_mm": -0.6899643336635689,
+                "population_equality": -0.025421721859878343
+              },
+              "median_shift_sd": {
+                "compactness_pp": -0.04475970824382664,
+                "compactness_cut": -0.16450994133575492,
+                "county_integrity": -0.3372453797382976,
+                "fairness_eg": -0.2598799819006167,
+                "fairness_mm": -1.5965640083372976,
+                "population_equality": -0.038824346155238165
+              },
+              "worst_delta": -0.6899643336635689,
+              "worst_criterion": "fairness_mm"
+            }
+          ],
+          "worst_delta_at_realistic": -0.2919646540375094,
+          "worst_delta_anywhere": -0.6899643336635689,
+          "binds": true,
+          "binds_at_realistic": true,
+          "decorative": false,
+          "strictest_kept_fraction": 0.16775,
+          "n_levels_refused": 0,
+          "distinct_cuts": 4,
+          "raw_medians": {
+            "criterion_median_all": 3.0,
+            "criterion_median_strictest": 4.0
+          },
+          "measure": "Cliffs delta, kept vs excluded; negative means the kept plans are worse on the displaced criterion",
+          "null": {
+            "n": 60,
+            "median": -0.047727995723800154,
+            "p05": -0.10973489978104178
+          },
+          "clears_null": true
+        },
+        {
+          "criterion": "population_equality",
+          "distinct_values": 5141,
+          "levels": [
+            {
+              "tightening": 0.0,
+              "kept_fraction": 1.0,
+              "n_kept": 20000,
+              "delta": {
+                "compactness_pp": 0.0,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.0,
+                "fairness_mm": 0.0,
+                "competitiveness": 0.0
+              },
+              "median_shift_sd": {
+                "compactness_pp": 0.0,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.0,
+                "fairness_mm": 0.0,
+                "competitiveness": 0.0
+              },
+              "worst_delta": 0.0,
+              "worst_criterion": null
+            },
+            {
+              "tightening": 0.25,
+              "kept_fraction": 0.7503,
+              "n_kept": 15006,
+              "n_excluded": 4994,
+              "delta": {
+                "compactness_pp": -0.029677035873676205,
+                "compactness_cut": -0.031164399812094956,
+                "county_integrity": -0.015938398369126472,
+                "fairness_eg": 0.04897879321105636,
+                "fairness_mm": -0.01014446710969863,
+                "competitiveness": -0.0037397002219002884
+              },
+              "median_shift_sd": {
+                "compactness_pp": -0.013154378969517507,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.01858233741550754,
+                "fairness_mm": -0.0038267506238645467,
+                "competitiveness": 0.0
+              },
+              "worst_delta": -0.031164399812094956,
+              "worst_criterion": "compactness_cut"
+            },
+            {
+              "tightening": 0.5,
+              "kept_fraction": 0.5005,
+              "n_kept": 10010,
+              "n_excluded": 9990,
+              "delta": {
+                "compactness_pp": -0.017960557960557955,
+                "compactness_cut": -0.015487495487495506,
+                "county_integrity": -0.015185385185385147,
+                "fairness_eg": 0.036417226417226445,
+                "fairness_mm": -0.011215991215991261,
+                "competitiveness": 0.0034455434455433753
+              },
+              "median_shift_sd": {
+                "compactness_pp": -0.016869441173896507,
+                "compactness_cut": 0.0,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.021618385591158147,
+                "fairness_mm": -0.008675439126533327,
+                "competitiveness": 0.0
+              },
+              "worst_delta": -0.017960557960557955,
+              "worst_criterion": "compactness_pp"
+            },
+            {
+              "tightening": 0.75,
+              "kept_fraction": 0.25005,
+              "n_kept": 5001,
+              "n_excluded": 14999,
+              "delta": {
+                "compactness_pp": -0.007643794262682246,
+                "compactness_cut": -0.024502240028026145,
+                "county_integrity": -0.02129358780554047,
+                "fairness_eg": 0.027240728266107572,
+                "fairness_mm": 0.0046499000753219555,
+                "competitiveness": -0.005676376558810481
+              },
+              "median_shift_sd": {
+                "compactness_pp": -0.025128461560988313,
+                "compactness_cut": -0.01645099413357549,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.023297901603220345,
+                "fairness_mm": -0.005446164796461988,
+                "competitiveness": 0.0
+              },
+              "worst_delta": -0.024502240028026145,
+              "worst_criterion": "compactness_cut"
+            },
+            {
+              "tightening": 0.9,
+              "kept_fraction": 0.1,
+              "n_kept": 2000,
+              "n_excluded": 18000,
+              "delta": {
+                "compactness_pp": -0.02649927777777783,
+                "compactness_cut": -0.03170116666666667,
+                "county_integrity": -0.026654388888888936,
+                "fairness_eg": -5.01388888889398e-05,
+                "fairness_mm": -0.0004461111111111471,
+                "competitiveness": -0.011206555555555608
+              },
+              "median_shift_sd": {
+                "compactness_pp": -0.0572436361477594,
+                "compactness_cut": -0.03290198826715098,
+                "county_integrity": 0.0,
+                "fairness_eg": 0.00924451548519649,
+                "fairness_mm": -0.00723558374453944,
+                "competitiveness": 0.0
+              },
+              "worst_delta": -0.03170116666666667,
+              "worst_criterion": "compactness_cut"
+            }
+          ],
+          "worst_delta_at_realistic": -0.017960557960557955,
+          "worst_delta_anywhere": -0.03170116666666667,
+          "binds": false,
+          "binds_at_realistic": false,
+          "decorative": true,
+          "strictest_kept_fraction": 0.1,
+          "n_levels_refused": 0,
+          "distinct_cuts": 5,
+          "raw_medians": {
+            "criterion_median_all": 12054.0,
+            "criterion_median_strictest": 8685.0
+          },
+          "measure": "Cliffs delta, kept vs excluded; negative means the kept plans are worse on the displaced criterion",
+          "null": {
+            "n": 60,
+            "median": -0.03081025000000004,
+            "p05": -0.0772167777777778
+          },
+          "clears_null": false
+        }
+      ],
+      "replication": {
+        "contest": "G20USS",
+        "ranked": [
+          {
+            "rank": 1,
+            "criterion": "competitiveness",
+            "worst_delta": -0.6713076006969783,
+            "displaces": "fairness_mm",
+            "binds": true,
+            "binds_at_realistic": false
+          },
+          {
+            "rank": 2,
+            "criterion": "fairness_mm",
+            "worst_delta": -0.47214525333333335,
+            "displaces": "competitiveness",
+            "binds": true,
+            "binds_at_realistic": true
+          },
+          {
+            "rank": 3,
+            "criterion": "fairness_eg",
+            "worst_delta": -0.11390441544078433,
+            "displaces": "competitiveness",
+            "binds": false,
+            "binds_at_realistic": false
+          },
+          {
+            "rank": 4,
+            "criterion": "county_integrity",
+            "worst_delta": -0.0833126926087504,
+            "displaces": "competitiveness",
+            "binds": false,
+            "binds_at_realistic": false
+          },
+          {
+            "rank": 5,
+            "criterion": "compactness_cut",
+            "worst_delta": -0.04809116251493262,
+            "displaces": "competitiveness",
+            "binds": false,
+            "binds_at_realistic": false
+          },
+          {
+            "rank": 6,
+            "criterion": "compactness_pp",
+            "worst_delta": -0.04643070666666671,
+            "displaces": "fairness_eg",
+            "binds": false,
+            "binds_at_realistic": false
+          },
+          {
+            "rank": 7,
+            "criterion": "population_equality",
+            "worst_delta": -0.032139647144746375,
+            "displaces": "competitiveness",
+            "binds": false,
+            "binds_at_realistic": false
+          }
+        ],
+        "kendall_tau": 1.0,
+        "binds_agree": false
+      }
     }
   }
 }

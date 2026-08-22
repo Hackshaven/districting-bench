@@ -1,0 +1,4463 @@
+{
+  "master_seed": 20260821,
+  "ensemble": "v2",
+  "controls": {
+    "tradeoff": {
+      "expected": "tradeoff",
+      "got": {
+        "correlation": "tradeoff",
+        "conditional": "tradeoff",
+        "achievability": "tradeoff"
+      }
+    },
+    "independent": {
+      "expected": "none",
+      "got": {
+        "correlation": "none",
+        "conditional": "none",
+        "achievability": "none"
+      }
+    },
+    "synergy": {
+      "expected": "none",
+      "got": {
+        "correlation": "none",
+        "conditional": "none",
+        "achievability": "none"
+      }
+    },
+    "discrete_tradeoff": {
+      "expected": "anything but 'none'",
+      "got": {
+        "correlation": "tradeoff",
+        "conditional": "degenerate",
+        "achievability": "tradeoff"
+      }
+    },
+    "conclusion": "each of the three tests returned 'tradeoff' on synthetic tradeoff data and 'none' on both independent and synergistic data, so each can produce either verdict and none is a constant; and on a perfect tradeoff between a continuous criterion and a three-valued one, no test denied it -- the regime in which the conditional test was previously a proven constant"
+  },
+  "states": {
+    "IA": {
+      "state": "IA",
+      "config": {
+        "k": 4,
+        "epsilon": 0.0002,
+        "chains": 12,
+        "steps": 12000,
+        "master_seed": 20260821,
+        "node_repeats": 0,
+        "primary_contest": "G20PRE",
+        "alternate_contest": "G20USS",
+        "columns": {
+          "G20PRE": [
+            "G20PREDBID",
+            "G20PRERTRU"
+          ],
+          "G20USS": [
+            "G20USSDGRE",
+            "G20USSRERN"
+          ]
+        },
+        "county_prefix_len": null,
+        "config_digest": "9c12c12b71d67878"
+      },
+      "ensemble": {
+        "n_requested": 144000,
+        "n_completed_draws": 57553,
+        "chain_failures": 10,
+        "failure_rate": 0.8333333333333334,
+        "chains": [
+          {
+            "seed": 4598121023295815364,
+            "draws": 12000,
+            "failure": null,
+            "completed": true
+          },
+          {
+            "seed": 2886321513896777121,
+            "draws": 8133,
+            "failure": "recorded in the draws file as failed",
+            "completed": false
+          },
+          {
+            "seed": 4721323868467649745,
+            "draws": 6495,
+            "failure": "recorded in the draws file as failed",
+            "completed": false
+          },
+          {
+            "seed": 8578766234884288292,
+            "draws": 4282,
+            "failure": "recorded in the draws file as failed",
+            "completed": false
+          },
+          {
+            "seed": 8458559163655332203,
+            "draws": 0,
+            "failure": "recorded in the draws file as failed",
+            "completed": false
+          },
+          {
+            "seed": 5253085204740225123,
+            "draws": 4594,
+            "failure": "recorded in the draws file as failed",
+            "completed": false
+          },
+          {
+            "seed": 6021033162876088556,
+            "draws": 12000,
+            "failure": null,
+            "completed": true
+          },
+          {
+            "seed": 8181738652657340395,
+            "draws": 0,
+            "failure": "recorded in the draws file as failed",
+            "completed": false
+          },
+          {
+            "seed": 1491668099493327661,
+            "draws": 1863,
+            "failure": "recorded in the draws file as failed",
+            "completed": false
+          },
+          {
+            "seed": 4674702755440810699,
+            "draws": 1,
+            "failure": "recorded in the draws file as failed",
+            "completed": false
+          },
+          {
+            "seed": 5344298679110264931,
+            "draws": 8136,
+            "failure": "recorded in the draws file as failed",
+            "completed": false
+          },
+          {
+            "seed": 3911660532335731725,
+            "draws": 49,
+            "failure": "recorded in the draws file as failed",
+            "completed": false
+          }
+        ],
+        "analysis_sample": {
+          "sample": "completed_chains",
+          "n_chains": 2,
+          "n_draws": 24000
+        }
+      },
+      "convergence": {
+        "sample": "completed_chains",
+        "n_chains": 2,
+        "n_draws_per_chain": [
+          12000,
+          12000
+        ],
+        "n_draws_total": 24000,
+        "metrics": {
+          "compactness_cut": {
+            "split_rhat": 1.015220081333078,
+            "ess": 164.7523486254905,
+            "n_draws_used": 24000
+          },
+          "fairness_eg": {
+            "split_rhat": 1.0140976848485543,
+            "ess": 147.2393923039204,
+            "n_draws_used": 24000
+          },
+          "population_equality": {
+            "split_rhat": 1.0175770002249098,
+            "ess": 238.3825363649047,
+            "n_draws_used": 24000
+          }
+        }
+      },
+      "criteria": {
+        "varying": [
+          "compactness_pp",
+          "compactness_cut",
+          "fairness_eg",
+          "fairness_mm",
+          "competitiveness",
+          "population_equality"
+        ],
+        "degenerate": {
+          "county_integrity": {
+            "constant_value": 0.0,
+            "reason": "units are the subdivisions, so no plan over them can split one"
+          }
+        },
+        "definitions": {
+          "compactness_pp": {
+            "row_key": "polsby_popper_mean",
+            "direction": 1,
+            "statement": "mean Polsby-Popper over districts"
+          },
+          "compactness_cut": {
+            "row_key": "cut_edges",
+            "direction": -1,
+            "statement": "cut edges on the rook graph"
+          },
+          "county_integrity": {
+            "row_key": "county_splits",
+            "direction": -1,
+            "statement": "counties divided between districts"
+          },
+          "fairness_eg": {
+            "row_key": "abs_efficiency_gap@G20PRE",
+            "direction": -1,
+            "statement": "|efficiency gap|, two-party"
+          },
+          "fairness_mm": {
+            "row_key": "abs_mean_median@G20PRE",
+            "direction": -1,
+            "statement": "|mean-median|, two-party"
+          },
+          "competitiveness": {
+            "row_key": "competitive_districts@G20PRE",
+            "direction": 1,
+            "statement": "districts inside 45-55% two-party D share"
+          },
+          "population_equality": {
+            "row_key": "population_spread",
+            "direction": -1,
+            "statement": "max-min district population, persons"
+          }
+        }
+      },
+      "pairs": [
+        {
+          "a": "compactness_pp",
+          "b": "compactness_cut",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.7868945907224968,
+              "ci_low": 0.7290521489312357,
+              "ci_high": 0.8401303404188439,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.6744907594765952,
+              "p": 1.0,
+              "decile_n": 2408,
+              "attainable_effect": -1.7986420252709205,
+              "top_decile_median": -42.0,
+              "ensemble_median": -45.0,
+              "robust_sd": 4.4478,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.276875,
+              "expected_if_independent": 0.12384647916666666,
+              "ratio": 2.235630773381897,
+              "n_joint": 6645,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 3396,
+            "n_frontier": 4,
+            "frontier_fraction": 0.001177856301531213,
+            "best_a": 0.4005297604759842,
+            "best_b": -39.0,
+            "b_at_best_a": -42.0,
+            "a_at_best_b": 0.367394646097438
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "compactness_cut",
+          "b": "compactness_pp",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.7868945907224968,
+              "ci_low": 0.7290521489312357,
+              "ci_high": 0.8401303404188439,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.8414709427692387,
+              "p": 1.0,
+              "decile_n": 3984,
+              "attainable_effect": -1.7525463058593864,
+              "top_decile_median": 0.3591056470511964,
+              "ensemble_median": 0.33240649023383695,
+              "robust_sd": 0.03172914887529434,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.276875,
+              "expected_if_independent": 0.12384647916666666,
+              "ratio": 2.235630773381897,
+              "n_joint": 6645,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 3396,
+            "n_frontier": 4,
+            "frontier_fraction": 0.001177856301531213,
+            "best_a": -39.0,
+            "best_b": 0.4005297604759842,
+            "b_at_best_a": 0.367394646097438,
+            "a_at_best_b": -42.0
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "compactness_pp",
+          "b": "fairness_eg",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.08184300658631284,
+              "ci_low": -0.1211260341306407,
+              "ci_high": -0.022783073930902207,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": -0.04134232637820887,
+              "p": 0.5974025974025974,
+              "decile_n": 2408,
+              "attainable_effect": -0.8807597540402475,
+              "top_decile_median": -0.1645412990506014,
+              "ensemble_median": -0.16425941898905858,
+              "robust_sd": 0.006818195448512228,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.07645833333333334,
+              "expected_if_independent": 0.11180643055555554,
+              "ratio": 0.6838455798420461,
+              "n_joint": 1835,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 3396,
+            "n_frontier": 10,
+            "frontier_fraction": 0.002944640753828033,
+            "best_a": 0.4005297604759842,
+            "best_b": -0.07610701301899582,
+            "b_at_best_a": -0.1645412990506014,
+            "a_at_best_b": 0.27111617584831427
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "fairness_eg",
+          "b": "compactness_pp",
+          "verdict": "weak",
+          "votes": 1,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.08184300658631284,
+              "ci_low": -0.1211260341306407,
+              "ci_high": -0.022783073930902207,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "tradeoff",
+              "effect": -0.338980592437286,
+              "p": 0.001998001998001998,
+              "decile_n": 2400,
+              "attainable_effect": -1.7525463058593864,
+              "top_decile_median": 0.3216509245505588,
+              "ensemble_median": 0.33240649023383695,
+              "robust_sd": 0.03172914887529434,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.008562865705722848,
+              "fires_after_correction": true
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.07645833333333334,
+              "expected_if_independent": 0.11180643055555554,
+              "ratio": 0.6838455798420461,
+              "n_joint": 1835,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 3396,
+            "n_frontier": 10,
+            "frontier_fraction": 0.002944640753828033,
+            "best_a": -0.07610701301899582,
+            "best_b": 0.4005297604759842,
+            "b_at_best_a": 0.27111617584831427,
+            "a_at_best_b": -0.1645412990506014
+          },
+          "verdict_uncorrected": "weak"
+        },
+        {
+          "a": "compactness_pp",
+          "b": "fairness_mm",
+          "verdict": "weak",
+          "votes": 2,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "tradeoff",
+              "rho": -0.14226167259098216,
+              "ci_low": -0.16155406776593279,
+              "ci_high": -0.12130543694833644,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "tradeoff",
+              "effect": -0.5018421141575019,
+              "p": 0.000999000999000999,
+              "decile_n": 2408,
+              "attainable_effect": -2.062198676125777,
+              "top_decile_median": -0.02320193325687714,
+              "ensemble_median": -0.019019526292055416,
+              "robust_sd": 0.00833410916866392,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.007492507492507492,
+              "fires_after_correction": true
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.125125,
+              "expected_if_independent": 0.1116111111111111,
+              "ratio": 1.1210801393728222,
+              "n_joint": 3003,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 3396,
+            "n_frontier": 12,
+            "frontier_fraction": 0.0035335689045936395,
+            "best_a": 0.4005297604759842,
+            "best_b": -4.105951285804377e-06,
+            "b_at_best_a": -0.02281964382430207,
+            "a_at_best_b": 0.25648883539639
+          },
+          "verdict_uncorrected": "weak"
+        },
+        {
+          "a": "fairness_mm",
+          "b": "compactness_pp",
+          "verdict": "weak",
+          "votes": 2,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "tradeoff",
+              "rho": -0.14226167259098216,
+              "ci_low": -0.16155406776593279,
+              "ci_high": -0.12130543694833644,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "tradeoff",
+              "effect": -0.5478378288540313,
+              "p": 0.000999000999000999,
+              "decile_n": 2407,
+              "attainable_effect": -1.7525463058593864,
+              "top_decile_median": 0.31502406220260937,
+              "ensemble_median": 0.33240649023383695,
+              "robust_sd": 0.03172914887529434,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.007492507492507492,
+              "fires_after_correction": true
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.125125,
+              "expected_if_independent": 0.1116111111111111,
+              "ratio": 1.1210801393728222,
+              "n_joint": 3003,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 3396,
+            "n_frontier": 12,
+            "frontier_fraction": 0.0035335689045936395,
+            "best_a": -4.105951285804377e-06,
+            "best_b": 0.4005297604759842,
+            "b_at_best_a": 0.25648883539639,
+            "a_at_best_b": -0.02281964382430207
+          },
+          "verdict_uncorrected": "weak"
+        },
+        {
+          "a": "compactness_pp",
+          "b": "competitiveness",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.29054647878626016,
+              "ci_low": 0.24599396673697246,
+              "ci_high": 0.32215614822856126,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.0,
+              "p": 1.0,
+              "decile_n": 2408,
+              "attainable_effect": -1.9943350557497788,
+              "top_decile_median": 3.0,
+              "ensemble_median": 3.0,
+              "robust_sd": 0.5014202589063179,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.231625,
+              "expected_if_independent": 0.18389325694444442,
+              "ratio": 1.2595622256555916,
+              "n_joint": 5559,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 3396,
+            "n_frontier": 1,
+            "frontier_fraction": 0.0002944640753828033,
+            "best_a": 0.4005297604759842,
+            "best_b": 3.0,
+            "b_at_best_a": 3.0,
+            "a_at_best_b": 0.4005297604759842
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "competitiveness",
+          "b": "compactness_pp",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.29054647878626016,
+              "ci_low": 0.24599396673697246,
+              "ci_high": 0.32215614822856126,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.2288726946333976,
+              "p": 1.0,
+              "decile_n": 13181,
+              "attainable_effect": -1.7525463058593864,
+              "top_decile_median": 0.3396684260353498,
+              "ensemble_median": 0.33240649023383695,
+              "robust_sd": 0.03172914887529434,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.231625,
+              "expected_if_independent": 0.18389325694444442,
+              "ratio": 1.2595622256555916,
+              "n_joint": 5559,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 3396,
+            "n_frontier": 1,
+            "frontier_fraction": 0.0002944640753828033,
+            "best_a": 3.0,
+            "best_b": 0.4005297604759842,
+            "b_at_best_a": 0.4005297604759842,
+            "a_at_best_b": 3.0
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "compactness_pp",
+          "b": "population_equality",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.006512839651397878,
+              "ci_low": -0.009120781002254745,
+              "ci_high": 0.006512839651397878,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.13160795306860393,
+              "p": 0.958041958041958,
+              "decile_n": 2408,
+              "attainable_effect": -1.2009225717510108,
+              "top_decile_median": -208.0,
+              "ensemble_median": -216.0,
+              "robust_sd": 60.7866,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.11045833333333334,
+              "expected_if_independent": 0.11285278472222222,
+              "ratio": 0.9787825227814925,
+              "n_joint": 2651,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 3396,
+            "n_frontier": 6,
+            "frontier_fraction": 0.0017667844522968198,
+            "best_a": 0.4005297604759842,
+            "best_b": -12.0,
+            "b_at_best_a": -208.0,
+            "a_at_best_b": 0.29761310139482294
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "population_equality",
+          "b": "compactness_pp",
+          "verdict": "weak",
+          "votes": 1,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.006512839651397878,
+              "ci_low": -0.009120781002254745,
+              "ci_high": 0.006512839651397878,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "tradeoff",
+              "effect": -0.47360647508190845,
+              "p": 0.000999000999000999,
+              "decile_n": 2763,
+              "attainable_effect": -1.7525463058593864,
+              "top_decile_median": 0.3173793598776597,
+              "ensemble_median": 0.33240649023383695,
+              "robust_sd": 0.03172914887529434,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.007492507492507492,
+              "fires_after_correction": true
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.11045833333333334,
+              "expected_if_independent": 0.11285278472222222,
+              "ratio": 0.9787825227814925,
+              "n_joint": 2651,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 3396,
+            "n_frontier": 6,
+            "frontier_fraction": 0.0017667844522968198,
+            "best_a": -12.0,
+            "best_b": 0.4005297604759842,
+            "b_at_best_a": 0.29761310139482294,
+            "a_at_best_b": -208.0
+          },
+          "verdict_uncorrected": "weak"
+        },
+        {
+          "a": "compactness_cut",
+          "b": "fairness_eg",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.09002065009076587,
+              "ci_low": -0.09711775321768651,
+              "ci_high": -0.07377103426130227,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": -0.04275876582585767,
+              "p": 0.006993006993006993,
+              "decile_n": 3984,
+              "attainable_effect": -0.8807597540402475,
+              "top_decile_median": -0.16455095661159644,
+              "ensemble_median": -0.16425941898905858,
+              "robust_sd": 0.006818195448512228,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.026223776223776224,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.10929166666666666,
+              "expected_if_independent": 0.12350742708333333,
+              "ratio": 0.8848995501535712,
+              "n_joint": 2623,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2310,
+            "n_frontier": 9,
+            "frontier_fraction": 0.003896103896103896,
+            "best_a": -39.0,
+            "best_b": -0.07610701301899582,
+            "b_at_best_a": -0.16497709649050268,
+            "a_at_best_b": -50.0
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "fairness_eg",
+          "b": "compactness_cut",
+          "verdict": "weak",
+          "votes": 1,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.09002065009076587,
+              "ci_low": -0.09711775321768651,
+              "ci_high": -0.07377103426130227,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "tradeoff",
+              "effect": -0.44966050631773014,
+              "p": 0.001998001998001998,
+              "decile_n": 2400,
+              "attainable_effect": -1.7986420252709205,
+              "top_decile_median": -47.0,
+              "ensemble_median": -45.0,
+              "robust_sd": 4.4478,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.008562865705722848,
+              "fires_after_correction": true
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.10929166666666666,
+              "expected_if_independent": 0.12350742708333333,
+              "ratio": 0.8848995501535712,
+              "n_joint": 2623,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2310,
+            "n_frontier": 9,
+            "frontier_fraction": 0.003896103896103896,
+            "best_a": -0.07610701301899582,
+            "best_b": -39.0,
+            "b_at_best_a": -50.0,
+            "a_at_best_b": -0.16497709649050268
+          },
+          "verdict_uncorrected": "weak"
+        },
+        {
+          "a": "compactness_cut",
+          "b": "fairness_mm",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.01279580941900333,
+              "ci_low": -0.04433989160664666,
+              "ci_high": 0.0048606742534133265,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.6744907594765952,
+              "p": 0.999000999000999,
+              "decile_n": 3984,
+              "attainable_effect": -2.062198676125777,
+              "top_decile_median": -0.013398246669322433,
+              "ensemble_median": -0.019019526292055416,
+              "robust_sd": 0.00833410916866392,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.14104166666666668,
+              "expected_if_independent": 0.12329166666666666,
+              "ratio": 1.143967556606962,
+              "n_joint": 3385,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2857,
+            "n_frontier": 10,
+            "frontier_fraction": 0.0035001750087504373,
+            "best_a": -39.0,
+            "best_b": -4.105951285804377e-06,
+            "b_at_best_a": -0.01744514095386046,
+            "a_at_best_b": -55.0
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "fairness_mm",
+          "b": "compactness_cut",
+          "verdict": "weak",
+          "votes": 1,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.01279580941900333,
+              "ci_low": -0.04433989160664666,
+              "ci_high": 0.0048606742534133265,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "tradeoff",
+              "effect": -0.6744907594765952,
+              "p": 0.001998001998001998,
+              "decile_n": 2407,
+              "attainable_effect": -1.7986420252709205,
+              "top_decile_median": -48.0,
+              "ensemble_median": -45.0,
+              "robust_sd": 4.4478,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.008562865705722848,
+              "fires_after_correction": true
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.14104166666666668,
+              "expected_if_independent": 0.12329166666666666,
+              "ratio": 1.143967556606962,
+              "n_joint": 3385,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2857,
+            "n_frontier": 10,
+            "frontier_fraction": 0.0035001750087504373,
+            "best_a": -4.105951285804377e-06,
+            "best_b": -39.0,
+            "b_at_best_a": -55.0,
+            "a_at_best_b": -0.01744514095386046
+          },
+          "verdict_uncorrected": "weak"
+        },
+        {
+          "a": "compactness_cut",
+          "b": "competitiveness",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.12111467473418767,
+              "ci_low": 0.050163093485667345,
+              "ci_high": 0.18722994939345722,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.0,
+              "p": 1.0,
+              "decile_n": 3984,
+              "attainable_effect": -1.9943350557497788,
+              "top_decile_median": 3.0,
+              "ensemble_median": 3.0,
+              "robust_sd": 0.5014202589063179,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.22775,
+              "expected_if_independent": 0.20313843229166667,
+              "ratio": 1.1211566291552155,
+              "n_joint": 5466,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 60,
+            "n_frontier": 1,
+            "frontier_fraction": 0.016666666666666666,
+            "best_a": -39.0,
+            "best_b": 3.0,
+            "b_at_best_a": 3.0,
+            "a_at_best_b": -39.0
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "competitiveness",
+          "b": "compactness_cut",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.12111467473418767,
+              "ci_low": 0.050163093485667345,
+              "ci_high": 0.18722994939345722,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.22483025315886507,
+              "p": 1.0,
+              "decile_n": 13181,
+              "attainable_effect": -1.7986420252709205,
+              "top_decile_median": -44.0,
+              "ensemble_median": -45.0,
+              "robust_sd": 4.4478,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.22775,
+              "expected_if_independent": 0.20313843229166667,
+              "ratio": 1.1211566291552155,
+              "n_joint": 5466,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 60,
+            "n_frontier": 1,
+            "frontier_fraction": 0.016666666666666666,
+            "best_a": 3.0,
+            "best_b": -39.0,
+            "b_at_best_a": -39.0,
+            "a_at_best_b": 3.0
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "compactness_cut",
+          "b": "population_equality",
+          "verdict": "weak",
+          "votes": 1,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.04736383285235645,
+              "ci_low": -0.019601526610107965,
+              "ci_high": 0.11375489314382844,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "tradeoff",
+              "effect": -0.36192187093866085,
+              "p": 0.012987012987012988,
+              "decile_n": 3984,
+              "attainable_effect": -1.2009225717510108,
+              "top_decile_median": -238.0,
+              "ensemble_median": -216.0,
+              "robust_sd": 60.7866,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.043290043290043295,
+              "fires_after_correction": true
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.12229166666666667,
+              "expected_if_independent": 0.12466328645833334,
+              "ratio": 0.9809757960098433,
+              "n_joint": 2935,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 1736,
+            "n_frontier": 7,
+            "frontier_fraction": 0.004032258064516129,
+            "best_a": -39.0,
+            "best_b": -12.0,
+            "b_at_best_a": -245.0,
+            "a_at_best_b": -51.0
+          },
+          "verdict_uncorrected": "weak"
+        },
+        {
+          "a": "population_equality",
+          "b": "compactness_cut",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.04736383285235645,
+              "ci_low": -0.019601526610107965,
+              "ci_high": 0.11375489314382844,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.0,
+              "p": 0.8941058941058941,
+              "decile_n": 2763,
+              "attainable_effect": -1.7986420252709205,
+              "top_decile_median": -45.0,
+              "ensemble_median": -45.0,
+              "robust_sd": 4.4478,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.12229166666666667,
+              "expected_if_independent": 0.12466328645833334,
+              "ratio": 0.9809757960098433,
+              "n_joint": 2935,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 1736,
+            "n_frontier": 7,
+            "frontier_fraction": 0.004032258064516129,
+            "best_a": -12.0,
+            "best_b": -39.0,
+            "b_at_best_a": -51.0,
+            "a_at_best_b": -245.0
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "fairness_eg",
+          "b": "fairness_mm",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.0946614116792244,
+              "ci_low": -0.13865935752176708,
+              "ci_high": -0.0863770303076228,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": -0.1989688058869595,
+              "p": 0.04995004995004995,
+              "decile_n": 2400,
+              "attainable_effect": -2.062198676125777,
+              "top_decile_median": -0.020677754041476037,
+              "ensemble_median": -0.019019526292055416,
+              "robust_sd": 0.00833410916866392,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.14985014985014986,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.08120833333333333,
+              "expected_if_independent": 0.11130555555555555,
+              "ratio": 0.7295982031444971,
+              "n_joint": 1949,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2857,
+            "n_frontier": 8,
+            "frontier_fraction": 0.00280014000700035,
+            "best_a": -0.07610701301899582,
+            "best_b": -4.105951285804377e-06,
+            "b_at_best_a": -0.017294348768482737,
+            "a_at_best_b": -0.4163362473011644
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "fairness_mm",
+          "b": "fairness_eg",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.0946614116792244,
+              "ci_low": -0.13865935752176708,
+              "ci_high": -0.0863770303076228,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.581005755931864,
+              "p": 0.8891108891108891,
+              "decile_n": 2407,
+              "attainable_effect": -0.8807597540402475,
+              "top_decile_median": -0.16029800818840453,
+              "ensemble_median": -0.16425941898905858,
+              "robust_sd": 0.006818195448512228,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.08120833333333333,
+              "expected_if_independent": 0.11130555555555555,
+              "ratio": 0.7295982031444971,
+              "n_joint": 1949,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2857,
+            "n_frontier": 8,
+            "frontier_fraction": 0.00280014000700035,
+            "best_a": -4.105951285804377e-06,
+            "best_b": -0.07610701301899582,
+            "b_at_best_a": -0.4163362473011644,
+            "a_at_best_b": -0.017294348768482737
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "fairness_eg",
+          "b": "competitiveness",
+          "verdict": "weak",
+          "votes": 1,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "tradeoff",
+              "rho": -0.2466601095340362,
+              "ci_low": -0.2719789716990416,
+              "ci_high": -0.19019036555379176,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.0,
+              "p": 1.0,
+              "decile_n": 2400,
+              "attainable_effect": -1.9943350557497788,
+              "top_decile_median": 3.0,
+              "ensemble_median": 3.0,
+              "robust_sd": 0.5014202589063179,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.13,
+              "expected_if_independent": 0.1833898159722222,
+              "ratio": 0.7088725145985801,
+              "n_joint": 3120,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 1580,
+            "n_frontier": 2,
+            "frontier_fraction": 0.0012658227848101266,
+            "best_a": -0.07610701301899582,
+            "best_b": 3.0,
+            "b_at_best_a": 2.0,
+            "a_at_best_b": -0.07673294369098702
+          },
+          "verdict_uncorrected": "weak"
+        },
+        {
+          "a": "competitiveness",
+          "b": "fairness_eg",
+          "verdict": "weak",
+          "votes": 1,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "tradeoff",
+              "rho": -0.2466601095340362,
+              "ci_low": -0.2719789716990416,
+              "ci_high": -0.19019036555379176,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": -0.04134232637820887,
+              "p": 0.5324675324675324,
+              "decile_n": 13181,
+              "attainable_effect": -0.8807597540402475,
+              "top_decile_median": -0.1645412990506014,
+              "ensemble_median": -0.16425941898905858,
+              "robust_sd": 0.006818195448512228,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.13,
+              "expected_if_independent": 0.1833898159722222,
+              "ratio": 0.7088725145985801,
+              "n_joint": 3120,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 1580,
+            "n_frontier": 2,
+            "frontier_fraction": 0.0012658227848101266,
+            "best_a": 3.0,
+            "best_b": -0.07610701301899582,
+            "b_at_best_a": -0.07673294369098702,
+            "a_at_best_b": 2.0
+          },
+          "verdict_uncorrected": "weak"
+        },
+        {
+          "a": "fairness_eg",
+          "b": "population_equality",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.03854440230539504,
+              "ci_low": -0.11097716585768898,
+              "ci_high": 0.0545794115934507,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": -0.2961178944043589,
+              "p": 0.056943056943056944,
+              "decile_n": 2400,
+              "attainable_effect": -1.2009225717510108,
+              "top_decile_median": -234.0,
+              "ensemble_median": -216.0,
+              "robust_sd": 60.7866,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.15529924620833713,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.09695833333333333,
+              "expected_if_independent": 0.11254382986111111,
+              "ratio": 0.8615162062015159,
+              "n_joint": 2327,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2648,
+            "n_frontier": 8,
+            "frontier_fraction": 0.0030211480362537764,
+            "best_a": -0.07610701301899582,
+            "best_b": -12.0,
+            "b_at_best_a": -240.0,
+            "a_at_best_b": -0.09090300006096336
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "population_equality",
+          "b": "fairness_eg",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.03854440230539504,
+              "ci_low": -0.11097716585768898,
+              "ci_high": 0.0545794115934507,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.044175205273502396,
+              "p": 0.8961038961038961,
+              "decile_n": 2763,
+              "attainable_effect": -0.8807597540402475,
+              "top_decile_median": -0.1639582238055257,
+              "ensemble_median": -0.16425941898905858,
+              "robust_sd": 0.006818195448512228,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.09695833333333333,
+              "expected_if_independent": 0.11254382986111111,
+              "ratio": 0.8615162062015159,
+              "n_joint": 2327,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2648,
+            "n_frontier": 8,
+            "frontier_fraction": 0.0030211480362537764,
+            "best_a": -12.0,
+            "best_b": -0.07610701301899582,
+            "b_at_best_a": -0.09090300006096336,
+            "a_at_best_b": -240.0
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "fairness_mm",
+          "b": "competitiveness",
+          "verdict": "weak",
+          "votes": 2,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "tradeoff",
+              "rho": -0.7112783465199728,
+              "ci_low": -0.7112783465199728,
+              "ci_high": -0.698784862940735,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": -1.9943350557497788,
+              "p": 0.27972027972027974,
+              "decile_n": 2407,
+              "attainable_effect": -1.9943350557497788,
+              "top_decile_median": 2.0,
+              "ensemble_median": 3.0,
+              "robust_sd": 0.5014202589063179,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.6993006993006993,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "tradeoff",
+              "joint_rate": 0.045375,
+              "expected_if_independent": 0.18306944444444442,
+              "ratio": 0.2478567635232532,
+              "n_joint": 1089,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2857,
+            "n_frontier": 2,
+            "frontier_fraction": 0.0007000350017500875,
+            "best_a": -4.105951285804377e-06,
+            "best_b": 3.0,
+            "b_at_best_a": 2.0,
+            "a_at_best_b": -0.008580088315087442
+          },
+          "verdict_uncorrected": "weak"
+        },
+        {
+          "a": "competitiveness",
+          "b": "fairness_mm",
+          "verdict": "strong",
+          "votes": 3,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "tradeoff",
+              "rho": -0.7112783465199728,
+              "ci_low": -0.7112783465199728,
+              "ci_high": -0.698784862940735,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "tradeoff",
+              "effect": -0.4697890963032508,
+              "p": 0.000999000999000999,
+              "decile_n": 13181,
+              "attainable_effect": -2.062198676125777,
+              "top_decile_median": -0.022934799906894676,
+              "ensemble_median": -0.019019526292055416,
+              "robust_sd": 0.00833410916866392,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 0.007492507492507492,
+              "fires_after_correction": true
+            },
+            "achievability": {
+              "verdict": "tradeoff",
+              "joint_rate": 0.045375,
+              "expected_if_independent": 0.18306944444444442,
+              "ratio": 0.2478567635232532,
+              "n_joint": 1089,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2857,
+            "n_frontier": 2,
+            "frontier_fraction": 0.0007000350017500875,
+            "best_a": 3.0,
+            "best_b": -4.105951285804377e-06,
+            "b_at_best_a": -0.008580088315087442,
+            "a_at_best_b": 2.0
+          },
+          "verdict_uncorrected": "strong"
+        },
+        {
+          "a": "fairness_mm",
+          "b": "population_equality",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.1541359842931592,
+              "ci_low": 0.09890842984367458,
+              "ci_high": 0.2428478404954157,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.09870596480145295,
+              "p": 0.9470529470529471,
+              "decile_n": 2407,
+              "attainable_effect": -1.2009225717510108,
+              "top_decile_median": -210.0,
+              "ensemble_median": -216.0,
+              "robust_sd": 60.7866,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.163125,
+              "expected_if_independent": 0.11234722222222222,
+              "ratio": 1.4519718135739892,
+              "n_joint": 3915,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2857,
+            "n_frontier": 10,
+            "frontier_fraction": 0.0035001750087504373,
+            "best_a": -4.105951285804377e-06,
+            "best_b": -12.0,
+            "b_at_best_a": -280.0,
+            "a_at_best_b": -0.034520029184354706
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "population_equality",
+          "b": "fairness_mm",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": 0.1541359842931592,
+              "ci_low": 0.09890842984367458,
+              "ci_high": 0.2428478404954157,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.05825424266342731,
+              "p": 0.8591408591408591,
+              "decile_n": 2763,
+              "attainable_effect": -2.062198676125777,
+              "top_decile_median": -0.018534029074160574,
+              "ensemble_median": -0.019019526292055416,
+              "robust_sd": 0.00833410916866392,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.163125,
+              "expected_if_independent": 0.11234722222222222,
+              "ratio": 1.4519718135739892,
+              "n_joint": 3915,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 2857,
+            "n_frontier": 10,
+            "frontier_fraction": 0.0035001750087504373,
+            "best_a": -12.0,
+            "best_b": -4.105951285804377e-06,
+            "b_at_best_a": -0.034520029184354706,
+            "a_at_best_b": -280.0
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "competitiveness",
+          "b": "population_equality",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.022996149065503582,
+              "ci_low": -0.12110343184972387,
+              "ci_high": 0.027536407853159285,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.01645099413357549,
+              "p": 0.7182817182817183,
+              "decile_n": 13181,
+              "attainable_effect": -1.2009225717510108,
+              "top_decile_median": -215.0,
+              "ensemble_median": -216.0,
+              "robust_sd": 60.7866,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.165875,
+              "expected_if_independent": 0.1851060920138889,
+              "ratio": 0.8961077304119955,
+              "n_joint": 3981,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 493,
+            "n_frontier": 1,
+            "frontier_fraction": 0.002028397565922921,
+            "best_a": 3.0,
+            "best_b": -12.0,
+            "b_at_best_a": -12.0,
+            "a_at_best_b": 3.0
+          },
+          "verdict_uncorrected": "none"
+        },
+        {
+          "a": "population_equality",
+          "b": "competitiveness",
+          "verdict": "none",
+          "votes": 0,
+          "n_deciding": 3,
+          "partial": false,
+          "degenerate_tests": [],
+          "tests": {
+            "correlation": {
+              "verdict": "none",
+              "rho": -0.022996149065503582,
+              "ci_low": -0.12110343184972387,
+              "ci_high": 0.027536407853159285,
+              "threshold": -0.1,
+              "n_chains": 2,
+              "n_draws": 24000
+            },
+            "conditional": {
+              "verdict": "none",
+              "effect": 0.0,
+              "p": 1.0,
+              "decile_n": 2763,
+              "attainable_effect": -1.9943350557497788,
+              "top_decile_median": 3.0,
+              "ensemble_median": 3.0,
+              "robust_sd": 0.5014202589063179,
+              "thresholds": {
+                "effect": -0.2,
+                "alpha": 0.05
+              },
+              "effect_is_comparable": false,
+              "q_value": 1.0,
+              "fires_after_correction": false
+            },
+            "achievability": {
+              "verdict": "none",
+              "joint_rate": 0.165875,
+              "expected_if_independent": 0.1851060920138889,
+              "ratio": 0.8961077304119955,
+              "n_joint": 3981,
+              "n_draws": 24000,
+              "threshold_ratio": 0.5,
+              "populated": true
+            }
+          },
+          "pareto": {
+            "n_distinct_points": 493,
+            "n_frontier": 1,
+            "frontier_fraction": 0.002028397565922921,
+            "best_a": -12.0,
+            "best_b": 3.0,
+            "b_at_best_a": 3.0,
+            "a_at_best_b": -12.0
+          },
+          "verdict_uncorrected": "none"
+        }
+      ],
+      "symmetry": {
+        "symmetric_tests": [
+          "correlation",
+          "achievability"
+        ],
+        "directional_tests": [
+          "conditional"
+        ],
+        "n_checked": 15,
+        "n_direction_dependent": 0,
+        "mismatches": [],
+        "note": "a non-zero count means a test documented as symmetric is not, which would be a defect in that test rather than a finding"
+      },
+      "relationships": {
+        "n_relationships": 15,
+        "counts": {
+          "none": 7,
+          "weak": 8
+        },
+        "n_direction_dependent": 6,
+        "direction_comes_only_from": "conditional",
+        "relationships": [
+          {
+            "relationship": "compactness_cut <-> compactness_pp",
+            "verdict": "none",
+            "directions": {
+              "compactness_pp -> compactness_cut": "none",
+              "compactness_cut -> compactness_pp": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_pp <-> fairness_eg",
+            "verdict": "weak",
+            "directions": {
+              "compactness_pp -> fairness_eg": "none",
+              "fairness_eg -> compactness_pp": "weak"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "compactness_pp <-> fairness_mm",
+            "verdict": "weak",
+            "directions": {
+              "compactness_pp -> fairness_mm": "weak",
+              "fairness_mm -> compactness_pp": "weak"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_pp <-> competitiveness",
+            "verdict": "none",
+            "directions": {
+              "compactness_pp -> competitiveness": "none",
+              "competitiveness -> compactness_pp": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_pp <-> population_equality",
+            "verdict": "weak",
+            "directions": {
+              "compactness_pp -> population_equality": "none",
+              "population_equality -> compactness_pp": "weak"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "compactness_cut <-> fairness_eg",
+            "verdict": "weak",
+            "directions": {
+              "compactness_cut -> fairness_eg": "none",
+              "fairness_eg -> compactness_cut": "weak"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "compactness_cut <-> fairness_mm",
+            "verdict": "weak",
+            "directions": {
+              "compactness_cut -> fairness_mm": "none",
+              "fairness_mm -> compactness_cut": "weak"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "compactness_cut <-> competitiveness",
+            "verdict": "none",
+            "directions": {
+              "compactness_cut -> competitiveness": "none",
+              "competitiveness -> compactness_cut": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "compactness_cut <-> population_equality",
+            "verdict": "weak",
+            "directions": {
+              "compactness_cut -> population_equality": "weak",
+              "population_equality -> compactness_cut": "none"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "fairness_eg <-> fairness_mm",
+            "verdict": "none",
+            "directions": {
+              "fairness_eg -> fairness_mm": "none",
+              "fairness_mm -> fairness_eg": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "competitiveness <-> fairness_eg",
+            "verdict": "weak",
+            "directions": {
+              "fairness_eg -> competitiveness": "weak",
+              "competitiveness -> fairness_eg": "weak"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "fairness_eg <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "fairness_eg -> population_equality": "none",
+              "population_equality -> fairness_eg": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "competitiveness <-> fairness_mm",
+            "verdict": "weak",
+            "directions": {
+              "fairness_mm -> competitiveness": "weak",
+              "competitiveness -> fairness_mm": "strong"
+            },
+            "direction_dependent": true
+          },
+          {
+            "relationship": "fairness_mm <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "fairness_mm -> population_equality": "none",
+              "population_equality -> fairness_mm": "none"
+            },
+            "direction_dependent": false
+          },
+          {
+            "relationship": "competitiveness <-> population_equality",
+            "verdict": "none",
+            "directions": {
+              "competitiveness -> population_equality": "none",
+              "population_equality -> competitiveness": "none"
+            },
+            "direction_dependent": false
+          }
+        ]
+      },
+      "multiplicity": {
+        "method": "Benjamini-Hochberg",
+        "applied_to_headline": true,
+        "n_tests": 30,
+        "alpha": 0.05,
+        "n_conditional_firings_lost": 0,
+        "conditional_firings_lost": [],
+        "n_pair_verdicts_changed": 0,
+        "pair_verdicts_changed": [],
+        "note": "verdict_uncorrected on each pair is the verdict before this correction; verdict is after it"
+      },
+      "detection_floor": [
+        {
+          "pair": "compactness_pp x fairness_mm",
+          "method": "anti-monotone re-pairing within each chain at a range of noise levels; each chain's B multiset is preserved exactly, so only the pairing changes",
+          "max_attainable_rho": 0.9956873550057729,
+          "points": [
+            {
+              "blend": 0.0,
+              "achieved_rho": -0.9956873550057729,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.1,
+              "achieved_rho": -0.9910439502345121,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.25,
+              "achieved_rho": -0.9680602483332637,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.5,
+              "achieved_rho": -0.8963594238149074,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 1.0,
+              "achieved_rho": -0.6988487485145531,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 2.0,
+              "achieved_rho": -0.42692634340521735,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 4.0,
+              "achieved_rho": -0.24104346186522735,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 8.0,
+              "achieved_rho": -0.12481094144724655,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 16.0,
+              "achieved_rho": -0.06642788821817273,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 32.0,
+              "achieved_rho": -0.039548324487336556,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 64.0,
+              "achieved_rho": -0.0248611794888403,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            }
+          ],
+          "floor_any_test": {
+            "fires": true,
+            "weakest_detected_rho": 0.12481094144724655,
+            "strongest_missed_rho": 0.06642788821817273,
+            "monotone": true
+          },
+          "floor_by_test": {
+            "correlation": {
+              "fires": true,
+              "weakest_detected_rho": 0.12481094144724655,
+              "strongest_missed_rho": 0.06642788821817273,
+              "monotone": true
+            },
+            "conditional": {
+              "fires": true,
+              "weakest_detected_rho": 0.12481094144724655,
+              "strongest_missed_rho": 0.06642788821817273,
+              "monotone": true
+            },
+            "achievability": {
+              "fires": true,
+              "weakest_detected_rho": 0.42692634340521735,
+              "strongest_missed_rho": 0.24104346186522735,
+              "monotone": true
+            }
+          },
+          "interpretation": "a 'none' verdict on this state means: no monotone tradeoff stronger than about this |rho|. It is not a claim about weaker dependence, nor about non-monotone dependence, which no test here can see, nor about a tradeoff confined to the frontier."
+        },
+        {
+          "pair": "compactness_pp x competitiveness",
+          "method": "anti-monotone re-pairing within each chain at a range of noise levels; each chain's B multiset is preserved exactly, so only the pairing changes",
+          "max_attainable_rho": 0.8236209759194985,
+          "points": [
+            {
+              "blend": 0.0,
+              "achieved_rho": -0.8236209759194985,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.1,
+              "achieved_rho": -0.8205361951888794,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.25,
+              "achieved_rho": -0.8057817934524913,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 0.5,
+              "achieved_rho": -0.7506069890361573,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 1.0,
+              "achieved_rho": -0.5463274659764628,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "tradeoff"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 2.0,
+              "achieved_rho": -0.28626636734328165,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 4.0,
+              "achieved_rho": -0.13013782968977136,
+              "verdicts": {
+                "correlation": "tradeoff",
+                "conditional": "tradeoff",
+                "achievability": "none"
+              },
+              "any_fired": true
+            },
+            {
+              "blend": 8.0,
+              "achieved_rho": -0.05857753055814778,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 16.0,
+              "achieved_rho": -0.030449699799165834,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 32.0,
+              "achieved_rho": -0.004263166196418448,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            },
+            {
+              "blend": 64.0,
+              "achieved_rho": 0.004769041865210916,
+              "verdicts": {
+                "correlation": "none",
+                "conditional": "none",
+                "achievability": "none"
+              },
+              "any_fired": false
+            }
+          ],
+          "floor_any_test": {
+            "fires": true,
+            "weakest_detected_rho": 0.13013782968977136,
+            "strongest_missed_rho": 0.05857753055814778,
+            "monotone": true
+          },
+          "floor_by_test": {
+            "correlation": {
+              "fires": true,
+              "weakest_detected_rho": 0.13013782968977136,
+              "strongest_missed_rho": 0.05857753055814778,
+              "monotone": true
+            },
+            "conditional": {
+              "fires": true,
+              "weakest_detected_rho": 0.13013782968977136,
+              "strongest_missed_rho": 0.05857753055814778,
+              "monotone": true
+            },
+            "achievability": {
+              "fires": true,
+              "weakest_detected_rho": 0.5463274659764628,
+              "strongest_missed_rho": 0.28626636734328165,
+              "monotone": true
+            }
+          },
+          "interpretation": "a 'none' verdict on this state means: no monotone tradeoff stronger than about this |rho|. It is not a claim about weaker dependence, nor about non-monotone dependence, which no test here can see, nor about a tradeoff confined to the frontier."
+        }
+      ],
+      "summary": {
+        "strong": [
+          "competitiveness -> fairness_mm"
+        ],
+        "weak": [
+          "fairness_eg -> compactness_pp",
+          "compactness_pp -> fairness_mm",
+          "fairness_mm -> compactness_pp",
+          "population_equality -> compactness_pp",
+          "fairness_eg -> compactness_cut",
+          "fairness_mm -> compactness_cut",
+          "compactness_cut -> population_equality",
+          "fairness_eg -> competitiveness",
+          "competitiveness -> fairness_eg",
+          "fairness_mm -> competitiveness"
+        ],
+        "none": [
+          "compactness_pp -> compactness_cut",
+          "compactness_cut -> compactness_pp",
+          "compactness_pp -> fairness_eg",
+          "compactness_pp -> competitiveness",
+          "competitiveness -> compactness_pp",
+          "compactness_pp -> population_equality",
+          "compactness_cut -> fairness_eg",
+          "compactness_cut -> fairness_mm",
+          "compactness_cut -> competitiveness",
+          "competitiveness -> compactness_cut",
+          "population_equality -> compactness_cut",
+          "fairness_eg -> fairness_mm",
+          "fairness_mm -> fairness_eg",
+          "fairness_eg -> population_equality",
+          "population_equality -> fairness_eg",
+          "fairness_mm -> population_equality",
+          "population_equality -> fairness_mm",
+          "competitiveness -> population_equality",
+          "population_equality -> competitiveness"
+        ],
+        "degenerate": []
+      },
+      "replication": {
+        "contest": "G20USS",
+        "criteria": {
+          "varying": [
+            "compactness_pp",
+            "compactness_cut",
+            "fairness_eg",
+            "fairness_mm",
+            "competitiveness",
+            "population_equality"
+          ],
+          "degenerate": {
+            "county_integrity": {
+              "constant_value": 0.0,
+              "reason": "units are the subdivisions, so no plan over them can split one"
+            }
+          },
+          "definitions": {
+            "compactness_pp": {
+              "row_key": "polsby_popper_mean",
+              "direction": 1,
+              "statement": "mean Polsby-Popper over districts"
+            },
+            "compactness_cut": {
+              "row_key": "cut_edges",
+              "direction": -1,
+              "statement": "cut edges on the rook graph"
+            },
+            "county_integrity": {
+              "row_key": "county_splits",
+              "direction": -1,
+              "statement": "counties divided between districts"
+            },
+            "fairness_eg": {
+              "row_key": "abs_efficiency_gap@G20USS",
+              "direction": -1,
+              "statement": "|efficiency gap|, two-party"
+            },
+            "fairness_mm": {
+              "row_key": "abs_mean_median@G20USS",
+              "direction": -1,
+              "statement": "|mean-median|, two-party"
+            },
+            "competitiveness": {
+              "row_key": "competitive_districts@G20USS",
+              "direction": 1,
+              "statement": "districts inside 45-55% two-party D share"
+            },
+            "population_equality": {
+              "row_key": "population_spread",
+              "direction": -1,
+              "statement": "max-min district population, persons"
+            }
+          }
+        },
+        "pairs": [
+          {
+            "a": "compactness_pp",
+            "b": "compactness_cut",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.7868945907224968,
+                "ci_low": 0.7290521489312357,
+                "ci_high": 0.8401303404188439,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.6744907594765952,
+                "p": 1.0,
+                "decile_n": 2408,
+                "attainable_effect": -1.7986420252709205,
+                "top_decile_median": -42.0,
+                "ensemble_median": -45.0,
+                "robust_sd": 4.4478,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.276875,
+                "expected_if_independent": 0.12384647916666666,
+                "ratio": 2.235630773381897,
+                "n_joint": 6645,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 3396,
+              "n_frontier": 4,
+              "frontier_fraction": 0.001177856301531213,
+              "best_a": 0.4005297604759842,
+              "best_b": -39.0,
+              "b_at_best_a": -42.0,
+              "a_at_best_b": 0.367394646097438
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "compactness_cut",
+            "b": "compactness_pp",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.7868945907224968,
+                "ci_low": 0.7290521489312357,
+                "ci_high": 0.8401303404188439,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.8414709427692387,
+                "p": 1.0,
+                "decile_n": 3984,
+                "attainable_effect": -1.7525463058593864,
+                "top_decile_median": 0.3591056470511964,
+                "ensemble_median": 0.33240649023383695,
+                "robust_sd": 0.03172914887529434,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.276875,
+                "expected_if_independent": 0.12384647916666666,
+                "ratio": 2.235630773381897,
+                "n_joint": 6645,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 3396,
+              "n_frontier": 4,
+              "frontier_fraction": 0.001177856301531213,
+              "best_a": -39.0,
+              "best_b": 0.4005297604759842,
+              "b_at_best_a": 0.367394646097438,
+              "a_at_best_b": -42.0
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "compactness_pp",
+            "b": "fairness_eg",
+            "verdict": "weak",
+            "votes": 1,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "tradeoff",
+                "rho": -0.1919370591283706,
+                "ci_low": -0.21885178234514474,
+                "ci_high": -0.1919370591283706,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.2856983836344425,
+                "p": 1.0,
+                "decile_n": 2408,
+                "attainable_effect": -10.462677927003243,
+                "top_decile_median": -0.07082049268576959,
+                "ensemble_median": -0.07383063679734495,
+                "robust_sd": 0.01053609080066375,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.07745833333333334,
+                "expected_if_independent": 0.1130202013888889,
+                "ratio": 0.6853494541812799,
+                "n_joint": 1859,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 3396,
+              "n_frontier": 6,
+              "frontier_fraction": 0.0017667844522968198,
+              "best_a": 0.4005297604759842,
+              "best_b": -0.060073858417044476,
+              "b_at_best_a": -0.07082049268576959,
+              "a_at_best_b": 0.28595140837339117
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "fairness_eg",
+            "b": "compactness_pp",
+            "verdict": "weak",
+            "votes": 2,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "tradeoff",
+                "rho": -0.1919370591283706,
+                "ci_low": -0.21885178234514474,
+                "ci_high": -0.1919370591283706,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "tradeoff",
+                "effect": -0.28159365706811307,
+                "p": 0.001998001998001998,
+                "decile_n": 2416,
+                "attainable_effect": -1.7525463058593864,
+                "top_decile_median": 0.3234717631663842,
+                "ensemble_median": 0.33240649023383695,
+                "robust_sd": 0.03172914887529434,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.008562865705722848,
+                "fires_after_correction": true
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.07745833333333334,
+                "expected_if_independent": 0.1130202013888889,
+                "ratio": 0.6853494541812799,
+                "n_joint": 1859,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 3396,
+              "n_frontier": 6,
+              "frontier_fraction": 0.0017667844522968198,
+              "best_a": -0.060073858417044476,
+              "best_b": 0.4005297604759842,
+              "b_at_best_a": 0.28595140837339117,
+              "a_at_best_b": -0.07082049268576959
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "compactness_pp",
+            "b": "fairness_mm",
+            "verdict": "weak",
+            "votes": 2,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "tradeoff",
+                "rho": -0.13663491616306803,
+                "ci_low": -0.1460771849001472,
+                "ci_high": -0.11848390326776984,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "tradeoff",
+                "effect": -0.5519249012318731,
+                "p": 0.005994005994005994,
+                "decile_n": 2408,
+                "attainable_effect": -1.4667512130683007,
+                "top_decile_median": -0.02416884705775818,
+                "ensemble_median": -0.018820811964839534,
+                "robust_sd": 0.009689787652236848,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.022477522477522476,
+                "fires_after_correction": true
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.13225,
+                "expected_if_independent": 0.1138851875,
+                "ratio": 1.1612572530558463,
+                "n_joint": 3174,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 3396,
+              "n_frontier": 10,
+              "frontier_fraction": 0.002944640753828033,
+              "best_a": 0.4005297604759842,
+              "best_b": -2.3009835007414825e-05,
+              "b_at_best_a": -0.02416884705775818,
+              "a_at_best_b": 0.3312074178818416
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "fairness_mm",
+            "b": "compactness_pp",
+            "verdict": "weak",
+            "votes": 2,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "tradeoff",
+                "rho": -0.13663491616306803,
+                "ci_low": -0.1460771849001472,
+                "ci_high": -0.11848390326776984,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "tradeoff",
+                "effect": -0.527183725131778,
+                "p": 0.000999000999000999,
+                "decile_n": 2401,
+                "attainable_effect": -1.7525463058593864,
+                "top_decile_median": 0.3156793993344985,
+                "ensemble_median": 0.33240649023383695,
+                "robust_sd": 0.03172914887529434,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.005994005994005994,
+                "fires_after_correction": true
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.13225,
+                "expected_if_independent": 0.1138851875,
+                "ratio": 1.1612572530558463,
+                "n_joint": 3174,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 3396,
+              "n_frontier": 10,
+              "frontier_fraction": 0.002944640753828033,
+              "best_a": -2.3009835007414825e-05,
+              "best_b": 0.4005297604759842,
+              "b_at_best_a": 0.3312074178818416,
+              "a_at_best_b": -0.02416884705775818
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "compactness_pp",
+            "b": "competitiveness",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.2219937546391151,
+                "ci_low": 0.18493516140804345,
+                "ci_high": 0.24299724792153263,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.0,
+                "p": 1.0,
+                "decile_n": 2408,
+                "attainable_effect": -2.1735715593995293,
+                "top_decile_median": 3.0,
+                "ensemble_median": 3.0,
+                "robust_sd": 0.46007226938332774,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.270125,
+                "expected_if_independent": 0.23449494444444444,
+                "ratio": 1.1519438111553697,
+                "n_joint": 6483,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 3396,
+              "n_frontier": 1,
+              "frontier_fraction": 0.0002944640753828033,
+              "best_a": 0.4005297604759842,
+              "best_b": 3.0,
+              "b_at_best_a": 3.0,
+              "a_at_best_b": 0.4005297604759842
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "competitiveness",
+            "b": "compactness_pp",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.2219937546391151,
+                "ci_low": 0.18493516140804345,
+                "ci_high": 0.24299724792153263,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.14817232356303242,
+                "p": 1.0,
+                "decile_n": 16808,
+                "attainable_effect": -1.7525463058593864,
+                "top_decile_median": 0.3371078719473667,
+                "ensemble_median": 0.33240649023383695,
+                "robust_sd": 0.03172914887529434,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.270125,
+                "expected_if_independent": 0.23449494444444444,
+                "ratio": 1.1519438111553697,
+                "n_joint": 6483,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 3396,
+              "n_frontier": 1,
+              "frontier_fraction": 0.0002944640753828033,
+              "best_a": 3.0,
+              "best_b": 0.4005297604759842,
+              "b_at_best_a": 0.4005297604759842,
+              "a_at_best_b": 3.0
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "compactness_pp",
+            "b": "population_equality",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.006512839651397878,
+                "ci_low": -0.009120781002254745,
+                "ci_high": 0.006512839651397878,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.13160795306860393,
+                "p": 0.9630369630369631,
+                "decile_n": 2408,
+                "attainable_effect": -1.2009225717510108,
+                "top_decile_median": -208.0,
+                "ensemble_median": -216.0,
+                "robust_sd": 60.7866,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.11045833333333334,
+                "expected_if_independent": 0.11285278472222222,
+                "ratio": 0.9787825227814925,
+                "n_joint": 2651,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 3396,
+              "n_frontier": 6,
+              "frontier_fraction": 0.0017667844522968198,
+              "best_a": 0.4005297604759842,
+              "best_b": -12.0,
+              "b_at_best_a": -208.0,
+              "a_at_best_b": 0.29761310139482294
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "population_equality",
+            "b": "compactness_pp",
+            "verdict": "weak",
+            "votes": 1,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.006512839651397878,
+                "ci_low": -0.009120781002254745,
+                "ci_high": 0.006512839651397878,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "tradeoff",
+                "effect": -0.47360647508190845,
+                "p": 0.000999000999000999,
+                "decile_n": 2763,
+                "attainable_effect": -1.7525463058593864,
+                "top_decile_median": 0.3173793598776597,
+                "ensemble_median": 0.33240649023383695,
+                "robust_sd": 0.03172914887529434,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.005994005994005994,
+                "fires_after_correction": true
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.11045833333333334,
+                "expected_if_independent": 0.11285278472222222,
+                "ratio": 0.9787825227814925,
+                "n_joint": 2651,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 3396,
+              "n_frontier": 6,
+              "frontier_fraction": 0.0017667844522968198,
+              "best_a": -12.0,
+              "best_b": 0.4005297604759842,
+              "b_at_best_a": 0.29761310139482294,
+              "a_at_best_b": -208.0
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "compactness_cut",
+            "b": "fairness_eg",
+            "verdict": "weak",
+            "votes": 2,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "tradeoff",
+                "rho": -0.19861914043972825,
+                "ci_low": -0.24410076228973798,
+                "ci_high": -0.16918187395632903,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "tradeoff",
+                "effect": -10.05463782371566,
+                "p": 0.011988011988011988,
+                "decile_n": 3984,
+                "attainable_effect": -10.462677927003243,
+                "top_decile_median": -0.1797672138758013,
+                "ensemble_median": -0.07383063679734495,
+                "robust_sd": 0.01053609080066375,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.03596403596403596,
+                "fires_after_correction": true
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.08708333333333333,
+                "expected_if_independent": 0.12484822395833334,
+                "ratio": 0.6975135934844888,
+                "n_joint": 2090,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2345,
+              "n_frontier": 8,
+              "frontier_fraction": 0.003411513859275053,
+              "best_a": -39.0,
+              "best_b": -0.060073858417044476,
+              "b_at_best_a": -0.17919926215663615,
+              "a_at_best_b": -49.0
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "fairness_eg",
+            "b": "compactness_cut",
+            "verdict": "weak",
+            "votes": 1,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "tradeoff",
+                "rho": -0.19861914043972825,
+                "ci_low": -0.24410076228973798,
+                "ci_high": -0.16918187395632903,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": -0.22483025315886507,
+                "p": 0.14085914085914086,
+                "decile_n": 2416,
+                "attainable_effect": -1.7986420252709205,
+                "top_decile_median": -46.0,
+                "ensemble_median": -45.0,
+                "robust_sd": 4.4478,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.30184101612673037,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.08708333333333333,
+                "expected_if_independent": 0.12484822395833334,
+                "ratio": 0.6975135934844888,
+                "n_joint": 2090,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2345,
+              "n_frontier": 8,
+              "frontier_fraction": 0.003411513859275053,
+              "best_a": -0.060073858417044476,
+              "best_b": -39.0,
+              "b_at_best_a": -49.0,
+              "a_at_best_b": -0.17919926215663615
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "compactness_cut",
+            "b": "fairness_mm",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": -0.019431799322836625,
+                "ci_low": -0.07306083912388851,
+                "ci_high": 0.021043011809485684,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.5683232384444846,
+                "p": 0.995004995004995,
+                "decile_n": 3984,
+                "attainable_effect": -1.4667512130683007,
+                "top_decile_median": -0.01331388046648091,
+                "ensemble_median": -0.018820811964839534,
+                "robust_sd": 0.009689787652236848,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.15629166666666666,
+                "expected_if_independent": 0.125803734375,
+                "ratio": 1.242345208933045,
+                "n_joint": 3751,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2857,
+              "n_frontier": 9,
+              "frontier_fraction": 0.003150157507875394,
+              "best_a": -39.0,
+              "best_b": -2.3009835007414825e-05,
+              "b_at_best_a": -0.018721071700712577,
+              "a_at_best_b": -49.0
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "fairness_mm",
+            "b": "compactness_cut",
+            "verdict": "weak",
+            "votes": 1,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": -0.019431799322836625,
+                "ci_low": -0.07306083912388851,
+                "ci_high": 0.021043011809485684,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "tradeoff",
+                "effect": -0.6744907594765952,
+                "p": 0.000999000999000999,
+                "decile_n": 2401,
+                "attainable_effect": -1.7986420252709205,
+                "top_decile_median": -48.0,
+                "ensemble_median": -45.0,
+                "robust_sd": 4.4478,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.005994005994005994,
+                "fires_after_correction": true
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.15629166666666666,
+                "expected_if_independent": 0.125803734375,
+                "ratio": 1.242345208933045,
+                "n_joint": 3751,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2857,
+              "n_frontier": 9,
+              "frontier_fraction": 0.003150157507875394,
+              "best_a": -2.3009835007414825e-05,
+              "best_b": -39.0,
+              "b_at_best_a": -49.0,
+              "a_at_best_b": -0.018721071700712577
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "compactness_cut",
+            "b": "competitiveness",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.06900365230599884,
+                "ci_low": 0.04149215922189116,
+                "ci_high": 0.08903273718642149,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.0,
+                "p": 1.0,
+                "decile_n": 3984,
+                "attainable_effect": -2.1735715593995293,
+                "top_decile_median": 3.0,
+                "ensemble_median": 3.0,
+                "robust_sd": 0.46007226938332774,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.27125,
+                "expected_if_independent": 0.2590357916666667,
+                "ratio": 1.0471525894346325,
+                "n_joint": 6510,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 58,
+              "n_frontier": 1,
+              "frontier_fraction": 0.017241379310344827,
+              "best_a": -39.0,
+              "best_b": 3.0,
+              "b_at_best_a": 3.0,
+              "a_at_best_b": -39.0
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "competitiveness",
+            "b": "compactness_cut",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.06900365230599884,
+                "ci_low": 0.04149215922189116,
+                "ci_high": 0.08903273718642149,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.0,
+                "p": 1.0,
+                "decile_n": 16808,
+                "attainable_effect": -1.7986420252709205,
+                "top_decile_median": -45.0,
+                "ensemble_median": -45.0,
+                "robust_sd": 4.4478,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.27125,
+                "expected_if_independent": 0.2590357916666667,
+                "ratio": 1.0471525894346325,
+                "n_joint": 6510,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 58,
+              "n_frontier": 1,
+              "frontier_fraction": 0.017241379310344827,
+              "best_a": 3.0,
+              "best_b": -39.0,
+              "b_at_best_a": -39.0,
+              "a_at_best_b": 3.0
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "compactness_cut",
+            "b": "population_equality",
+            "verdict": "weak",
+            "votes": 1,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.04736383285235645,
+                "ci_low": -0.019601526610107965,
+                "ci_high": 0.11375489314382844,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "tradeoff",
+                "effect": -0.36192187093866085,
+                "p": 0.008991008991008992,
+                "decile_n": 3984,
+                "attainable_effect": -1.2009225717510108,
+                "top_decile_median": -238.0,
+                "ensemble_median": -216.0,
+                "robust_sd": 60.7866,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.029970029970029972,
+                "fires_after_correction": true
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.12229166666666667,
+                "expected_if_independent": 0.12466328645833334,
+                "ratio": 0.9809757960098433,
+                "n_joint": 2935,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 1736,
+              "n_frontier": 7,
+              "frontier_fraction": 0.004032258064516129,
+              "best_a": -39.0,
+              "best_b": -12.0,
+              "b_at_best_a": -245.0,
+              "a_at_best_b": -51.0
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "population_equality",
+            "b": "compactness_cut",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.04736383285235645,
+                "ci_low": -0.019601526610107965,
+                "ci_high": 0.11375489314382844,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.0,
+                "p": 0.8821178821178821,
+                "decile_n": 2763,
+                "attainable_effect": -1.7986420252709205,
+                "top_decile_median": -45.0,
+                "ensemble_median": -45.0,
+                "robust_sd": 4.4478,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.12229166666666667,
+                "expected_if_independent": 0.12466328645833334,
+                "ratio": 0.9809757960098433,
+                "n_joint": 2935,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 1736,
+              "n_frontier": 7,
+              "frontier_fraction": 0.004032258064516129,
+              "best_a": -12.0,
+              "best_b": -39.0,
+              "b_at_best_a": -51.0,
+              "a_at_best_b": -245.0
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "fairness_eg",
+            "b": "fairness_mm",
+            "verdict": "weak",
+            "votes": 1,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "tradeoff",
+                "rho": -0.15803701204390805,
+                "ci_low": -0.15803701204390805,
+                "ci_high": -0.12044462089100037,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": -0.331666958957525,
+                "p": 0.11688311688311688,
+                "decile_n": 2416,
+                "attainable_effect": -1.4667512130683007,
+                "top_decile_median": -0.022034594368401106,
+                "ensemble_median": -0.018820811964839534,
+                "robust_sd": 0.009689787652236848,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.26973026973026976,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.06820833333333333,
+                "expected_if_independent": 0.11480635937500001,
+                "ratio": 0.5941163338394844,
+                "n_joint": 1637,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2857,
+              "n_frontier": 14,
+              "frontier_fraction": 0.004900245012250612,
+              "best_a": -0.060073858417044476,
+              "best_b": -2.3009835007414825e-05,
+              "b_at_best_a": -0.02636647751707999,
+              "a_at_best_b": -0.17517544769411603
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "fairness_mm",
+            "b": "fairness_eg",
+            "verdict": "weak",
+            "votes": 1,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "tradeoff",
+                "rho": -0.15803701204390805,
+                "ci_low": -0.15803701204390805,
+                "ci_high": -0.12044462089100037,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": -0.31394010244326115,
+                "p": 0.059940059940059943,
+                "decile_n": 2401,
+                "attainable_effect": -10.462677927003243,
+                "top_decile_median": -0.07713833822265682,
+                "ensemble_median": -0.07383063679734495,
+                "robust_sd": 0.01053609080066375,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.14985014985014986,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.06820833333333333,
+                "expected_if_independent": 0.11480635937500001,
+                "ratio": 0.5941163338394844,
+                "n_joint": 1637,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2857,
+              "n_frontier": 14,
+              "frontier_fraction": 0.004900245012250612,
+              "best_a": -2.3009835007414825e-05,
+              "best_b": -0.060073858417044476,
+              "b_at_best_a": -0.17517544769411603,
+              "a_at_best_b": -0.02636647751707999
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "fairness_eg",
+            "b": "competitiveness",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": -0.13770616023738896,
+                "ci_low": -0.2899638077185748,
+                "ci_high": -0.01606570735843336,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.0,
+                "p": 1.0,
+                "decile_n": 2416,
+                "attainable_effect": -2.1735715593995293,
+                "top_decile_median": 3.0,
+                "ensemble_median": 3.0,
+                "robust_sd": 0.46007226938332774,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.22358333333333333,
+                "expected_if_independent": 0.23639168055555557,
+                "ratio": 0.945817267375397,
+                "n_joint": 5366,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 1701,
+              "n_frontier": 1,
+              "frontier_fraction": 0.0005878894767783657,
+              "best_a": -0.060073858417044476,
+              "best_b": 3.0,
+              "b_at_best_a": 3.0,
+              "a_at_best_b": -0.060073858417044476
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "competitiveness",
+            "b": "fairness_eg",
+            "verdict": "weak",
+            "votes": 1,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": -0.13770616023738896,
+                "ci_low": -0.2899638077185748,
+                "ci_high": -0.01606570735843336,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "tradeoff",
+                "effect": -0.20823873163183199,
+                "p": 0.000999000999000999,
+                "decile_n": 16808,
+                "attainable_effect": -10.462677927003243,
+                "top_decile_median": -0.07602465898203298,
+                "ensemble_median": -0.07383063679734495,
+                "robust_sd": 0.01053609080066375,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.005994005994005994,
+                "fires_after_correction": true
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.22358333333333333,
+                "expected_if_independent": 0.23639168055555557,
+                "ratio": 0.945817267375397,
+                "n_joint": 5366,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 1701,
+              "n_frontier": 1,
+              "frontier_fraction": 0.0005878894767783657,
+              "best_a": 3.0,
+              "best_b": -0.060073858417044476,
+              "b_at_best_a": -0.060073858417044476,
+              "a_at_best_b": 3.0
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "fairness_eg",
+            "b": "population_equality",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": -0.0073550150151834555,
+                "ci_low": -0.039691531861532355,
+                "ci_high": -0.0007670864577616372,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": -0.2303139178700569,
+                "p": 0.052947052947052944,
+                "decile_n": 2416,
+                "attainable_effect": -1.2009225717510108,
+                "top_decile_median": -230.0,
+                "ensemble_median": -216.0,
+                "robust_sd": 60.7866,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.14440105349196258,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.095125,
+                "expected_if_independent": 0.11376560590277779,
+                "ratio": 0.8361490210080915,
+                "n_joint": 2283,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2653,
+              "n_frontier": 6,
+              "frontier_fraction": 0.0022615906520919715,
+              "best_a": -0.060073858417044476,
+              "best_b": -12.0,
+              "b_at_best_a": -140.0,
+              "a_at_best_b": -0.178208433342223
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "population_equality",
+            "b": "fairness_eg",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": -0.0073550150151834555,
+                "ci_low": -0.039691531861532355,
+                "ci_high": -0.0007670864577616372,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.23196880656455182,
+                "p": 0.996003996003996,
+                "decile_n": 2763,
+                "attainable_effect": -10.462677927003243,
+                "top_decile_median": -0.07138659238845922,
+                "ensemble_median": -0.07383063679734495,
+                "robust_sd": 0.01053609080066375,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.095125,
+                "expected_if_independent": 0.11376560590277779,
+                "ratio": 0.8361490210080915,
+                "n_joint": 2283,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2653,
+              "n_frontier": 6,
+              "frontier_fraction": 0.0022615906520919715,
+              "best_a": -12.0,
+              "best_b": -0.060073858417044476,
+              "b_at_best_a": -0.178208433342223,
+              "a_at_best_b": -140.0
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "fairness_mm",
+            "b": "competitiveness",
+            "verdict": "weak",
+            "votes": 2,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "tradeoff",
+                "rho": -0.5720188122265044,
+                "ci_low": -0.59678931639571,
+                "ci_high": -0.5167099895588565,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "tradeoff",
+                "effect": -2.1735715593995293,
+                "p": 0.001998001998001998,
+                "decile_n": 2401,
+                "attainable_effect": -2.1735715593995293,
+                "top_decile_median": 2.0,
+                "ensemble_median": 3.0,
+                "robust_sd": 0.46007226938332774,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.008562865705722848,
+                "fires_after_correction": true
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.13833333333333334,
+                "expected_if_independent": 0.238200875,
+                "ratio": 0.5807423391426809,
+                "n_joint": 3320,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2857,
+              "n_frontier": 2,
+              "frontier_fraction": 0.0007000350017500875,
+              "best_a": -2.3009835007414825e-05,
+              "best_b": 3.0,
+              "b_at_best_a": 2.0,
+              "a_at_best_b": -0.00014951730676870945
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "competitiveness",
+            "b": "fairness_mm",
+            "verdict": "weak",
+            "votes": 2,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "tradeoff",
+                "rho": -0.5720188122265044,
+                "ci_low": -0.59678931639571,
+                "ci_high": -0.5167099895588565,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "tradeoff",
+                "effect": -0.4318733808597773,
+                "p": 0.000999000999000999,
+                "decile_n": 16808,
+                "attainable_effect": -1.4667512130683007,
+                "top_decile_median": -0.023005573318024386,
+                "ensemble_median": -0.018820811964839534,
+                "robust_sd": 0.009689787652236848,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.005994005994005994,
+                "fires_after_correction": true
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.13833333333333334,
+                "expected_if_independent": 0.238200875,
+                "ratio": 0.5807423391426809,
+                "n_joint": 3320,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2857,
+              "n_frontier": 2,
+              "frontier_fraction": 0.0007000350017500875,
+              "best_a": 3.0,
+              "best_b": -2.3009835007414825e-05,
+              "b_at_best_a": -0.00014951730676870945,
+              "a_at_best_b": 2.0
+            },
+            "verdict_uncorrected": "weak"
+          },
+          {
+            "a": "fairness_mm",
+            "b": "population_equality",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.16886050102777475,
+                "ci_low": 0.11674114573635921,
+                "ci_high": 0.2543619561974359,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.18096093546933043,
+                "p": 1.0,
+                "decile_n": 2401,
+                "attainable_effect": -1.2009225717510108,
+                "top_decile_median": -205.0,
+                "ensemble_median": -216.0,
+                "robust_sd": 60.7866,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.16558333333333333,
+                "expected_if_independent": 0.11463629687500002,
+                "ratio": 1.444423257268038,
+                "n_joint": 3974,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2857,
+              "n_frontier": 9,
+              "frontier_fraction": 0.003150157507875394,
+              "best_a": -2.3009835007414825e-05,
+              "best_b": -12.0,
+              "b_at_best_a": -227.0,
+              "a_at_best_b": -0.03179768479729772
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "population_equality",
+            "b": "fairness_mm",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.16886050102777475,
+                "ci_low": 0.11674114573635921,
+                "ci_high": 0.2543619561974359,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": -0.22279430114776552,
+                "p": 0.35364635364635366,
+                "decile_n": 2763,
+                "attainable_effect": -1.4667512130683007,
+                "top_decile_median": -0.02097964143308989,
+                "ensemble_median": -0.018820811964839534,
+                "robust_sd": 0.009689787652236848,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 0.7072927072927073,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.16558333333333333,
+                "expected_if_independent": 0.11463629687500002,
+                "ratio": 1.444423257268038,
+                "n_joint": 3974,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 2857,
+              "n_frontier": 9,
+              "frontier_fraction": 0.003150157507875394,
+              "best_a": -12.0,
+              "best_b": -2.3009835007414825e-05,
+              "b_at_best_a": -0.03179768479729772,
+              "a_at_best_b": -227.0
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "competitiveness",
+            "b": "population_equality",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.016319908811866388,
+                "ci_low": -0.06345949925484748,
+                "ci_high": 0.07329300835611542,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.01645099413357549,
+                "p": 0.9140859140859141,
+                "decile_n": 16808,
+                "attainable_effect": -1.2009225717510108,
+                "top_decile_median": -215.0,
+                "ensemble_median": -216.0,
+                "robust_sd": 60.7866,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.23420833333333332,
+                "expected_if_independent": 0.23604151388888892,
+                "ratio": 0.9922336519311662,
+                "n_joint": 5621,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 489,
+              "n_frontier": 1,
+              "frontier_fraction": 0.002044989775051125,
+              "best_a": 3.0,
+              "best_b": -12.0,
+              "b_at_best_a": -12.0,
+              "a_at_best_b": 3.0
+            },
+            "verdict_uncorrected": "none"
+          },
+          {
+            "a": "population_equality",
+            "b": "competitiveness",
+            "verdict": "none",
+            "votes": 0,
+            "n_deciding": 3,
+            "partial": false,
+            "degenerate_tests": [],
+            "tests": {
+              "correlation": {
+                "verdict": "none",
+                "rho": 0.016319908811866388,
+                "ci_low": -0.06345949925484748,
+                "ci_high": 0.07329300835611542,
+                "threshold": -0.1,
+                "n_chains": 2,
+                "n_draws": 24000
+              },
+              "conditional": {
+                "verdict": "none",
+                "effect": 0.0,
+                "p": 1.0,
+                "decile_n": 2763,
+                "attainable_effect": -2.1735715593995293,
+                "top_decile_median": 3.0,
+                "ensemble_median": 3.0,
+                "robust_sd": 0.46007226938332774,
+                "thresholds": {
+                  "effect": -0.2,
+                  "alpha": 0.05
+                },
+                "effect_is_comparable": false,
+                "q_value": 1.0,
+                "fires_after_correction": false
+              },
+              "achievability": {
+                "verdict": "none",
+                "joint_rate": 0.23420833333333332,
+                "expected_if_independent": 0.23604151388888892,
+                "ratio": 0.9922336519311662,
+                "n_joint": 5621,
+                "n_draws": 24000,
+                "threshold_ratio": 0.5,
+                "populated": true
+              }
+            },
+            "pareto": {
+              "n_distinct_points": 489,
+              "n_frontier": 1,
+              "frontier_fraction": 0.002044989775051125,
+              "best_a": -12.0,
+              "best_b": 3.0,
+              "b_at_best_a": 3.0,
+              "a_at_best_b": -12.0
+            },
+            "verdict_uncorrected": "none"
+          }
+        ],
+        "symmetry": {
+          "symmetric_tests": [
+            "correlation",
+            "achievability"
+          ],
+          "directional_tests": [
+            "conditional"
+          ],
+          "n_checked": 15,
+          "n_direction_dependent": 0,
+          "mismatches": [],
+          "note": "a non-zero count means a test documented as symmetric is not, which would be a defect in that test rather than a finding"
+        },
+        "relationships": {
+          "n_relationships": 15,
+          "counts": {
+            "none": 6,
+            "weak": 9
+          },
+          "n_direction_dependent": 4,
+          "direction_comes_only_from": "conditional",
+          "relationships": [
+            {
+              "relationship": "compactness_cut <-> compactness_pp",
+              "verdict": "none",
+              "directions": {
+                "compactness_pp -> compactness_cut": "none",
+                "compactness_cut -> compactness_pp": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> fairness_eg",
+              "verdict": "weak",
+              "directions": {
+                "compactness_pp -> fairness_eg": "weak",
+                "fairness_eg -> compactness_pp": "weak"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> fairness_mm",
+              "verdict": "weak",
+              "directions": {
+                "compactness_pp -> fairness_mm": "weak",
+                "fairness_mm -> compactness_pp": "weak"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> competitiveness",
+              "verdict": "none",
+              "directions": {
+                "compactness_pp -> competitiveness": "none",
+                "competitiveness -> compactness_pp": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_pp <-> population_equality",
+              "verdict": "weak",
+              "directions": {
+                "compactness_pp -> population_equality": "none",
+                "population_equality -> compactness_pp": "weak"
+              },
+              "direction_dependent": true
+            },
+            {
+              "relationship": "compactness_cut <-> fairness_eg",
+              "verdict": "weak",
+              "directions": {
+                "compactness_cut -> fairness_eg": "weak",
+                "fairness_eg -> compactness_cut": "weak"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_cut <-> fairness_mm",
+              "verdict": "weak",
+              "directions": {
+                "compactness_cut -> fairness_mm": "none",
+                "fairness_mm -> compactness_cut": "weak"
+              },
+              "direction_dependent": true
+            },
+            {
+              "relationship": "compactness_cut <-> competitiveness",
+              "verdict": "none",
+              "directions": {
+                "compactness_cut -> competitiveness": "none",
+                "competitiveness -> compactness_cut": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "compactness_cut <-> population_equality",
+              "verdict": "weak",
+              "directions": {
+                "compactness_cut -> population_equality": "weak",
+                "population_equality -> compactness_cut": "none"
+              },
+              "direction_dependent": true
+            },
+            {
+              "relationship": "fairness_eg <-> fairness_mm",
+              "verdict": "weak",
+              "directions": {
+                "fairness_eg -> fairness_mm": "weak",
+                "fairness_mm -> fairness_eg": "weak"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "competitiveness <-> fairness_eg",
+              "verdict": "weak",
+              "directions": {
+                "fairness_eg -> competitiveness": "none",
+                "competitiveness -> fairness_eg": "weak"
+              },
+              "direction_dependent": true
+            },
+            {
+              "relationship": "fairness_eg <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "fairness_eg -> population_equality": "none",
+                "population_equality -> fairness_eg": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "competitiveness <-> fairness_mm",
+              "verdict": "weak",
+              "directions": {
+                "fairness_mm -> competitiveness": "weak",
+                "competitiveness -> fairness_mm": "weak"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "fairness_mm <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "fairness_mm -> population_equality": "none",
+                "population_equality -> fairness_mm": "none"
+              },
+              "direction_dependent": false
+            },
+            {
+              "relationship": "competitiveness <-> population_equality",
+              "verdict": "none",
+              "directions": {
+                "competitiveness -> population_equality": "none",
+                "population_equality -> competitiveness": "none"
+              },
+              "direction_dependent": false
+            }
+          ]
+        },
+        "multiplicity": {
+          "method": "Benjamini-Hochberg",
+          "applied_to_headline": true,
+          "n_tests": 30,
+          "alpha": 0.05,
+          "n_conditional_firings_lost": 0,
+          "conditional_firings_lost": [],
+          "n_pair_verdicts_changed": 0,
+          "pair_verdicts_changed": [],
+          "note": "verdict_uncorrected on each pair is the verdict before this correction; verdict is after it"
+        },
+        "summary": {
+          "strong": [],
+          "weak": [
+            "compactness_pp -> fairness_eg",
+            "fairness_eg -> compactness_pp",
+            "compactness_pp -> fairness_mm",
+            "fairness_mm -> compactness_pp",
+            "population_equality -> compactness_pp",
+            "compactness_cut -> fairness_eg",
+            "fairness_eg -> compactness_cut",
+            "fairness_mm -> compactness_cut",
+            "compactness_cut -> population_equality",
+            "fairness_eg -> fairness_mm",
+            "fairness_mm -> fairness_eg",
+            "competitiveness -> fairness_eg",
+            "fairness_mm -> competitiveness",
+            "competitiveness -> fairness_mm"
+          ],
+          "none": [
+            "compactness_pp -> compactness_cut",
+            "compactness_cut -> compactness_pp",
+            "compactness_pp -> competitiveness",
+            "competitiveness -> compactness_pp",
+            "compactness_pp -> population_equality",
+            "compactness_cut -> fairness_mm",
+            "compactness_cut -> competitiveness",
+            "competitiveness -> compactness_cut",
+            "population_equality -> compactness_cut",
+            "fairness_eg -> competitiveness",
+            "fairness_eg -> population_equality",
+            "population_equality -> fairness_eg",
+            "fairness_mm -> population_equality",
+            "population_equality -> fairness_mm",
+            "competitiveness -> population_equality",
+            "population_equality -> competitiveness"
+          ],
+          "degenerate": []
+        }
+      },
+      "contest_agreement": {
+        "n_pairs_compared": 30,
+        "n_agree": 24,
+        "n_differ": 6,
+        "disagreements": [
+          {
+            "pair": "compactness_pp -> fairness_eg",
+            "G20PRE": "none",
+            "G20USS": "weak"
+          },
+          {
+            "pair": "compactness_cut -> fairness_eg",
+            "G20PRE": "none",
+            "G20USS": "weak"
+          },
+          {
+            "pair": "fairness_eg -> fairness_mm",
+            "G20PRE": "none",
+            "G20USS": "weak"
+          },
+          {
+            "pair": "fairness_mm -> fairness_eg",
+            "G20PRE": "none",
+            "G20USS": "weak"
+          },
+          {
+            "pair": "fairness_eg -> competitiveness",
+            "G20PRE": "weak",
+            "G20USS": "none"
+          },
+          {
+            "pair": "competitiveness -> fairness_mm",
+            "G20PRE": "strong",
+            "G20USS": "weak"
+          }
+        ],
+        "note": "a pair only present under one contest is counted as a disagreement, since a criterion that goes degenerate under a different election is itself a finding about the criterion"
+      },
+      "draws_file": {
+        "path": "docs/experiment-2/ia-draws-v2.csv.gz",
+        "n_rows": 57553,
+        "reanalysed_without_sampling": true
+      }
+    }
+  },
+  "states_complete": [
+    "IA"
+  ]
+}
