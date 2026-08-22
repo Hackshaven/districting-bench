@@ -897,3 +897,18 @@ def test_write_rows_refuses_chains_from_another_configuration(tmp_path):
     stray = X.ChainResult(seed=1, steps_requested=5, rows=[], failure=None)
     with pytest.raises(ValueError, match="does not derive"):
         X.write_rows(X.IOWA, [stray], tmp_path / "ia-draws-v2.csv.gz")
+
+
+def test_draws_path_selects_by_ensemble_not_by_output_location():
+    """--out says where results go, never which draws they came from."""
+    assert X.draws_path("ia", "v1").name == "ia-draws.csv.gz"
+    assert X.draws_path("ia", "v2").name == "ia-draws-v2.csv.gz"
+    assert X.draws_path("co", "v2").name == "co-draws-v2.csv.gz"
+    assert X.draws_path("ia", "v1") != X.draws_path("ia", "v2")
+
+
+def test_every_named_ensemble_declares_a_rectangle_for_every_state():
+    for version, spec in X.ENSEMBLES.items():
+        for state in X.STATES:
+            assert state in spec["rectangle"], f"{version}/{state}"
+            assert state in spec, f"{version}/{state}"

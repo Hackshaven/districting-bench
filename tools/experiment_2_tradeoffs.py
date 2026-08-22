@@ -1518,9 +1518,20 @@ def main(argv=None) -> int:
                 spec,
                 steps=args.steps or spec.steps,
                 chains=args.chains or spec.chains)
-        rows_path = (draws_path(spec.prefix, args.ensemble)
-                     if Path(args.out).parent == OUT
-                     else Path(args.out).parent / f"{spec.prefix}-draws.csv.gz")
+        # Both sides resolved: comparing a relative --out against the absolute
+        # OUT silently took the fallback branch and re-analysed the v1 draws
+        # while the run was labelled v2. A path comparison that fails quietly
+        # and reads the wrong ensemble is the worst shape this bug could take,
+        # because every number downstream is real and describes another sample.
+        out_dir = Path(args.out).resolve().parent
+        if args.from_draws:
+            # Re-analysis always reads the named ensemble's own file; the --out
+            # location says where results go, never which draws they came from.
+            rows_path = draws_path(spec.prefix, args.ensemble)
+        else:
+            rows_path = (draws_path(spec.prefix, args.ensemble)
+                         if out_dir == OUT.resolve()
+                         else out_dir / f"{spec.prefix}-draws.csv.gz")
 
         if args.from_draws:
             report, chains = run_state(spec, draws=rows_path)
