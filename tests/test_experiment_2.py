@@ -592,7 +592,9 @@ def test_written_draws_are_byte_stable_across_runs(tmp_path):
     keys = sorted({key for contest in (X.PRIMARY_CONTEST, X.ALTERNATE_CONTEST)
                    for key, _, _ in X.criteria_for(contest).values()})
     rows = [{k: float(i) for k in keys} for i in range(5)]
-    chains = [X.ChainResult(seed=1, steps_requested=5, rows=rows)]
+    chains = [X.ChainResult(
+        seed=X.seeds.derive(X.MASTER_SEED, f"exp2-{TINY.key.lower()}", 0),
+        steps_requested=5, rows=rows)]
     first, second = tmp_path / "a.csv.gz", tmp_path / "b.csv.gz"
     X.write_rows(TINY, chains, first)
     X.write_rows(TINY, chains, second)
@@ -631,6 +633,20 @@ def _truncated_draws(tmp_path, prefix, keep=90):
             record["n_rows"] = kept.get(record["index"], 0)
         (tmp_path / f"{prefix}-chains.json").write_text(json.dumps(data))
     return out
+
+
+@pytest.fixture(autouse=True)
+def _isolate_pair_cache(tmp_path_factory, monkeypatch):
+    """No test may write into the repository's live pair cache.
+
+    The analysis caches each pair's result to docs/experiment-2/pair-cache, and
+    tests that exercise the analysis were writing there -- 60 junk entries
+    computed with 20 bootstrap replicates instead of 1,000. The cache key
+    includes those counts, so a real run would not have reused them, but they
+    still polluted the working tree and would have been committed by the banker.
+    """
+    monkeypatch.setattr(
+        X, "PAIR_CACHE", tmp_path_factory.mktemp("pair-cache"))
 
 
 def test_reanalysis_assembles_a_complete_report(tmp_path, monkeypatch):
@@ -850,13 +866,20 @@ def test_the_sidecar_never_collides_with_the_draws_file():
         assert X._sidecar_for(path).name.endswith("-chains.json"), name
 
 
-def _full_chain(seed, n):
-    """A chain whose rows carry every column write_rows expects."""
+def _full_chain(index, n, state="IA"):
+    """A chain at a real derived seed, whose rows carry every column write_rows wants.
+
+    The seed must be the one ``index`` derives: write_rows takes a chain's index
+    from its seed so a partial write cannot relabel chains, and refuses any seed
+    no index derives.
+    """
     keys = sorted({k for c in (X.PRIMARY_CONTEST, X.ALTERNATE_CONTEST)
                    for k, _, _ in X.criteria_for(c).values()})
     rows = [{k: float((i * 7 + j) % 13) for j, k in enumerate(keys)}
             for i in range(n)]
-    return X.ChainResult(seed=seed, steps_requested=n, rows=rows, failure=None)
+    return X.ChainResult(
+        seed=X.seeds.derive(X.MASTER_SEED, f"exp2-{state.lower()}", index),
+        steps_requested=n, rows=rows, failure=None)
 
 
 def test_write_rows_and_read_back_survives_a_nonstandard_filename(tmp_path):

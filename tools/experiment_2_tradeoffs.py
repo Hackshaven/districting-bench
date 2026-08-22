@@ -1452,15 +1452,44 @@ def _sidecar_for(path: Path) -> Path:
     destroyed 57,553 rows of sampled data. The assertion below is cheap and the
     failure it prevents cost an hour of sampling.
     """
+    for candidate in _sidecar_candidates(path):
+        if candidate.exists():
+            return candidate
+    return _sidecar_candidates(path)[0]
+
+
+def _sidecar_candidates(path: Path) -> list[Path]:
+    """Canonical sidecar name first, then the legacy one.
+
+    Two conventions exist on disk because the naming was changed mid-project.
+    The original derived the name by replacing "-draws.csv.gz" with
+    "-chains.json", giving ``ia-chains.json``; that was replaced by
+    suffix-stripping after the replacement silently became a no-op on an
+    unexpected filename and wrote the sidecar over its own draws file. The new
+    rule gives ``ia-draws-chains.json`` for the same input, so the committed v1
+    sidecars stopped being found -- and a missing sidecar is not an error, it
+    silently drops the chains that produced no draws and understates the failure
+    rate, which ARCHITECTURE.md section 7 makes part of the result.
+
+    So reads accept either and writes use the canonical one. Deleting the legacy
+    files instead would work; keeping both readable means an older draws file
+    from any branch still loads correctly.
+    """
     name = path.name
     for suffix in (".csv.gz", ".csv", ".gz"):
         if name.endswith(suffix):
             name = name[: -len(suffix)]
             break
-    sidecar = path.with_name(f"{name}-chains.json")
-    if sidecar == path:                       # pragma: no cover - unreachable
-        raise ValueError(f"sidecar path collides with the draws file: {path}")
-    return sidecar
+    canonical = path.with_name(f"{name}-chains.json")
+    legacy = path.with_name(
+        path.name.replace("-draws.csv.gz", "-chains.json"))
+    out = [canonical]
+    if legacy != path and legacy != canonical:
+        out.append(legacy)
+    for candidate in out:
+        if candidate == path:                 # pragma: no cover
+            raise ValueError(f"sidecar collides with the draws file: {path}")
+    return out
 
 
 def write_rows(spec: StateSpec, chains: list[ChainResult], path: Path) -> dict:
