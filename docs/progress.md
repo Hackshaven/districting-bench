@@ -2060,27 +2060,41 @@ tension.
 
 ---
 
-## 6. Iowa's Experiment 2 half is re-running
+## 6. Experiment 2 on v2 — Iowa
 
-The first v2 attempt at Iowa is **void**. The re-analysis loader still filtered on
+The first v2 attempt at Iowa was **void**: the re-analysis loader still filtered on
 chain completion, so it ran on **2 chains** while reporting 24,000 draws. Both of
 Experiment 2's chain-level machines — the block bootstrap and the circular-shift
-permutation null — resample *chains*, so they had two units, and the convergence
-block that run printed (R-hat 1.015) is a two-chain statistic.
+permutation null — resample *chains*, so they had two units. The corrected run
+uses the 6-chain, 4,594-draw rectangle.
 
-The irony is the substance: the entire purpose of the re-sample was to raise the
-effective sample size, and a loader quietly cut it to two chains while the
-artifact reported a *larger* draw count than v1. A wrong-sample path that produces
-entirely plausible numbers is the failure mode this project keeps finding in
-itself, and it is now the fourth of its kind — after the salted control seeds, the
-sidecar that overwrote its own draws file, and the `--out` comparison that
-re-analysed v1 while labelled v2.
+| | v1 (8 × 1,500) | v2 (6 × 4,594) |
+| --- | --- | --- |
+| draws | 12,000 | 27,564 |
+| relationships | 10 none / 5 weak | **11 none / 4 weak** |
+| contest agreement | 24 of 30 | 24 of 30 |
+| R-hat / ESS, cut edges | 1.146 / 38 | **1.023 / 206** |
+| R-hat / ESS, efficiency gap | 1.155 / 35 | **1.023 / 228** |
 
-The rectangle is now wired through `chains_from_draws`, with tests asserting Iowa
-v2 gives 2 chains without it and 6 with. The corrected run is in progress and its
-results will be appended here.
+**Iowa's headline is unchanged and slightly cleaner.** One relationship dropped out
+and one appeared; competitiveness ↔ mean-median and both compactness ↔ mean-median
+pairs survive, as they did on v1.
 
----
+**Iowa's detection floor improved sharply, unlike Colorado's** — from
+\|ρ\| ≈ 0.098 *non-monotone* to **0.070, monotone**, on the continuous pair. This
+is the opposite of §5's Colorado result and the contrast is the informative part.
+Iowa's rectangle has **6 chains where v1 had 8**, but each is three times longer;
+Colorado had 8 chains in both versions. The block bootstrap resamples chains, so
+Colorado gained no bootstrap units and its floor did not improve — while Iowa's
+gain came from the v1 floor being *non-monotone*, i.e. not a detection floor at
+all but an artifact of chains that had not mixed. **Fixing convergence did not buy
+Iowa power; it made the power measurement meaningful.**
+
+One residue: contest agreement stayed at 24 of 30, so Iowa's cross-election
+instability is *not* an artifact of under-mixing, unlike Colorado's, which went to
+41 of 42. That is a real property of Iowa's four-district geometry rather than a
+sampling defect, and it is the correct reading only now that the ensemble is
+adequate.
 
 ## 7. What this does not fix
 
