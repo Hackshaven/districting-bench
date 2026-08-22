@@ -465,6 +465,9 @@ dangerous one.
 
 ## What has not been done yet
 
+These are the project's own stated next steps, taken from its working record —
+not recommendations added by this summary.
+
 - Recomputing the finished experiments on the better-mixed collection of maps.
 - Checking our measurements against an established public scorer.
 - Measuring how much the privacy noise the Census Bureau adds to its published
