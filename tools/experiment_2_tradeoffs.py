@@ -1134,7 +1134,33 @@ def detection_floor(rows_by_chain, a: str, b: str, criteria,
     }
 
 
-def analyse(rows_by_chain, contest: str, *, log=print) -> dict:
+#: Where per-pair results are cached between runs. A pair is ~1,000 bootstrap
+#: resamples plus 1,000 permutations, the analysis is 60 of them per state, and
+#: this environment has reclaimed its container mid-run four times. Chain
+#: checkpointing already made the sampling restart-safe; this does the same for
+#: the analysis, which is now the longest thing that can be lost.
+PAIR_CACHE = OUT / "pair-cache"
+
+
+def _pair_cache_key(ensemble: str, contest: str, a: str, b: str) -> str:
+    """Identity of one cached pair result.
+
+    ``ensemble`` carries the state and the chains-by-steps shape, so it changes
+    whenever the underlying draws do. The decision thresholds are in the key as
+    well: a cached verdict computed under a different alpha or a different
+    bootstrap count is not the same result, and reusing it would silently mix
+    two configurations in one table.
+    """
+    payload = json.dumps({"ensemble": ensemble, "contest": contest,
+                          "a": a, "b": b, "bootstrap": BOOTSTRAP,
+                          "permutations": PERMUTATIONS, "rho": RHO_TRADEOFF,
+                          "effect": EFFECT_TRADEOFF, "alpha": ALPHA,
+                          "decile": DECILE, "tercile": TERCILE},
+                         sort_keys=True)
+    return hashlib.sha256(payload.encode()).hexdigest()[:20]
+
+
+def analyse(rows_by_chain, contest: str, *, log=print, cache_key=None) -> dict:
     """Every ordered pair of varying criteria, under one election's metrics.
 
     Called twice per state -- once for :data:`PRIMARY_CONTEST` and once for
@@ -1165,8 +1191,25 @@ def analyse(rows_by_chain, contest: str, *, log=print) -> dict:
     pairs = []
     for i, a in enumerate(varying):
         for b in varying[i + 1:]:
-            pairs.append(evaluate_pair(rows_by_chain, a, b, rng, criteria))
-            pairs.append(evaluate_pair(rows_by_chain, b, a, rng, criteria))
+            for x, y in ((a, b), (b, a)):
+                cached = None
+                path = None
+                if cache_key is not None:
+                    PAIR_CACHE.mkdir(parents=True, exist_ok=True)
+                    path = PAIR_CACHE / (
+                        _pair_cache_key(cache_key, contest, x, y) + ".json")
+                    if path.exists():
+                        try:
+                            cached = json.loads(path.read_text())
+                        except json.JSONDecodeError:
+                            cached = None
+                if cached is None:
+                    cached = evaluate_pair(rows_by_chain, x, y, rng, criteria)
+                    if path is not None:
+                        tmp = path.with_suffix(".partial")
+                        tmp.write_text(json.dumps(cached, default=str))
+                        tmp.replace(path)
+                pairs.append(cached)
             log(f"  [{contest}] {a} x {b}: "
                 f"{pairs[-2]['verdict']} / {pairs[-1]['verdict']}")
 
@@ -1339,8 +1382,9 @@ def _analyse_chains(spec: StateSpec, chains: list[ChainResult], *, log=print):
             f"the chain-level bootstrap and permutation tests need at least two"
         )
 
-    analysis = analyse(rows_by_chain, PRIMARY_CONTEST, log=log)
-    replication = analyse(rows_by_chain, ALTERNATE_CONTEST, log=log)
+    key = f"{spec.key}-{spec.chains}x{spec.steps}"
+    analysis = analyse(rows_by_chain, PRIMARY_CONTEST, log=log, cache_key=key)
+    replication = analyse(rows_by_chain, ALTERNATE_CONTEST, log=log, cache_key=key)
     pairs = analysis["pairs"]
     all_rows = [row for rows in rows_by_chain for row in rows]
 

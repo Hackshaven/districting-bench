@@ -947,3 +947,18 @@ def test_every_ensemble_rectangle_is_reachable_by_enough_chains():
             assert len([c for c in chains if c.completed]) >= 4, (
                 f"{version}/{state}: rectangle {rect} leaves too few chains"
             )
+
+
+def test_pair_cache_key_changes_with_anything_that_changes_the_verdict(monkeypatch):
+    """A cached verdict from another configuration must not be reused."""
+    base = X._pair_cache_key("IA-12x12000", "G20PRE", "a", "b")
+    assert base == X._pair_cache_key("IA-12x12000", "G20PRE", "a", "b")
+    assert base != X._pair_cache_key("IA-12x1500", "G20PRE", "a", "b")
+    assert base != X._pair_cache_key("IA-12x12000", "G20USS", "a", "b")
+    assert base != X._pair_cache_key("IA-12x12000", "G20PRE", "b", "a")
+    for name, value in (("BOOTSTRAP", 500), ("PERMUTATIONS", 500),
+                        ("ALPHA", 0.10), ("DECILE", 0.2), ("TERCILE", 0.25),
+                        ("EFFECT_TRADEOFF", -0.5), ("RHO_TRADEOFF", -0.2)):
+        monkeypatch.setattr(X, name, value)
+        assert X._pair_cache_key("IA-12x12000", "G20PRE", "a", "b") != base, name
+        monkeypatch.undo()
