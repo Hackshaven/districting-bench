@@ -912,3 +912,38 @@ def test_every_named_ensemble_declares_a_rectangle_for_every_state():
         for state in X.STATES:
             assert state in spec["rectangle"], f"{version}/{state}"
             assert state in spec, f"{version}/{state}"
+
+
+def test_reanalysis_honours_the_ensemble_rectangle():
+    """Completion-filtering a long-chain ensemble starves the chain-level tests.
+
+    Iowa's v2 ensemble has 2 of 12 chains reaching 12,000 steps. Without the
+    rectangle the bootstrap and the permutation null -- both of which resample
+    CHAINS -- get two units. This shipped once and produced an Experiment 2 run
+    whose Iowa half rested on two chains while reporting 24,000 draws.
+    """
+    path = X.draws_path("ia", "v2")
+    if not path.exists():
+        pytest.skip("v2 draws not on disk")
+    spec = X.ensemble_spec("IA", "v2")
+    without = [c for c in X.chains_from_draws(spec, path) if c.completed]
+    with_rect = [c for c in X.chains_from_draws(spec, path, 4594) if c.completed]
+    assert len(without) == 2
+    assert len(with_rect) == 6
+    assert all(len(c.rows) == 4594 for c in with_rect)
+
+
+def test_every_ensemble_rectangle_is_reachable_by_enough_chains():
+    """A declared rectangle no chains reach would silently empty the ensemble."""
+    for version, spec in X.ENSEMBLES.items():
+        for state, rect in spec["rectangle"].items():
+            if rect is None:
+                continue
+            path = X.draws_path(state.lower(), version)
+            if not path.exists():
+                continue
+            chains = X.chains_from_draws(X.ensemble_spec(state, version),
+                                         path, rect)
+            assert len([c for c in chains if c.completed]) >= 4, (
+                f"{version}/{state}: rectangle {rect} leaves too few chains"
+            )

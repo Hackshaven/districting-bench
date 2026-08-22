@@ -1215,7 +1215,8 @@ def compare_contests(primary: dict, replication: dict) -> dict:
     }
 
 
-def chains_from_draws(spec: StateSpec, path: Path) -> list[ChainResult]:
+def chains_from_draws(spec: StateSpec, path: Path,
+                      rectangle: int | None = None) -> list[ChainResult]:
     """Rebuild the chain results from a committed draws file.
 
     The draws file holds every measured value for every draw, so the entire
@@ -1229,6 +1230,15 @@ def chains_from_draws(spec: StateSpec, path: Path) -> list[ChainResult]:
     Failed chains are carried through with their failure strings, so the failure
     rate and the analysis sample are the same as in the run that produced the
     file.
+
+    ``rectangle`` truncates every chain reaching that prefix and keeps it,
+    partial chains included. Without it this function filters on completion, and
+    at long chain lengths that is not a conservative choice but a destructive
+    one: Iowa's v2 ensemble has 2 of 12 chains reaching 12,000 steps, so
+    completion-filtering hands the chain-level bootstrap and the permutation null
+    **two units to resample**. See D-035 -- selecting on completion selects on a
+    chain's whole path, while a common prefix was drawn before any chain knew it
+    was going to die.
     """
     keys = sorted({key for contest in (PRIMARY_CONTEST, ALTERNATE_CONTEST)
                    for key, _, _ in criteria_for(contest).values()})
@@ -1252,6 +1262,11 @@ def chains_from_draws(spec: StateSpec, path: Path) -> list[ChainResult]:
                 rows.setdefault(record["index"], [])
                 meta[record["index"]] = (record["seed"], record["completed"])
 
+    if rectangle is not None:
+        rows = {i: r[:rectangle] for i, r in rows.items()
+                if len(r) >= rectangle}
+        meta = {i: (seed, True) for i, (seed, _) in meta.items() if i in rows}
+
     out = []
     for index in sorted(rows):
         seed, completed = meta[index]
@@ -1268,7 +1283,8 @@ def chains_from_draws(spec: StateSpec, path: Path) -> list[ChainResult]:
         # completed chain as a failed one, which would change the failure rate
         # -- a reported result in its own right (ARCHITECTURE.md section 7).
         recorded = empty.get(index, {}).get("n_rows")
-        if recorded is not None and recorded != len(rows[index]):
+        if (rectangle is None and recorded is not None
+                and recorded != len(rows[index])):
             raise ValueError(
                 f"{path}: chain {index} holds {len(rows[index])} rows but the "
                 f"sidecar records {recorded}. One of the two files is stale."
@@ -1283,10 +1299,12 @@ def chains_from_draws(spec: StateSpec, path: Path) -> list[ChainResult]:
 
 def run_state(spec: StateSpec, *, log=print, jobs: int = 1,
               checkpoints: Path | None = None,
-              draws: Path | None = None) -> dict:
+              draws: Path | None = None,
+              rectangle: int | None = None) -> dict:
     if draws is not None:
-        log(f"[{spec.key}] re-analysing {draws} without sampling")
-        chains = chains_from_draws(spec, draws)
+        log(f"[{spec.key}] re-analysing {draws} without sampling"
+            + (f", truncated to a {rectangle}-draw rectangle" if rectangle else ""))
+        chains = chains_from_draws(spec, draws, rectangle)
         return _analyse_chains(spec, chains, log=log)
     log(f"[{spec.key}] loading")
     ctx = load_context(spec, (PRIMARY_CONTEST, ALTERNATE_CONTEST))
@@ -1534,7 +1552,9 @@ def main(argv=None) -> int:
                          else out_dir / f"{spec.prefix}-draws.csv.gz")
 
         if args.from_draws:
-            report, chains = run_state(spec, draws=rows_path)
+            report, chains = run_state(
+                spec, draws=rows_path,
+                rectangle=ENSEMBLES[args.ensemble]["rectangle"][key])
             report["draws_file"] = {"path": str(rows_path.relative_to(ROOT)),
                                     "n_rows": sum(len(c.rows) for c in chains),
                                     "reanalysed_without_sampling": True}
