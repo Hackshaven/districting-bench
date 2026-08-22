@@ -23,6 +23,7 @@ Measured, not assumed:
 | Committed-but-unpushed | untested; do not rely on it |
 | Gitignored files inside the repo | **no** — survived one reclaim, then 0 of 12 |
 | Scratchpad / tmp | unreliable — partial, silent |
+| `~/.claude/` (user-level agent memory) | **no** — deleted by a reclaim the same day it was written |
 | Running processes | **never** |
 
 The middle row is the trap. Gitignored checkpoints survived one restart, which
@@ -31,6 +32,11 @@ sampling survived only because it had been committed out of the checkpoint cache
 beforehand.**
 
 > **Rule: the only durable thing is a pushed commit. Everything else is a cache.**
+
+That includes the agent's own memory. Notes written to `~/.claude/CLAUDE.md` — the
+documented place for guidance that should outlive a session — were deleted by a
+reclaim hours later. **Keep the source of truth in the repository and restore the
+memory file from it**, rather than the other way round.
 
 ### 1.2 Long jobs may die *because* they are long
 

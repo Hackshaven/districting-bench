@@ -12,6 +12,13 @@ each rule: `docs/RESEARCH-LOOP-PLAYBOOK.md` in `hackshaven/districting-bench`
    unreliable. Running processes never survive.
 2. **Commit expensive artifacts out of their cache the moment they exist**, before
    doing anything else. An hour of sampling survived only because of this.
+   **Apply rule 1 when you create any artifact directory** — decide then whether
+   it is tracked. Stating the rule is not applying it: I wrote rule 1 down and
+   four hours later built a gitignored cache anyway.
+2b. **`~/.claude/` is NOT durable either.** This file was written there and a
+   reclaim deleted it the same day. User-level memory in an ephemeral container
+   is a cache like any other — keep the source of truth in a pushed commit and
+   restore from it.
 3. **Long jobs may die *because* they are long** — if reclaim keys on session
    inactivity, any job worth backgrounding is long enough to trigger it. Size
    every unit to finish inside the shortest plausible window. A unit that cannot
@@ -25,7 +32,13 @@ each rule: `docs/RESEARCH-LOOP-PLAYBOOK.md` in `hackshaven/districting-bench`
    and a reader can check a number by reading a file. Do this even in a stable
    environment.
 5. **Checkpoint at the unit of independence** (chain / shard / pair), written
-   temp-file-plus-atomic-rename.
+   temp-file-plus-atomic-rename — **to a TRACKED path, and pushed on a timer
+   while the job runs.** Crash-safe is not reclaim-safe: a gitignored checkpoint
+   survives a process crash and dies with the container, which is the failure
+   that actually happens. I made this exact mistake twice — twelve sampling
+   checkpoints, then the cache added to prevent that — losing the same analysis
+   four times. Checkpoints are tiny (1.1 KB each here); commit them, and run a
+   background loop that commits and pushes progress every few minutes.
 6. **Write outputs incrementally**, never once at the end.
 7. **Version datasets by name; never overwrite.** A published figure describing a
    replaced file is worse than two files.
