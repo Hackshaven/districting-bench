@@ -867,3 +867,33 @@ def test_write_rows_and_read_back_survives_a_nonstandard_filename(tmp_path):
     assert info["n_rows"] == 60
     with gzip.open(out, "rt") as handle:
         assert len(handle.read().splitlines()) == 61     # header + rows
+
+
+def test_a_partial_write_keeps_each_chain_its_own_index(tmp_path):
+    """Banking chains mid-run must not relabel them.
+
+    Seeds derive from the index and every reader re-derives the expected seed
+    from it, so writing chains 3, 4 and 5 alone once produced a file in which
+    they claimed to be 0, 1 and 2 with seeds that no index derives.
+    """
+    keys = sorted({k for c in (X.PRIMARY_CONTEST, X.ALTERNATE_CONTEST)
+                   for k, _, _ in X.criteria_for(c).values()})
+    rows = [{k: float(i) for k in keys} for i in range(5)]
+    subset = [
+        X.ChainResult(seed=X.seeds.derive(X.MASTER_SEED, "exp2-ia", i),
+                      steps_requested=5, rows=rows, failure=None)
+        for i in (3, 4, 5)
+    ]
+    out = tmp_path / "ia-draws-v2.csv.gz"
+    X.write_rows(X.IOWA, subset, out)
+    with gzip.open(out, "rt", newline="") as handle:
+        indices = sorted({int(r["chain_index"]) for r in csv.DictReader(handle)})
+    assert indices == [3, 4, 5]
+    recovered = X.chains_from_draws(X.IOWA, out)
+    assert [c.seed for c in recovered if c.rows] == [c.seed for c in subset]
+
+
+def test_write_rows_refuses_chains_from_another_configuration(tmp_path):
+    stray = X.ChainResult(seed=1, steps_requested=5, rows=[], failure=None)
+    with pytest.raises(ValueError, match="does not derive"):
+        X.write_rows(X.IOWA, [stray], tmp_path / "ia-draws-v2.csv.gz")

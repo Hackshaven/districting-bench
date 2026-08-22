@@ -1414,6 +1414,23 @@ def write_rows(spec: StateSpec, chains: list[ChainResult], path: Path) -> dict:
     keys = sorted({key for contest in (PRIMARY_CONTEST, ALTERNATE_CONTEST)
                    for key, _, _ in criteria_for(contest).values()})
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    # A chain's index is its identity: seeds derive from it, and load_checkpoint
+    # and chains_from_draws both re-derive the expected seed from it. Using
+    # enumerate() over whatever list arrives relabels a partial set -- write
+    # chains 3, 4, 5 alone and they come back claiming to be 0, 1, 2, with seeds
+    # that no longer match what their new index derives. Partial writes happen
+    # every time chains are banked mid-run, so the index is taken from the
+    # chain's own seed rather than from its position.
+    by_seed = {seeds.derive(MASTER_SEED, f"exp2-{spec.key.lower()}", i): i
+               for i in range(spec.chains)}
+    unknown = [c.seed for c in chains if c.seed not in by_seed]
+    if unknown:
+        raise ValueError(
+            f"write_rows: {len(unknown)} chain(s) carry seeds this "
+            f"configuration does not derive at any index: {unknown[:3]}. The "
+            f"chains were produced by a different spec."
+        )
     n = 0
     # mtime=0: gzip stamps the wall clock into its header by default, so an
     # unchanged artifact re-written by an identical run produces a different file
@@ -1422,7 +1439,8 @@ def write_rows(spec: StateSpec, chains: list[ChainResult], path: Path) -> dict:
     with _deterministic_gzip(path) as handle:
         out = csv.writer(handle)
         out.writerow(["chain_index", "chain_seed", "chain_completed", "draw", *keys])
-        for index, chain in enumerate(chains):
+        for chain in sorted(chains, key=lambda c: by_seed[c.seed]):
+            index = by_seed[chain.seed]
             for draw, row in enumerate(chain.rows):
                 out.writerow([index, chain.seed, int(chain.completed), draw,
                               *[row[key] for key in keys]])
@@ -1435,9 +1453,10 @@ def write_rows(spec: StateSpec, chains: list[ChainResult], path: Path) -> dict:
     sidecar = _sidecar_for(path)
     sidecar.write_text(json.dumps({
         "config_digest": config_digest(spec),
-        "chains": [{"index": i, "seed": c.seed, "n_rows": len(c.rows),
-                    "completed": c.completed, "failure": c.failure}
-                   for i, c in enumerate(chains)],
+        "chains": [{"index": by_seed[c.seed], "seed": c.seed,
+                    "n_rows": len(c.rows), "completed": c.completed,
+                    "failure": c.failure}
+                   for c in sorted(chains, key=lambda c: by_seed[c.seed])],
     }, indent=2))
 
     try:

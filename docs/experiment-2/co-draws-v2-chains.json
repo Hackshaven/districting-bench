@@ -1,0 +1,26 @@
+{
+  "config_digest": "aab81e6fb9d927ae",
+  "chains": [
+    {
+      "index": 0,
+      "seed": 563234666686854419,
+      "n_rows": 2500,
+      "completed": true,
+      "failure": null
+    },
+    {
+      "index": 1,
+      "seed": 4761589958218801350,
+      "n_rows": 2500,
+      "completed": true,
+      "failure": null
+    },
+    {
+      "index": 2,
+      "seed": 5217148686552512972,
+      "n_rows": 2500,
+      "completed": true,
+      "failure": null
+    }
+  ]
+}
