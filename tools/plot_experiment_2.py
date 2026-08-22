@@ -59,6 +59,7 @@ import experiment_2_tradeoffs as X    # noqa: E402
 
 OUT = ROOT / "docs" / "figures"
 RESULTS = ROOT / "docs" / "experiment-2" / "experiment-2-results.json"
+RESULTS_V2 = ROOT / "docs" / "experiment-2" / "experiment-2-results-v2.json"
 
 INK, MUTED, SURFACE = "#1a1a1a", "#6b6b6b", "#ffffff"
 VERDICT_COLOUR = {
@@ -280,15 +281,24 @@ def frontier_panels(state: dict, chains, path: Path) -> Path:
 
 
 def main(argv=None) -> int:
-    results = json.loads(RESULTS.read_text())
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--ensemble", default="v1", choices=("v1", "v2"),
+                        help="which named ensemble's results to draw; the "
+                             "filename carries it so the two never overwrite "
+                             "each other")
+    args = parser.parse_args(argv)
+    source = RESULTS if args.ensemble == "v1" else RESULTS_V2
+    suffix = "" if args.ensemble == "v1" else "-v2"
+    results = json.loads(source.read_text())
     written = []
     for key, state in results["states"].items():
         draws = ROOT / state["draws_file"]["path"]
         _, chains = load_draws(draws)
         written.append(verdict_matrix(
-            state, OUT / f"exp2-{key.lower()}-verdict-matrix.png"))
+            state, OUT / f"exp2-{key.lower()}{suffix}-verdict-matrix.png"))
         written.append(frontier_panels(
-            state, chains, OUT / f"exp2-{key.lower()}-frontier.png"))
+            state, chains, OUT / f"exp2-{key.lower()}{suffix}-frontier.png"))
     for path in written:
         print(f"wrote {path.relative_to(ROOT)}")
     return 0
