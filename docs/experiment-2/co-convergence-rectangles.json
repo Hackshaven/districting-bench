@@ -1,0 +1,78 @@
+{
+  "state": "CO",
+  "requested_steps": 2500,
+  "unusable_seeds": [],
+  "died_before_min_prefix": [],
+  "min_prefix": 500,
+  "min_chains": 4,
+  "draws_reached": [
+    2500,
+    2500,
+    2500,
+    2500,
+    2500,
+    2500,
+    2500,
+    2500
+  ],
+  "rectangles": [
+    {
+      "prefix_length": 2500,
+      "n_chains": 8,
+      "n_draws": 20000,
+      "chain_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "compactness_cut": {
+          "split_rhat": 1.0370364680782214,
+          "ess": 268.3312717793094
+        },
+        "fairness_eg": {
+          "split_rhat": 1.0257445687553273,
+          "ess": 269.0490621199214
+        },
+        "population_equality": {
+          "split_rhat": 1.003896843277061,
+          "ess": 2096.362715497025
+        }
+      }
+    }
+  ],
+  "chosen": {
+    "prefix_length": 2500,
+    "n_chains": 8,
+    "n_draws": 20000,
+    "chain_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "metrics": {
+      "compactness_cut": {
+        "split_rhat": 1.0370364680782214,
+        "ess": 268.3312717793094
+      },
+      "fairness_eg": {
+        "split_rhat": 1.0257445687553273,
+        "ess": 269.0490621199214
+      },
+      "population_equality": {
+        "split_rhat": 1.003896843277061,
+        "ess": 2096.362715497025
+      }
+    }
+  }
+}
