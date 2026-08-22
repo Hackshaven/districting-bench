@@ -839,3 +839,31 @@ def test_no_salted_hash_decides_anything_in_the_experiment_drivers():
                 f"{name}:{line_no} uses the builtin hash(), which is salted per "
                 f"process for str and bytes. Use generate.seeds.derive."
             )
+
+
+def test_the_sidecar_never_collides_with_the_draws_file():
+    """A no-op substring replacement once wrote the sidecar over the draws."""
+    for name in ("ia-draws.csv.gz", "ia-draws-12000.csv.gz", "odd-name.csv.gz",
+                 "co-draws.csv", "plain.gz"):
+        path = Path("/tmp") / name
+        assert X._sidecar_for(path) != path, name
+        assert X._sidecar_for(path).name.endswith("-chains.json"), name
+
+
+def _full_chain(seed, n):
+    """A chain whose rows carry every column write_rows expects."""
+    keys = sorted({k for c in (X.PRIMARY_CONTEST, X.ALTERNATE_CONTEST)
+                   for k, _, _ in X.criteria_for(c).values()})
+    rows = [{k: float((i * 7 + j) % 13) for j, k in enumerate(keys)}
+            for i in range(n)]
+    return X.ChainResult(seed=seed, steps_requested=n, rows=rows, failure=None)
+
+
+def test_write_rows_and_read_back_survives_a_nonstandard_filename(tmp_path):
+    chains = [_full_chain(0, 30), _full_chain(1, 30)]
+    out = tmp_path / "ia-draws-12000.csv.gz"
+    info = X.write_rows(X.IOWA, chains, out)
+    assert out.exists() and out.stat().st_size > 0
+    assert info["n_rows"] == 60
+    with gzip.open(out, "rt") as handle:
+        assert len(handle.read().splitlines()) == 61     # header + rows

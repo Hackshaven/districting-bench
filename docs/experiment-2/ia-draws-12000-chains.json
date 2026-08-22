@@ -1,0 +1,89 @@
+{
+  "config_digest": "9c12c12b71d67878",
+  "chains": [
+    {
+      "index": 0,
+      "seed": 4598121023295815364,
+      "n_rows": 12000,
+      "completed": true,
+      "failure": null
+    },
+    {
+      "index": 1,
+      "seed": 2886321513896777121,
+      "n_rows": 8133,
+      "completed": false,
+      "failure": "RuntimeError: Could not find a possible cut after 100000 attempts."
+    },
+    {
+      "index": 2,
+      "seed": 4721323868467649745,
+      "n_rows": 6495,
+      "completed": false,
+      "failure": "RuntimeError: Could not find a possible cut after 100000 attempts."
+    },
+    {
+      "index": 3,
+      "seed": 8578766234884288292,
+      "n_rows": 4282,
+      "completed": false,
+      "failure": "RuntimeError: Could not find a possible cut after 100000 attempts."
+    },
+    {
+      "index": 4,
+      "seed": 8458559163655332203,
+      "n_rows": 0,
+      "completed": false,
+      "failure": "RuntimeError: Could not find a possible cut after 100000 attempts."
+    },
+    {
+      "index": 5,
+      "seed": 5253085204740225123,
+      "n_rows": 4594,
+      "completed": false,
+      "failure": "RuntimeError: Could not find a possible cut after 100000 attempts."
+    },
+    {
+      "index": 6,
+      "seed": 6021033162876088556,
+      "n_rows": 12000,
+      "completed": true,
+      "failure": null
+    },
+    {
+      "index": 7,
+      "seed": 8181738652657340395,
+      "n_rows": 0,
+      "completed": false,
+      "failure": "RuntimeError: Could not find a possible cut after 100000 attempts."
+    },
+    {
+      "index": 8,
+      "seed": 1491668099493327661,
+      "n_rows": 1863,
+      "completed": false,
+      "failure": "RuntimeError: Could not find a possible cut after 100000 attempts."
+    },
+    {
+      "index": 9,
+      "seed": 4674702755440810699,
+      "n_rows": 1,
+      "completed": false,
+      "failure": "RuntimeError: Could not find a possible cut after 100000 attempts."
+    },
+    {
+      "index": 10,
+      "seed": 5344298679110264931,
+      "n_rows": 8136,
+      "completed": false,
+      "failure": "RuntimeError: Could not find a possible cut after 100000 attempts."
+    },
+    {
+      "index": 11,
+      "seed": 3911660532335731725,
+      "n_rows": 49,
+      "completed": false,
+      "failure": "RuntimeError: Could not find a possible cut after 100000 attempts."
+    }
+  ]
+}

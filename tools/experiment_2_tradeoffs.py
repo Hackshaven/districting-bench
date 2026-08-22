@@ -1206,7 +1206,7 @@ def chains_from_draws(spec: StateSpec, path: Path) -> list[ChainResult]:
                            record["chain_completed"] == "1")
 
     # Recover chains that produced no rows at all from the sidecar, if present.
-    sidecar = path.with_name(path.name.replace("-draws.csv.gz", "-chains.json"))
+    sidecar = _sidecar_for(path)
     empty: dict[int, dict] = {}
     if sidecar.exists():
         for record in json.loads(sidecar.read_text())["chains"]:
@@ -1343,6 +1343,27 @@ def _analyse_chains(spec: StateSpec, chains: list[ChainResult], *, log=print):
     return report, chains
 
 
+def _sidecar_for(path: Path) -> Path:
+    """The chain-metadata path beside a draws file.
+
+    Derived by stripping the suffixes rather than by substring replacement. The
+    replacement version silently returned the *same* path for any filename not
+    matching "-draws.csv.gz" exactly -- so writing draws to
+    "ia-draws-12000.csv.gz" wrote the JSON sidecar straight over the gzip and
+    destroyed 57,553 rows of sampled data. The assertion below is cheap and the
+    failure it prevents cost an hour of sampling.
+    """
+    name = path.name
+    for suffix in (".csv.gz", ".csv", ".gz"):
+        if name.endswith(suffix):
+            name = name[: -len(suffix)]
+            break
+    sidecar = path.with_name(f"{name}-chains.json")
+    if sidecar == path:                       # pragma: no cover - unreachable
+        raise ValueError(f"sidecar path collides with the draws file: {path}")
+    return sidecar
+
+
 def write_rows(spec: StateSpec, chains: list[ChainResult], path: Path) -> dict:
     """Every measured draw, so the finding can be re-derived without re-sampling.
 
@@ -1374,7 +1395,7 @@ def write_rows(spec: StateSpec, chains: list[ChainResult], path: Path) -> dict:
     # section 7 makes that rate part of the result, because surviving seeds are
     # not a random subset of attempted seeds. The sidecar carries every attempted
     # chain, including the empty ones.
-    sidecar = path.with_name(path.name.replace("-draws.csv.gz", "-chains.json"))
+    sidecar = _sidecar_for(path)
     sidecar.write_text(json.dumps({
         "config_digest": config_digest(spec),
         "chains": [{"index": i, "seed": c.seed, "n_rows": len(c.rows),
