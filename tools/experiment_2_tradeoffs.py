@@ -1404,6 +1404,13 @@ def main(argv=None) -> int:
     parser.add_argument("--checkpoints", default=str(OUT / "checkpoints"),
                         help="per-chain cache; a container restart then costs "
                              "one chain rather than the run")
+    parser.add_argument("--steps", type=int,
+                        help="override the chain length for every state; the "
+                             "config digest covers it, so a longer run gets its "
+                             "own checkpoints rather than colliding with a "
+                             "shorter one")
+    parser.add_argument("--chains", type=int,
+                        help="override the chain count for every state")
     parser.add_argument("--from-draws", action="store_true",
                         help="re-derive every verdict from the committed draws "
                              "files instead of sampling; the whole analysis is "
@@ -1423,7 +1430,14 @@ def main(argv=None) -> int:
     results = {"master_seed": MASTER_SEED, "controls": control_report, "states": {}}
     for key in keys:
         spec = STATES[key]
+        if args.steps or args.chains:
+            import dataclasses
+            spec = dataclasses.replace(
+                spec,
+                steps=args.steps or spec.steps,
+                chains=args.chains or spec.chains)
         rows_path = Path(args.out).parent / f"{spec.prefix}-draws.csv.gz"
+
         if args.from_draws:
             report, chains = run_state(spec, draws=rows_path)
             report["draws_file"] = {"path": str(rows_path.relative_to(ROOT)),
