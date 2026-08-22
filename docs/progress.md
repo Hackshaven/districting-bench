@@ -1894,3 +1894,205 @@ PYTHONPATH=src .venv/bin/python tools/phase_2_report.py           # every metric
 `tools/check_firewall.py` prints `clean`. `src/generate` was not modified and saw
 no partisan data: the layers this phase added are geographic, and the report lives
 in `src/evaluate`, downstream of the boundary.
+
+---
+
+# The v2 ensembles — fixing convergence, and what it changed
+
+Every quantitative claim in Experiments 1 and 2 rested on ensembles that had not
+mixed. Split R-hat ran 1.08–1.16 against CRITERIA.md §8's 1.00–1.01 target, and
+effective sample size was **19–78** against nominal draw counts in the thousands.
+It was the largest single weakness in the project and the first thing a reviewer
+would attack.
+
+Both states were re-sampled. Both ensembles remain on disk and addressable by
+name — `--ensemble v1` reproduces every previously published number, `--ensemble
+v2` is the re-sample — because a published figure describing a file that has been
+replaced underneath it is worse than keeping two files.
+
+---
+
+## 1. The diagnostic came first, and it decided the design
+
+More sampling only helps if the problem is length. If chains were stuck in
+separate modes, more steps would change nothing and the proposal would need
+replacing. So before spending the compute:
+
+| | per-chain means (cut edges) | between/within SD | drift within a chain |
+| --- | --- | --- | --- |
+| Iowa | 44.2 – 49.4 | 0.38 | 2.09 (vs SD 3.67) |
+| Colorado | 672 – 750 | 0.44 | 21.8 (vs SD 57.9) |
+
+Chains overlapped heavily rather than occupying distinct basins, and each was
+still drifting between its own first and second half. That is chains that have not
+run long enough to forget where they started — a length problem. **Length is also
+the only lever that moves R-hat**, since R-hat is driven by between-chain variance
+relative to within; more chains would have improved ESS and left R-hat where it
+was.
+
+---
+
+## 2. What it cost, and the two states needed different things
+
+| | v1 | v2 | chains that died |
+| --- | --- | --- | --- |
+| Iowa | 12 × 1,500 | 12 × 12,000 | 10 of 12 |
+| Colorado | 8 × 1,000 | 8 × 2,500 | 0 of 8 |
+
+**Iowa's chains die and Colorado's do not.** At ε = 2×10⁻⁴ Iowa lost 10 of 12 at
+12,000 steps: four seeds cannot find an initial partition *at any length* — the
+same seeds fail every run, because seeds derive from the chain index — and the
+rest died mid-chain at 8,133, 6,495, 4,594, 4,282, 1,863 and 49 draws. Colorado at
+ε = 10⁻² lost none.
+
+That created a problem the re-sample had to solve before it could report anything:
+**raising the chain length to fix R-hat destroyed the sample R-hat is computed
+on.** Keeping only complete chains keeps *one* Iowa chain.
+
+The fix (D-035) is to truncate every chain to a common prefix and diagnose on
+that. It is also **less** selective, not more. ARCHITECTURE.md §7 — surviving
+seeds are not a random subset of attempted seeds — is what made completion-only
+look right, and it argues the other way here: selecting on completion selects on a
+chain's entire path, while a chain that died at step 6,496 has 6,495 draws as
+valid as any others, and a common prefix was drawn before any chain knew it was
+going to die.
+
+`tools/convergence_rectangle.py` reports R-hat and ESS at every prefix length a
+distinct chain count allows, so the tradeoff is shown rather than chosen silently.
+On Iowa it contradicted the intuitive pick:
+
+| prefix | chains | draws | worst R-hat |
+| --- | --- | --- | --- |
+| 8,133 | 4 | 32,532 | 1.043 |
+| 6,495 | 5 | 32,475 | 1.064 |
+| **4,594** | **6** | **27,564** | **1.023** |
+| 4,282 | 7 | 29,974 | 1.039 |
+| 1,863 | 8 | 14,904 | 1.102 |
+
+The **eight**-chain rectangle is the worst of the five. Short chains have not had
+time to disagree yet, and agreement between chains that have gone nowhere is
+evidence of nothing — which is exactly what the 1,500-step ensemble was measuring.
+
+---
+
+## 3. Convergence, before and after
+
+| | v1 R-hat / ESS | v2 R-hat / ESS |
+| --- | --- | --- |
+| Iowa, cut edges | 1.146 / 38 | **1.023 / 206** |
+| Iowa, efficiency gap | 1.155 / 35 | **1.023 / 228** |
+| Iowa, population spread | 1.051 / 126 | **1.014 / 336** |
+| Colorado, cut edges | 1.120 / 64 | **1.037 / 268** |
+| Colorado, efficiency gap | 1.080 / 78 | **1.026 / 269** |
+| Colorado, population spread | 1.010 / 695 | **1.004 / 2096** |
+
+**Near the target, not at it.** 1.023 and 1.037 are not 1.01. The honest statement
+is that effective sample size on the columns carrying the verdicts rose from
+35–78 to 206–269 — a five- to six-fold gain — and that both states remain short of
+the standard this project set for itself.
+
+---
+
+## 4. Experiment 1 on v2 — same conclusion, two limitations dissolved
+
+Colorado 8,000 → 20,000 draws; Iowa 12,000 → 27,564.
+
+**The substantive result is unchanged.** On Colorado, competitiveness and
+mean-median bind under both 2020 contests and nothing else does robustly;
+compactness, county integrity and population equality remain non-displacing,
+now against a *tighter* noise floor. On Iowa all six varying criteria bind under
+both contests.
+
+Two things the audit had flagged as reasons to distrust the v1 result improved:
+
+**The ranked ordering now replicates across elections.** Kendall τ rose from
+0.524 → **1.000** on Colorado and 0.467 → **0.733** on Iowa. The audit's finding
+that "changing the election reorders the deliverable as much as changing the
+state" was, on Colorado, entirely an artifact of the under-mixed ensemble. The two
+elections now produce an identical ranking.
+
+**The marginal case became visible rather than silently decided.** Colorado's
+efficiency gap sits at δ = −0.153 against a null floor of −0.120, so it clears
+under the presidential contest and fails under the Senate contest. Under v1 it
+missed under both (−0.152 vs −0.157) and was reported as non-displacing without
+comment. It is a **contest-dependent marginal call and should be read as
+unresolved** — the better ensemble did not resolve it, it made the ambiguity
+legible, which is the more useful outcome.
+
+Note the direction of the nulls: better mixing **lowered** the noise floor
+(Colorado's compactness null p05 from −0.133 to −0.085), so effects became easier
+to detect. Nothing here improved by becoming noisier.
+
+---
+
+## 5. Experiment 2 on v2 — Colorado
+
+8,000 → 20,000 draws, all eight chains complete, no truncation needed.
+
+| | v1 | v2 |
+| --- | --- | --- |
+| relationships | 20 none / 1 weak | **19 none / 2 weak** |
+| contest agreement | 42 of 42 | 41 of 42 |
+| detection floor | \|ρ\| ≈ 0.17 | \|ρ\| ≈ 0.22 |
+
+**The headline holds.** Competitiveness ↔ mean-median survives in both directions,
+and it remains the only relationship surviving in both directions on either state.
+Everything involving compactness, population equality and the efficiency gap is
+`none`.
+
+**One new relationship appears:** county integrity → competitiveness, weak, in one
+direction only. It did not clear in v1. Given it is directional, marginal, and
+carried by the conditional test — the test the Experiment 2 audit found carrying
+every defect — it should be read as a lead, not a finding.
+
+**The multiplicity correction killed two more cells** than in v1
+(`fairness_eg ↔ competitiveness`, both directions, weak → none).
+
+**The detection floor did not improve, and slightly worsened** (0.17 → 0.22). This
+is worth stating plainly because it is counterintuitive and it bounds what the
+re-sample bought: the correlation test's interval comes from a **block bootstrap
+that resamples chains**, and the chain count did not change — 8 chains before, 8
+after. More draws per chain do not add bootstrap units. **Effective sample size
+and detection power are not the same quantity, and this re-sample bought the
+first and not the second.** Buying the second would take more chains, not longer
+ones — which is the opposite of what R-hat needed, and the two goals are in
+tension.
+
+---
+
+## 6. Iowa's Experiment 2 half is re-running
+
+The first v2 attempt at Iowa is **void**. The re-analysis loader still filtered on
+chain completion, so it ran on **2 chains** while reporting 24,000 draws. Both of
+Experiment 2's chain-level machines — the block bootstrap and the circular-shift
+permutation null — resample *chains*, so they had two units, and the convergence
+block that run printed (R-hat 1.015) is a two-chain statistic.
+
+The irony is the substance: the entire purpose of the re-sample was to raise the
+effective sample size, and a loader quietly cut it to two chains while the
+artifact reported a *larger* draw count than v1. A wrong-sample path that produces
+entirely plausible numbers is the failure mode this project keeps finding in
+itself, and it is now the fourth of its kind — after the salted control seeds, the
+sidecar that overwrote its own draws file, and the `--out` comparison that
+re-analysed v1 while labelled v2.
+
+The rectangle is now wired through `chains_from_draws`, with tests asserting Iowa
+v2 gives 2 chains without it and 6 with. The corrected run is in progress and its
+results will be appended here.
+
+---
+
+## 7. What this does not fix
+
+- **R-hat is 1.023 and 1.037, not ≤ 1.01.** Both states are closer to the
+  project's own standard and neither meets it.
+- **Detection power is unchanged**, for the reason in §5. Every `none` still means
+  "no monotone tradeoff stronger than about \|ρ\| = 0.13 (Iowa) or 0.22
+  (Colorado)".
+- **Iowa's ensemble is still a biased subset of attempted seeds.** Four of twelve
+  seeds are structurally unusable and the rectangle uses six of the remaining
+  eight. Truncation reduces the selection, it does not remove it.
+- **Nothing about the substantive findings changed.** The re-sample strengthened
+  the evidence for conclusions already reached; it did not overturn any of them.
+  That is the expected outcome of fixing a precision problem and is worth stating
+  so nobody reads §4 and §5 as new results.
