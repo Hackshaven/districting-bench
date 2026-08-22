@@ -921,3 +921,42 @@ future user, inside a file that looks like plumbing.
 *Consequence:* the metric `prompt.md` asked for returns nothing until someone
 supplies geometry. The report says so in a field rather than a comment, so a
 reader can tell "supported and unsupplied" from "forgotten".
+
+---
+
+## D-035 — Convergence is diagnosed on the largest usable rectangle, not on full-length chains
+
+**Date:** 2026-08-22 · **Phase:** convergence re-sample
+
+Split R-hat and ESS need every chain the same length. This project got that
+rectangle by keeping only chains that ran to completion. At 1,500 steps it was
+nearly free — Iowa lost 4 of 12 and the survivors were full length.
+
+At 12,000 steps it stops being free. Iowa's chains reach 12,000, 8,133, 6,495,
+4,282 and 0 draws, so "keep the complete ones" keeps **one chain** and there is no
+ensemble left to diagnose. Raising the chain length to fix R-hat destroyed the
+sample R-hat is computed on.
+
+*Chosen:* truncate every chain to a common prefix and diagnose on that.
+`tools/convergence_rectangle.py` reports R-hat and ESS at every prefix length a
+distinct chain count allows, so the tradeoff — longer prefix, fewer chains — is
+shown rather than made silently.
+
+*Why this is less biased, not more:* ARCHITECTURE.md §7 is what made
+full-length-only look right — surviving seeds are not a random subset of attempted
+seeds. That argument is correct and it points the other way here. **Selecting on
+completion selects on the chain's whole path**; a chain that died at step 6,496 is
+excluded for a property of its tail while its first 6,495 draws are as valid as
+any others. Truncating to a common prefix selects on nothing, because the prefix
+was drawn before any chain knew it was going to die.
+
+*Two failure modes, kept apart.* Seeds derive from the chain index, so the same
+seeds fail every run: Iowa's chain 4 finds no initial partition at any length
+tried. That is a property of the seed and truncation does not recover it.
+Mid-chain deaths are the length-dependent ones. A fixed set of unusable seeds and
+a rising death rate are different facts about the sampler and are reported
+separately.
+
+*Consequence:* the ensemble's reported size is now a choice with a stated
+tradeoff rather than a fixed consequence of the failure pattern, and the artifact
+must say which rectangle a verdict was computed on.
