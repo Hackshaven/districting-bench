@@ -2110,3 +2110,28 @@ adequate.
   the evidence for conclusions already reached; it did not overturn any of them.
   That is the expected outcome of fixing a precision problem and is worth stating
   so nobody reads §4 and §5 as new results.
+
+## 8. State of the branch at check-in
+
+`PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` is green at **709 passed, 5
+skipped**; `python3 tools/check_firewall.py` prints `clean`; `git status` is
+empty. Three defects the pre-check-in run surfaced were fixed first, none of
+which changes a number reported above:
+
+- **The sidecar lookup had renamed itself out of its own artifacts.** The v1
+  chain sidecars are `ia-chains.json`; the suffix-stripping rule adopted after
+  the overwrite incident derives `ia-draws-chains.json`. A missing sidecar is
+  not an error — it silently drops the chains that produced no draws, which
+  understates the failure rate that ARCHITECTURE.md §7 makes part of the result.
+  Reads now accept either name.
+- **Tests were writing into the live pair cache** — 60 entries computed at 20
+  bootstrap replicates instead of 1,000. The cache key includes the replicate
+  count, so no real run would have reused them, but the mid-run banker would
+  have committed them.
+- **Two test fixtures still built chains at literal seed 1**, which `write_rows`
+  now refuses because it takes a chain's index from its seed. The one test that
+  asserts that refusal keeps its literal seed deliberately.
+
+All three of prompt.md's experiments are derived on the v2 ensembles. What
+remains open is listed in §7 and in the limitations section of each experiment's
+results file; none of it is a defect in what is committed.
