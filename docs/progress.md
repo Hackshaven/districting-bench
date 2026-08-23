@@ -2113,7 +2113,7 @@ adequate.
 
 ## 8. State of the branch at check-in
 
-`PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` is green at **709 passed, 5
+`PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` is green at **719 passed, 5
 skipped**; `python3 tools/check_firewall.py` prints `clean`; `git status` is
 empty. Three defects the pre-check-in run surfaced were fixed first, none of
 which changes a number reported above:
