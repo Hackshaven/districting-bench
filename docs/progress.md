@@ -767,7 +767,7 @@ k = 4 and k = 8 behave differently, and it is not a matter of search effort.
 - **One election, votes cast rather than eligible voters, two-party reduction, no uncontested-race imputation, uniform-swing counterfactuals for bias and the seats-votes curve.** `CRITERIA.md` §10's unmodelled list applies in full, and the efficiency gap is the metric most exposed to turnout heterogeneity because turnout sits in its denominator.
 - **The Colorado EG "clean" plan depends on a tie convention.** Its seat count and its metric value both change if ties are broken. This is a property of the implementation, not of the state, and is recorded as a defect candidate rather than a finding about the efficiency gap.
 - **Administrative metrics were degenerate** at whole-unit resolution on both states (0 county splits, constant ballot styles), so they neither confirmed nor contradicted anything here.
-- **Plots and plan CSVs are in scratch, not committed.** `exp3-co-declination.png`, `co-mean-median/mm_gameability_CO.png`, `co_partisan_bias_gameability.png`, `exp3_co_efficiency_gap.png`, `exp3_ia_efficiency_gap.png`, `ia-mean-median/ia_mean_median.png`, `ia_partisan_bias_gameability.png`, all under `/tmp/claude-0/-home-user-districting-bench/413b4380-574f-5ca9-91ae-b514806c3a51/scratchpad/`. Every number in this section was re-derived from the plan CSVs by the committed modules and is reproducible from them; the artifacts themselves are not in the repo, which is a gap against `prompt.md`'s "produce a plot and a written finding."
+- **Four of the seven searched plans have no committed CSV, and the original plots are gone.** The per-search plots were written to a scratch directory that a container reclaim deleted; three plan CSVs were committed and four were not. The gap against `prompt.md`'s "produce a plot and a written finding" is **now closed for what the repository can regenerate and not for the rest**: `docs/figures/exp3-gameability.png` draws the three committed gamed plans and both enacted references, every cell recomputed from the plan CSV by `evaluate.partisan` at draw time, with the four absent rows named on the figure. The four were not transcribed from the table above, because a figure that mixes regenerated cells with transcribed ones cannot show a reader which is which (D-036); they were not re-searched either, because `prompt.md` says to run each search once. `tests/test_experiment_3_plans.py` now pins the three committed plans' seat counts and metric values against §2's table.
 - **This experiment was run last, not early.** `prompt.md` asked for it early and in parallel with Phase 1 because it is "the result most likely to change how the rest is built." It ran after five detection rounds. The sequencing error is already recorded at the end of the Phase 1 section; the cost is visible here, in that the searches were built without the D-010 envelope that Phase 1 had already established was necessary.
 
 ---
@@ -2135,3 +2135,60 @@ which changes a number reported above:
 All three of prompt.md's experiments are derived on the v2 ensembles. What
 remains open is listed in §7 and in the limitations section of each experiment's
 results file; none of it is a defect in what is committed.
+
+---
+
+# The experiment figures
+
+`prompt.md` asks each of the three experiments for "a plot and a written
+finding". Experiment 2 had four figures; Experiments 1 and 3 had findings only.
+Both are now drawn, and both plotters derive every value from committed
+artifacts at draw time rather than from a transcribed table.
+
+| figure | what it draws | source |
+| --- | --- | --- |
+| `exp1-{ia,co}-v2-sensitivity.png` | the ranked list, each bar against its own null | `docs/experiment-1/experiment-1-results-v2.json` |
+| `exp1-{ia,co}-sensitivity.png` | the same on the superseded v1 ensemble | `docs/experiment-1/experiment-1-results.json` |
+| `exp3-gameability.png` | plans against metrics, with the seat outcome beside | the committed plan CSVs, recomputed |
+
+## What the Experiment 1 figure is built to prevent
+
+Three misreadings of the ranked list, each of which the write-up already warns
+about in prose that a reader looking at a chart will not have read.
+
+**A bar without its own null is not a result.** Each criterion's noise floor is a
+different number — Iowa's run roughly twice Colorado's — so the 5th-percentile
+null is drawn as a per-bar tick rather than one shared threshold line, and a bar
+that does not reach its own tick is drawn hollow. This is where "Iowa binds
+harder is partly Iowa mixing worse" becomes visible instead of merely stated.
+
+**The ordering does not replicate; the classification does.** Both contests are
+drawn as paired bars. Colorado's efficiency gap clears its null on the
+presidential contest and not on the Senate contest, which is exactly the
+instability the Kendall tau of +0.52 is measuring, and it is now visible in a
+single row rather than buried in a sentence.
+
+**Six rows are not six findings.** Competitiveness and mean-median are one
+relationship read from both ends — the same pair that was Experiment 2's only
+survivor — so both carry a dagger and the note says counting rows double-counts
+it. Degenerate criteria are drawn in the degenerate colour with their reason,
+because omitting Iowa's county integrity would read as "not measured" and a
+zero-length bar would read as "measured, found nothing".
+
+## What the Experiment 3 figure inverts, deliberately
+
+The alarm colour marks the metrics that **pass**. Everywhere else in this repo
+the quiet colour means "nothing here"; on a map that hands one party seven of
+eight seats, "the metric is satisfied" *is* the finding, and a conventionally
+coloured grid would read as reassurance. The legend states the inversion.
+
+It does not hold on every row, so the figure does not pretend it does. The two
+enacted maps are drawn as references, separated by a rule and italicised: a
+metric passing a 5–3 map is not a scandal. Undefined cells get their own hatch
+rather than being left blank — declination refusing to answer about a sweep is a
+finding, and blank reads as missing data.
+
+Only rows the repository can regenerate are drawn, and the four it cannot are
+named on the figure with the reason (D-036). The Colorado enacted row carries its
+own defect in its label: at VTD units that map is not rook-contiguous (D-015), so
+it is context, not a legal baseline.
