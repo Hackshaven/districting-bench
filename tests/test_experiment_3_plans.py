@@ -24,6 +24,8 @@ from pathlib import Path
 
 import pytest
 
+from dataguard import requires
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tools"))
@@ -33,8 +35,7 @@ from evaluate import elections as E, plan as EP, partisan as P   # noqa: E402
 PROCESSED = ROOT / "data" / "processed"
 PLANS = ROOT / "docs" / "experiment-3-plans"
 
-HAVE_CO = (PROCESSED / "co_elections.csv").exists()
-colorado = pytest.mark.skipif(not HAVE_CO, reason="data/processed not built")
+colorado = requires("co_elections.csv", "co_adjacency.json")
 
 #: Colorado's two-party Democratic share on G20PRE. Every "lopsided against
 #: proportionality" claim in Experiment 3 is measured against 0.5694 x 8 = 4.56

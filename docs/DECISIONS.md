@@ -999,3 +999,46 @@ finding, and a reader skimming a conventionally-coloured grid would read the
 experiment's result as reassurance. The inversion is stated in the legend, and
 the two enacted maps are separated by a rule and italicised, because a passing
 metric on a 5–3 map is not a scandal and must not be coloured as though it were.
+
+## D-037 — The suite must run on a machine that has never fetched the data
+
+**Date:** 2026-08-23 · **Phase:** check-in
+
+Every "the suite is green at N" line in `docs/progress.md` was produced inside a
+container where `data/processed` had already been built. Run on a clean checkout
+of the same commit, the suite produced **2 failures and 45 errors** — every one a
+`FileNotFoundError` from a module-scoped fixture loading Iowa. Four test modules
+guarded for the missing data and four did not, and the four that did not held the
+`evaluate` surface: elections, partisan, plan, and one Experiment 2 test.
+
+`data/` is gitignored because the election returns are not redistributable, so
+its absence is the normal state for anyone who is not us. The suite could
+therefore only be run green by someone who had already run `prepare_data.py` —
+which meant the pass count was a claim no reviewer could check, and CI could not
+be wired at all.
+
+*Chosen:* one guard, in `tests/dataguard.py`, imported by every module.
+
+*Why the guard goes in the fixture, not on the test:* forty-six tests would each
+need a mark, and the forty-seventh — written later by someone who did not know
+the convention — would not get one. `require()` raises skip from inside a
+module-scoped fixture, so every test that depends on real data inherits the guard
+by depending on the fixture. Only the two tests that read a path directly carry a
+mark.
+
+*A second defect fixed on the way:* four of the eight existing guards were
+written `Path("data/processed")`, relative to the working directory rather than
+to the repository. Running pytest from anywhere but the repo root made those
+guards report the data missing and skip tests that could have run — silently,
+because a skip is not a failure. This is also what made the first attempt to
+measure the problem wrong: run from a scratch directory, the relative guards
+skipped spuriously and the absolute ones did not, producing four failures that
+were artifacts of the measurement rather than of the repository. Everything is
+now anchored to `dataguard.__file__`.
+
+*Consequence:* `.github/workflows/tests.yml` runs the suite on a runner with no
+data — 573 pass, 151 skip, exit 0. Two numbers now have to be quoted together,
+and both appear in the progress log: what passes anywhere, and what passes only
+here. `requirements.txt` exists for the same reason, pinning the versions every
+published number was produced with; `gerrychain` is pinned exactly, because its
+cut-finder is where the `node_repeats` defect lived.

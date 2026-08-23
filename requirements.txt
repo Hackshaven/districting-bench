@@ -1,0 +1,31 @@
+# Direct dependencies, pinned to the versions every result in docs/progress.md
+# was produced with. Transitive dependencies are deliberately left unpinned:
+# this is a research repository, not a deployed service, and the claim these
+# pins support is "the numbers came from these libraries", not "this exact tree
+# resolves forever".
+#
+# gerrychain is the one that matters most. Its cut-finder is the source of the
+# node_repeats defect recorded in docs/FEASIBILITY.md -- a version change there
+# can move every ensemble, so it is pinned exactly rather than to a range.
+gerrychain==1.0.0
+
+# Geometry and the unit graph.
+geopandas==1.1.4
+shapely==2.1.2
+pyproj==3.7.2
+networkx==3.6.1
+
+# Numerics. numpy 2.x and pandas 3.x are both major versions with breaking
+# changes behind them; the pins say which side of those breaks the results are on.
+numpy==2.4.6
+pandas==3.0.5
+scipy==1.17.1
+
+# Figures.
+matplotlib==3.11.1
+
+# tools/firewall.yaml is parsed by the firewall checker.
+PyYAML==6.0.3
+
+# Tests.
+pytest==9.1.1

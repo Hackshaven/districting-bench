@@ -24,9 +24,10 @@ from shapely.geometry import LineString, Polygon
 
 from evaluate import compactness as C
 
-PROCESSED = Path("data/processed")
-HAVE_IOWA = (PROCESSED / "ia_units.gpkg").exists()
-iowa = pytest.mark.skipif(not HAVE_IOWA, reason="data/processed not built")
+from dataguard import PROCESSED, have, requires   # noqa: F401
+
+HAVE_IOWA = have("ia_units.gpkg")
+iowa = requires("ia_units.gpkg")
 
 
 # --------------------------------------------------------------------------- #

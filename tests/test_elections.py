@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from dataguard import require
+
 from evaluate.elections import (
     DEFAULT_DEM,
     DEFAULT_REP,
@@ -34,6 +36,7 @@ IA_PRESIDENT_ALL_CANDIDATES = 1_690_871
 
 @pytest.fixture(scope="module")
 def ia():
+    require("ia_elections.csv")
     return load_elections(IA_ELECTIONS)
 
 

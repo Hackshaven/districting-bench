@@ -51,11 +51,10 @@ import pytest
 from detect import confusion as C
 from detect import outlier as O
 
-PROCESSED = Path("data/processed")
-HAVE_IOWA = (PROCESSED / "ia_units.csv").exists() and (
-    PROCESSED / "ia_elections.csv"
-).exists()
-iowa = pytest.mark.skipif(not HAVE_IOWA, reason="data/processed not built")
+from dataguard import PROCESSED, have, requires   # noqa: F401
+
+HAVE_IOWA = have("ia_units.csv", "ia_elections.csv")
+iowa = requires("ia_units.csv", "ia_elections.csv")
 
 
 # --------------------------------------------------------------------------- #

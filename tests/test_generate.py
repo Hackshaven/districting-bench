@@ -36,6 +36,8 @@ import networkx as nx
 import numpy as np
 import pytest
 
+from dataguard import requires
+
 from generate import convergence as cv
 from generate import ensemble as ens
 from generate import seeds as sd
@@ -870,10 +872,7 @@ def test_the_generator_package_never_suppresses_warnings():
 # ==========================================================================
 
 
-needs_data = pytest.mark.skipif(
-    not (PROCESSED / "ia_units.csv").exists(),
-    reason="data/processed not built; run tools/prepare_data.py",
-)
+needs_data = requires("ia_units.csv")
 
 
 @needs_data

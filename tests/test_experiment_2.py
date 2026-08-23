@@ -33,6 +33,8 @@ from pathlib import Path
 
 import pytest
 
+from dataguard import requires
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
@@ -649,6 +651,7 @@ def _isolate_pair_cache(tmp_path_factory, monkeypatch):
         X, "PAIR_CACHE", tmp_path_factory.mktemp("pair-cache"))
 
 
+@requires("ia_elections.csv")   # run_state builds config.columns from them
 def test_reanalysis_assembles_a_complete_report(tmp_path, monkeypatch):
     """Exercise every block of the report, cheaply.
 

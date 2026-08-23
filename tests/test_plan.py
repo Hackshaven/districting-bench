@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+from dataguard import require, requires
+
 from evaluate.plan import (
     AdjacencyError,
     aggregate,
@@ -282,16 +284,19 @@ def test_load_plan_rejects_an_empty_file(tmp_path):
 
 @pytest.fixture(scope="module")
 def adjacency():
+    require("ia_adjacency.json")
     return load_adjacency(PROCESSED / "ia_adjacency.json")
 
 
 @pytest.fixture(scope="module")
 def enacted():
+    require("ia_enacted_cd118.csv")
     return load_plan(PROCESSED / "ia_enacted_cd118.csv")
 
 
 @pytest.fixture(scope="module")
 def pops():
+    require("ia_units.csv")
     return populations(PROCESSED / "ia_units.csv")
 
 
@@ -313,6 +318,7 @@ def test_units_total_the_2020_census_count(pops):
     assert min(pops.values()) == 3_704        # Adams
 
 
+@requires("ia_units.csv")
 def test_load_units_returns_the_documented_columns():
     frame = load_units(PROCESSED / "ia_units.csv")
     assert list(frame.columns) == ["GEOID", "NAME", "pop"]

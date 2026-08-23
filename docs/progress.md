@@ -2114,7 +2114,9 @@ adequate.
 ## 8. State of the branch at check-in
 
 `PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` is green at **719 passed, 5
-skipped**; `python3 tools/check_firewall.py` prints `clean`; `git status` is
+skipped** *on a machine that has fetched the data*, and at **573 passed, 151
+skipped** on one that has not — see D-037; both numbers have to be quoted
+together, because only the second is checkable by a reader; `python3 tools/check_firewall.py` prints `clean`; `git status` is
 empty. Three defects the pre-check-in run surfaced were fixed first, none of
 which changes a number reported above:
 
@@ -2192,3 +2194,43 @@ Only rows the repository can regenerate are drawn, and the four it cannot are
 named on the figure with the reason (D-036). The Colorado enacted row carries its
 own defect in its label: at VTD units that map is not rook-contiguous (D-015), so
 it is context, not a legal baseline.
+
+---
+
+# The suite did not run outside this container
+
+Every "green at N" line above was measured where `data/processed` was already
+built. On a clean checkout of the same commit the suite produced **2 failures and
+45 errors**, all `FileNotFoundError` from module-scoped fixtures loading Iowa.
+Four test modules guarded for the missing data; four did not, and those four held
+the `evaluate` surface — elections, partisan, plan, and one Experiment 2 test.
+
+`data/` is gitignored because the returns are not redistributable, so its absence
+is the normal state for anyone who is not us. The pass count was therefore a
+claim no reviewer could check.
+
+**Fixed in `tests/dataguard.py`** — one guard, imported by all nine modules, with
+`require()` called inside the fixtures so a test written later inherits the guard
+by depending on the fixture rather than by someone remembering a mark. Two tests
+that read a path directly carry a mark instead. Four of the eight pre-existing
+guards were also anchored to the working directory rather than the repository,
+which silently skipped runnable tests when pytest was invoked from elsewhere;
+everything is now anchored to the file.
+
+| | passes | skips | result |
+| --- | --- | --- | --- |
+| before, clean checkout | 573 | 104 | **2 failed, 45 errors** |
+| after, clean checkout | 573 | 151 | exit 0 |
+| after, data fetched | 719 | 5 | exit 0 |
+
+`.github/workflows/tests.yml` now runs the clean-checkout configuration on every
+push and pull request, alongside the firewall check that was previously the only
+job. `requirements.txt` pins the versions every published number came from;
+`gerrychain` is pinned exactly, because its cut-finder is where the
+`node_repeats` defect of `docs/FEASIBILITY.md` lived.
+
+**How this was nearly measured wrong.** The first attempt ran the suite from a
+scratch directory instead of a clean checkout. The working-directory-relative
+guards skipped spuriously while the absolute ones did not, producing four
+failures that were artifacts of the method. The number reported here comes from
+`git worktree`, where the absence of `data/` is real rather than simulated.

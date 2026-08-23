@@ -31,6 +31,8 @@ from pathlib import Path
 
 import pytest
 
+from dataguard import require
+
 from evaluate.elections import load_elections, two_party
 from evaluate.plan import load_plan
 from evaluate.partisan import (
@@ -112,6 +114,7 @@ def swap(case):
 @pytest.fixture(scope="module")
 def iowa():
     """The enacted CD118 plan with the real 2020 presidential two-party votes."""
+    require("ia_enacted_cd118.csv", "ia_elections.csv")
     plan = load_plan(PROCESSED / "ia_enacted_cd118.csv")
     dem, rep = two_party(load_elections(PROCESSED / "ia_elections.csv"))
     return plan, dem, rep

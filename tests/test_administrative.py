@@ -47,9 +47,9 @@ import pytest
 
 from evaluate import administrative as A
 
-PROCESSED = Path("data/processed")
-HAVE_IOWA = (PROCESSED / "ia_units.csv").exists()
-iowa = pytest.mark.skipif(not HAVE_IOWA, reason="data/processed not built")
+from dataguard import PROCESSED, have, iowa   # noqa: F401
+
+HAVE_IOWA = have("ia_units.csv")
 
 #: Sum of the G20PRE* columns of data/processed/ia_elections.csv — the
 #: electorate the module docstring quotes. Pinned by test_iowa_voter_total.

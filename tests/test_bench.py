@@ -52,13 +52,12 @@ from detect import bench
 from detect import confusion as C
 from detect import outlier as O
 
-PROCESSED = Path("data/processed")
-HAVE_IOWA = all(
-    (PROCESSED / name).exists()
-    for name in ("ia_units.csv", "ia_units.gpkg", "ia_adjacency.json",
-                 "ia_elections.csv", "ia_enacted_cd118.csv")
-)
-iowa = pytest.mark.skipif(not HAVE_IOWA, reason="data/processed not built")
+from dataguard import PROCESSED, have, requires   # noqa: F401
+
+IOWA_LAYER = ("ia_units.csv", "ia_units.gpkg", "ia_adjacency.json",
+              "ia_elections.csv", "ia_enacted_cd118.csv")
+HAVE_IOWA = have(*IOWA_LAYER)
+iowa = requires(*IOWA_LAYER)
 
 
 # --------------------------------------------------------------------------- #

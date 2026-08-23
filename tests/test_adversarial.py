@@ -58,11 +58,10 @@ from evaluate.elections import load_elections, two_party
 from evaluate.plan import is_valid, load_plan, populations as load_populations
 from evaluate.plan import load_adjacency as load_rook
 
-PROCESSED = Path("data/processed")
-HAVE_IOWA = (PROCESSED / "ia_units.csv").exists()
-iowa = pytest.mark.skipif(not HAVE_IOWA, reason="data/processed not built")
-HAVE_CO = (PROCESSED / "co_units.csv").exists()
-colorado = pytest.mark.skipif(not HAVE_CO, reason="Colorado layer not built")
+from dataguard import PROCESSED, colorado, have, iowa   # noqa: F401
+
+HAVE_IOWA = have("ia_units.csv")
+HAVE_CO = have("co_units.csv")
 
 #: Iowa 2020, from docs/FEASIBILITY.md section 2 and the enacted plan.
 IA_IDEAL = 797_592.25
