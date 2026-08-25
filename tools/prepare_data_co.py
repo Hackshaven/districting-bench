@@ -92,11 +92,6 @@ def neutral():
     return gdf
 
 
-if __name__ == "__main__":
-    neutral()
-    partisan()
-
-
 def partisan() -> None:
     """VEST 2020 Colorado precincts -> the 3,108 VTD units. Separate read, separate path.
 

@@ -39,6 +39,17 @@ for x, s, n in zip(xs, shares, (counts[x] for x in xs)):
 
 # the enacted plan is a point on this axis, not a category
 enacted = d["enacted_dem_seats"]
+if enacted not in counts:
+    # xs.index(enacted) raises ValueError here, and this is precisely the case
+    # worth plotting: an enacted outcome the neutral process never produced is
+    # the strongest version of the finding, not an error. Refuse loudly rather
+    # than crashing in a list lookup three lines further down.
+    raise SystemExit(
+        f"enacted plan returns {enacted} D seats, which this ensemble never "
+        f"produced (it spans {min(counts)}-{max(counts)}). That is a finding, "
+        "not a plotting bug -- annotate it deliberately rather than letting "
+        "the arrow point at a bar that does not exist."
+    )
 # placed in the empty upper-left so the leader never crosses another bar
 ax.annotate(
     f"Iowa's enacted plan\n{enacted} D seats\n{shares[xs.index(enacted)]:.1f}% of the ensemble",
