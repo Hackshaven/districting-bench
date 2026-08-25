@@ -263,12 +263,11 @@ every merge, because a DOI is permanent and cannot be withdrawn, only superseded
 before tagging: a permanent identifier should not point at a tree whose own
 checks fail.
 
-> **Not yet deposited.** The Zenodo–GitHub webhook can only be installed by the
-> repository owner, at
-> [zenodo.org/account/settings/github](https://zenodo.org/account/settings/github/),
-> and it must be switched on *before* the first release — Zenodo does not see
-> releases published earlier. Once the first deposit exists, put the concept DOI
-> in `CITATION.cff` and here.
+The badge at the top of this file points at the **concept DOI**,
+[10.5281/zenodo.22102853](https://doi.org/10.5281/zenodo.22102853), which always
+resolves to the newest release. To cite one specific version instead, use its own
+DOI — v0.1.0 is
+[10.5281/zenodo.22102854](https://doi.org/10.5281/zenodo.22102854).
 
 Anything citing this should carry its status with it: **exploratory, not
 validated, not for litigation, advocacy, or map adoption.**

@@ -21,7 +21,17 @@ authors:
     email: erichackathorn@gmail.com
     orcid: "https://orcid.org/0000-0002-9693-2093"
 version: 0.1.0
-date-released: "2026-08-23"
+date-released: "2026-08-25"
+# The concept DOI. It always resolves to the newest release, so it is the one to
+# cite when the specific version does not matter, and it never changes.
+doi: "10.5281/zenodo.22102853"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.22102853"
+    description: "Concept DOI — always resolves to the latest release."
+  - type: doi
+    value: "10.5281/zenodo.22102854"
+    description: "Version DOI — v0.1.0 specifically."
 license: Apache-2.0
 repository-code: "https://github.com/Hackshaven/districting-bench"
 keywords:
