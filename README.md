@@ -9,6 +9,43 @@ map adoption.**
 
 ---
 
+## First result
+
+![Iowa's neutral seat distribution](docs/figures/ia-neutral-seat-distribution.png)
+
+Over 1,820 plans drawn with no access to election data, **Iowa's neutral process
+spans 0–2 Democratic seats of 4, and a 2-seat outcome is 43% of the distribution.**
+
+The consequence is a limit, not a score. Detectability is bounded below by the
+width of the neutral distribution, and that width is a property of the state rather
+than of the method. A detection target stated in absolute seats — such as
+`docs/CRITERIA.md` §8's "≥0.95 true-positive rate at a 2-seat shift" — asks a
+detector to separate an outcome from its own null, and is unreachable on a
+four-district state whose null already spans two seats.
+
+Iowa's enacted plan returns 0 D seats, which occurs in 1.0% of this ensemble. That
+comparison is **not yet a finding**: the reference is not held to the 94-person
+population equality the enacted plan meets, so it is not like-for-like. See
+`docs/progress.md`.
+
+---
+
+## The three experiments
+
+`prompt.md` asked for three measurements, each run once. All three are derived on
+both states, with a written finding in `docs/progress.md` and a committed figure.
+
+| | finding | figure |
+| --- | --- | --- |
+| **Criteria sensitivity** | competitiveness and mean-median bind; compactness barely moves anything. The *ordering* does not replicate across elections — only the bind/no-bind classification does. | `docs/figures/exp1-{ia,co}-v2-sensitivity.png` |
+| **Tradeoff frontier** | Colorado: 20 of 21 relationships show nothing, testing Stephanopoulos (126 Colum. L. Rev. 1001). Iowa: 5 of 15, one large. Every null means "nothing stronger than ρ ≈ 0.13–0.22", not "no tradeoff". | `docs/figures/exp2-*.png` |
+| **Metric gameability** | three legal Colorado plans on which a named fairness metric reads ≈0 while one party takes 7 or 8 of 8 seats. arXiv:2409.17186, reproduced here. | `docs/figures/exp3-gameability.png` |
+
+The third is the one that constrains the other two: it is the demonstration of
+why nothing in this repository emits a single fairness score.
+
+---
+
 ## What this is not
 
 This is not a tool that produces fair maps, and it does not claim to be
@@ -77,6 +114,86 @@ them is not.
 
 ---
 
+## Setup
+
+Python 3.11. From a clean clone:
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**The tests run at this point, and most of them pass.** No data required:
+
+```bash
+PYTHONPATH=src pytest tests -q        # 573 passed, 151 skipped
+```
+
+The 151 skips are not a problem to fix — they are every test that needs real
+census and election data, which is not in this repository (see below). CI runs
+exactly this configuration on every push.
+
+### Getting the data
+
+`data/` is gitignored. The census inputs are public domain and scripted; the
+election returns are neither.
+
+```bash
+tools/fetch_raw.sh            # ~700 MB of Census files, both states
+                              #   (or: tools/fetch_raw.sh ia | co)
+```
+
+Then the election returns, **by hand** — VEST publishes on the Harvard Dataverse
+behind a click-through that a script cannot accept for you:
+
+- VEST, *2020 Precinct-Level Election Results*, <https://doi.org/10.7910/DVN/K7760H>
+- Unpack Iowa to `data/raw/vest/ia_2020.shp` and Colorado to
+  `data/raw/vest_co/co_2020.shp`. Those directory names are this repository's
+  convention, not VEST's.
+
+`tools/fetch_raw.sh` prints these instructions itself if the files are absent.
+
+### Building the analysis inputs
+
+```bash
+python tools/prepare_data.py            # Iowa   -> data/processed/ia_*
+python tools/prepare_data_co.py         # Colorado -> data/processed/co_*
+python tools/prepare_municipalities.py  # place / statehouse / statesenate layers
+```
+
+`prepare_data.py` asserts the Iowa presidential totals (897,672 R, 759,061 D), so
+a wrong or mis-vintaged VEST file fails loudly rather than quietly changing every
+downstream number.
+
+With the data built, the full suite runs:
+
+```bash
+PYTHONPATH=src pytest tests -q         # 719 passed, 5 skipped
+python tools/check_firewall.py         # must print: clean
+```
+
+**Without the election returns you can still generate.** The neutral half needs
+population, geometry and adjacency only — that is the firewall, not a
+limitation. Every partisan metric and all three experiments need VEST.
+
+### Reproducing the results
+
+The experiments were each run once and are not meant to be re-run
+(`prompt.md`: *"Run each once… do not iterate to improve the result"*). Their
+outputs are committed. What you can re-derive from those committed artifacts:
+
+```bash
+python tools/experiment_1_sensitivity.py --ensemble v2
+python tools/experiment_2_tradeoffs.py --ensemble v2      # hours; reads committed draws
+python tools/phase_2_report.py
+
+python tools/plot_experiment_1.py --ensemble v2   # -> docs/figures/exp1-*.png
+python tools/plot_experiment_2.py --ensemble v2   # -> docs/figures/exp2-*.png
+python tools/plot_experiment_3.py                # -> docs/figures/exp3-gameability.png
+```
+
+---
+
 ## Start here
 
 1. `docs/CRITERIA.md` — every criterion, threshold, and metric, with a provenance
@@ -84,15 +201,25 @@ them is not.
    before any code.
 2. `prompt.md` — the task specification handed to the agent that built this.
 3. `tools/check_firewall.py` — the boundary enforcement.
+4. `docs/progress.md` — the full write-up: what was run, what it found, and
+   every result that was later retracted and why.
+5. `docs/DECISIONS.md` — D-001…D-037, each non-obvious choice logged when it was
+   made rather than reconstructed afterwards.
 
 ---
 
 ## Scope
 
-First target is Iowa congressional districting: 99 whole counties, and Iowa Code
+**Iowa** congressional districting came first: 99 whole counties, and Iowa Code
 Chapter 42 supplies an explicitly ordered criteria list, which removes our
-discretion over the value choices that would otherwise be ours to make. Precinct-
-level states come later, if at all.
+discretion over value choices that would otherwise be ours to make.
+
+**Colorado** followed, and is precinct-level: 3,108 VTDs, 8 districts, drawn by an
+independent commission under Amendments Y and Z. It exists because a four-district
+whole-county state cannot exercise most of the machinery — Iowa's county-integrity
+criterion is constant by construction, and its neutral seat distribution is too
+narrow to test detection against. Colorado supplies the k=8 regime where fairness
+metrics have room to be gamed.
 
 Deliberately out of scope for now: ecological inference and racially polarized
 voting analysis (documented in `docs/CRITERIA.md` §4.3, deferred for scope, not
@@ -120,6 +247,36 @@ behalf of any redistricting commission, court, political party, campaign, or
 advocacy organization. It takes no position on the merits of any cited decision
 and is not connected to the author's employment.
 
+## Citing this work
+
+Cite the archived release, not the repository — a release is a fixed state with a
+DOI, a branch is not. `CITATION.cff` carries the metadata; GitHub renders a
+"Cite this repository" button from it.
+
+Releases are archived to [Zenodo](https://zenodo.org), which mints a DOI for
+each one plus a *concept* DOI that always resolves to the newest. A release is
+cut when the `version` in `CITATION.cff` changes on `main` — deliberately not on
+every merge, because a DOI is permanent and cannot be withdrawn, only superseded.
+`.github/workflows/release.yml` runs the firewall check and the full test suite
+before tagging: a permanent identifier should not point at a tree whose own
+checks fail.
+
+> **Not yet deposited.** The Zenodo–GitHub webhook can only be installed by the
+> repository owner, at
+> [zenodo.org/account/settings/github](https://zenodo.org/account/settings/github/),
+> and it must be switched on *before* the first release — Zenodo does not see
+> releases published earlier. Once the first deposit exists, put the concept DOI
+> in `CITATION.cff` and here.
+
+Anything citing this should carry its status with it: **exploratory, not
+validated, not for litigation, advocacy, or map adoption.**
+
 ## License
 
-TBD before any public release.
+Apache License 2.0 — see `LICENSE`.
+
+This covers the code and documentation in this repository. It does **not** cover
+the input data, none of which is redistributed here. Census inputs are public
+domain (17 U.S.C. §105); the election returns carry no declared licence at all,
+which is why `data/` is gitignored and `tools/fetch_raw.sh` sends you to the
+source. See `docs/CRITERIA.md` §9.1.

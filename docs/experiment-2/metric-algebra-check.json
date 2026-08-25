@@ -1,0 +1,87 @@
+{
+  "draws_per_cell": 12000,
+  "seed": 7,
+  "states": {
+    "IA": {
+      "k": 4,
+      "statewide_share": 0.45,
+      "observed_rho": -0.768,
+      "by_spread": [
+        {
+          "sd": 0.04,
+          "rho": 0.018062747160082587
+        },
+        {
+          "sd": 0.06,
+          "rho": 0.07150860047127112
+        },
+        {
+          "sd": 0.08,
+          "rho": 0.13273188754789794
+        },
+        {
+          "sd": 0.1,
+          "rho": 0.18303055372476174
+        },
+        {
+          "sd": 0.14,
+          "rho": 0.2008759568328856
+        }
+      ],
+      "most_negative_arithmetic_rho": 0.018062747160082587,
+      "arithmetic_explains_observation": false
+    },
+    "CO": {
+      "k": 8,
+      "statewide_share": 0.55,
+      "observed_rho": -0.309,
+      "by_spread": [
+        {
+          "sd": 0.04,
+          "rho": 0.0031796727470094328
+        },
+        {
+          "sd": 0.06,
+          "rho": 0.0379282725411888
+        },
+        {
+          "sd": 0.08,
+          "rho": 0.08168946565210261
+        },
+        {
+          "sd": 0.1,
+          "rho": 0.1054048213652459
+        },
+        {
+          "sd": 0.14,
+          "rho": 0.1518491836555391
+        }
+      ],
+      "most_negative_arithmetic_rho": 0.0031796727470094328,
+      "arithmetic_explains_observation": false
+    }
+  },
+  "mean_sweep_k4": [
+    {
+      "mu": 0.4,
+      "rho": -0.11707484451755701
+    },
+    {
+      "mu": 0.45,
+      "rho": 0.13273188754789794
+    },
+    {
+      "mu": 0.5,
+      "rho": 0.26259638477391195
+    },
+    {
+      "mu": 0.55,
+      "rho": 0.1280680848410013
+    },
+    {
+      "mu": 0.6,
+      "rho": -0.12884600777284838
+    }
+  ],
+  "conclusion": "the arithmetic of these two metrics produces a positive rank correlation at every spread tested and both district counts; both states observe a strongly negative one, so the observed relationship is not a property of the metrics' shared functional form"
+}

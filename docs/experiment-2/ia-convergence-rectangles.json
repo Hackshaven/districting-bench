@@ -1,0 +1,192 @@
+{
+  "state": "IA",
+  "requested_steps": 12000,
+  "unusable_seeds": [
+    4,
+    7
+  ],
+  "died_before_min_prefix": [
+    9,
+    11
+  ],
+  "min_prefix": 500,
+  "min_chains": 4,
+  "draws_reached": [
+    12000,
+    8133,
+    6495,
+    4282,
+    0,
+    4594,
+    12000,
+    0,
+    1863,
+    1,
+    8136,
+    49
+  ],
+  "rectangles": [
+    {
+      "prefix_length": 8133,
+      "n_chains": 4,
+      "n_draws": 32532,
+      "chain_indices": [
+        0,
+        1,
+        6,
+        10
+      ],
+      "metrics": {
+        "compactness_cut": {
+          "split_rhat": 1.0426108233953992,
+          "ess": 146.16147443410821
+        },
+        "fairness_eg": {
+          "split_rhat": 1.0232757965994095,
+          "ess": 198.72824493505527
+        },
+        "population_equality": {
+          "split_rhat": 1.0157648072991092,
+          "ess": 331.9506619825214
+        }
+      }
+    },
+    {
+      "prefix_length": 6495,
+      "n_chains": 5,
+      "n_draws": 32475,
+      "chain_indices": [
+        0,
+        1,
+        2,
+        6,
+        10
+      ],
+      "metrics": {
+        "compactness_cut": {
+          "split_rhat": 1.0642255290188365,
+          "ess": 78.23720884471884
+        },
+        "fairness_eg": {
+          "split_rhat": 1.0371675684890655,
+          "ess": 193.08242390457903
+        },
+        "population_equality": {
+          "split_rhat": 1.008417594897204,
+          "ess": 356.1408304068863
+        }
+      }
+    },
+    {
+      "prefix_length": 4594,
+      "n_chains": 6,
+      "n_draws": 27564,
+      "chain_indices": [
+        0,
+        1,
+        2,
+        5,
+        6,
+        10
+      ],
+      "metrics": {
+        "compactness_cut": {
+          "split_rhat": 1.0225707916304203,
+          "ess": 205.7973588399178
+        },
+        "fairness_eg": {
+          "split_rhat": 1.0233271805328519,
+          "ess": 228.04560151627206
+        },
+        "population_equality": {
+          "split_rhat": 1.0138693399830576,
+          "ess": 336.1278154574158
+        }
+      }
+    },
+    {
+      "prefix_length": 4282,
+      "n_chains": 7,
+      "n_draws": 29974,
+      "chain_indices": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        6,
+        10
+      ],
+      "metrics": {
+        "compactness_cut": {
+          "split_rhat": 1.0248337122070643,
+          "ess": 180.3221126963771
+        },
+        "fairness_eg": {
+          "split_rhat": 1.0241973447283086,
+          "ess": 161.41041786400984
+        },
+        "population_equality": {
+          "split_rhat": 1.0389870162032897,
+          "ess": 423.45487855924347
+        }
+      }
+    },
+    {
+      "prefix_length": 1863,
+      "n_chains": 8,
+      "n_draws": 14904,
+      "chain_indices": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        6,
+        8,
+        10
+      ],
+      "metrics": {
+        "compactness_cut": {
+          "split_rhat": 1.1022324541749908,
+          "ess": 50.10584919970568
+        },
+        "fairness_eg": {
+          "split_rhat": 1.1245026091650394,
+          "ess": 45.55907302868551
+        },
+        "population_equality": {
+          "split_rhat": 1.0667619049043724,
+          "ess": 227.44116595439203
+        }
+      }
+    }
+  ],
+  "chosen": {
+    "prefix_length": 4594,
+    "n_chains": 6,
+    "n_draws": 27564,
+    "chain_indices": [
+      0,
+      1,
+      2,
+      5,
+      6,
+      10
+    ],
+    "metrics": {
+      "compactness_cut": {
+        "split_rhat": 1.0225707916304203,
+        "ess": 205.7973588399178
+      },
+      "fairness_eg": {
+        "split_rhat": 1.0233271805328519,
+        "ess": 228.04560151627206
+      },
+      "population_equality": {
+        "split_rhat": 1.0138693399830576,
+        "ess": 336.1278154574158
+      }
+    }
+  }
+}

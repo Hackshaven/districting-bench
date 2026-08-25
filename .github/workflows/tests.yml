@@ -1,0 +1,54 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # data/ is gitignored -- the election returns are not redistributable, so
+      # they are fetched by tools/prepare_data.py rather than committed. The
+      # runner therefore has no data/processed, and every test that needs it
+      # skips. That is the point of the run, not a limitation of it: this job
+      # is what proves the suite is runnable by someone who is not us.
+      #
+      # -p no:randomly is not needed and no plugin reorders tests, but --strict-markers
+      # is: a typo'd mark would otherwise silently register as "no mark at all"
+      # and a guarded test would run unguarded on a machine without the data.
+      - name: Run the suite that does not need fetched data
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m pytest tests -q --strict-markers -rs
+
+      # A skip is invisible in a green build, so the count is printed as a
+      # summary line. If it jumps, either the data guard spread somewhere it
+      # should not have or a real test stopped running.
+      - name: Report how much of the suite this job actually ran
+        if: always()
+        env:
+          PYTHONPATH: src
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import subprocess, re, sys
+          out = subprocess.run(
+              [sys.executable, "-m", "pytest", "tests", "-q", "--collect-only"],
+              capture_output=True, text=True).stdout
+          m = re.search(r"(\d+) tests collected", out)
+          print(f"### Test coverage on a runner with no `data/processed`\n")
+          print(f"- collected: **{m.group(1) if m else 'unknown'}**")
+          print("- The remainder need `data/processed`, which is gitignored and")
+          print("  fetched by `tools/prepare_data.py`; they skip here and are")
+          print("  listed by `-rs` in the step above.")
+          PY
