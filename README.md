@@ -1,5 +1,7 @@
 # districting-bench
 
+[![DOI](https://zenodo.org/badge/1337936265.svg)](https://doi.org/10.5281/zenodo.22102853)
+
 A research system for evaluating legislative districting plans: it detects
 likely gerrymanders against a neutral baseline, scores plans on many criteria at
 once, and makes every value judgment an explicit, changeable parameter.
