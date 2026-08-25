@@ -16,11 +16,10 @@ abstract: >-
   Exploratory and not validated; not for litigation, advocacy, or map adoption.
 type: software
 authors:
-  - family-names: Hackathorn
-    given-names: Eric
-    # An ORCID makes the Zenodo record far more useful and cannot be guessed.
-    # Add it here if you have one; delete this comment if you do not.
-    # orcid: "https://orcid.org/0000-0000-0000-0000"
+  - given-names: Eric
+    family-names: Hackathorn
+    email: erichackathorn@gmail.com
+    orcid: "https://orcid.org/0000-0002-9693-2093"
 version: 0.1.0
 date-released: "2026-08-23"
 license: Apache-2.0

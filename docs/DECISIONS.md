@@ -1076,7 +1076,12 @@ resolved rather than noted. Apache-2.0 stands; the README now also says what the
 licence does **not** cover, since no input data is redistributed here and the
 election returns carry no declared licence at all (§9.1).
 
-*Authorship is a real question and is not settled here.* `CITATION.cff` names one
-human author and no ORCID, with a comment saying an ORCID cannot be guessed. What
-share of this work an agent performed is visible in the commit history and is
-left for the author to describe rather than encoded in metadata by the agent.
+*Authorship.* `CITATION.cff` names one human author, with the ORCID supplied by
+that author and checked two ways before being written down: the ISO 7064 MOD 11-2
+checksum, and the ORCID public API, which returns the matching name. Neither
+check was skippable — a mistyped ORCID in a permanent deposit attributes the work
+to a stranger.
+
+What share of this work an agent performed is visible in the commit history and
+is left for the author to describe. It is deliberately not encoded in citation
+metadata by the agent itself.
