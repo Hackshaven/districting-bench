@@ -1042,3 +1042,41 @@ and both appear in the progress log: what passes anywhere, and what passes only
 here. `requirements.txt` exists for the same reason, pinning the versions every
 published number was produced with; `gerrychain` is pinned exactly, because its
 cut-finder is where the `node_repeats` defect lived.
+
+## D-038 — A release is cut by a version bump, not by a merge
+
+**Date:** 2026-08-23 · **Phase:** archiving
+
+Zenodo mints a DOI for every GitHub release, and a DOI is permanent: it can be
+superseded but never withdrawn. "Release on merge to main" therefore means "a
+permanent identifier per merge", and a citation history nobody can read.
+
+*Chosen:* `.github/workflows/release.yml` fires on a push to `main` that changes
+`CITATION.cff`, and skips if the resulting tag already exists. Routine merges do
+nothing; bumping the version is the deliberate act that says this state is
+citable. `workflow_dispatch` cuts one without a bump.
+
+*Why the release job re-runs the checks:* the archive Zenodo takes is the tree at
+that commit. `tests.yml` already ran on the same commit, so this is redundant in
+the ordinary case — and it stays, because the case it guards is not ordinary. A
+DOI pointing at a tree whose firewall check fails is not fixable afterwards; the
+cost of being wrong is asymmetric enough to pay for a duplicate run.
+
+*What this cannot automate:* the Zenodo–GitHub webhook is installed by the
+repository owner through Zenodo's own settings, and Zenodo does not see releases
+published before it is switched on. The workflow says so in its step summary
+rather than leaving a silent no-op. If a release is cut before the toggle, the
+fix is to delete the release and tag and re-cut with `workflow_dispatch` — the
+only genuinely recoverable moment in this whole path.
+
+*A contradiction found on the way:* `README.md` said "License: TBD before any
+public release" while `LICENSE` had been Apache-2.0 since the scaffold and the
+repository was already public. Zenodo requires a licence, so this had to be
+resolved rather than noted. Apache-2.0 stands; the README now also says what the
+licence does **not** cover, since no input data is redistributed here and the
+election returns carry no declared licence at all (§9.1).
+
+*Authorship is a real question and is not settled here.* `CITATION.cff` names one
+human author and no ORCID, with a comment saying an ORCID cannot be guessed. What
+share of this work an agent performed is visible in the commit history and is
+left for the author to describe rather than encoded in metadata by the agent.

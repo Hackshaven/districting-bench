@@ -1,0 +1,132 @@
+name: release
+
+# Cuts a GitHub release, which is what Zenodo archives to mint a DOI.
+#
+# WHY THIS IS NOT "a release on every merge to main". Zenodo mints a NEW DOI for
+# every release, permanently -- a DOI cannot be deleted, only superseded. A
+# release per merge would produce a DOI per merge and a citation history nobody
+# can read. So the trigger is a merge to main *that changes the version in
+# CITATION.cff*: routine merges do nothing, and bumping the version is the
+# deliberate act that says "this is a citable state of the work".
+#
+# workflow_dispatch is here too, for cutting a release without a version bump.
+#
+# ONE MANUAL STEP THIS WORKFLOW CANNOT DO. Zenodo archives via a webhook that
+# only the repository owner can install: sign in at https://zenodo.org with
+# GitHub, then flip the toggle for Hackshaven/districting-bench under
+# https://zenodo.org/account/settings/github/. That must be done BEFORE the
+# first release -- Zenodo only sees releases published after the toggle is on,
+# and a release published before it is invisible and has to be re-cut.
+#
+# After the first archived release, Zenodo issues two DOIs: a version DOI for
+# that release, and a *concept* DOI that always resolves to the newest. The
+# concept DOI is the one to put in CITATION.cff and README.md.
+
+on:
+  push:
+    branches: [main]
+    paths: ["CITATION.cff"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.1.0). Defaults to CITATION.cff."
+        required: false
+
+permissions:
+  contents: write        # needed to create the tag and the release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # tags, so an existing version is detectable
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install pyyaml
+
+      - name: Read the version, and refuse to reuse one
+        id: v
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, subprocess, sys, yaml
+
+          override = os.environ.get("INPUT_VERSION") or ""
+          cff = yaml.safe_load(open("CITATION.cff"))
+          version = (override or str(cff.get("version", ""))).strip().lstrip("v")
+          if not version:
+              sys.exit("no version in CITATION.cff and none supplied")
+
+          tag = f"v{version}"
+          existing = subprocess.run(
+              ["git", "tag", "--list", tag],
+              capture_output=True, text=True).stdout.strip()
+          # A tag that already exists means the version was not bumped. Skipping
+          # is correct: re-releasing the same version would mint a second DOI
+          # for identical content, which is worse than doing nothing.
+          print(f"version={version}")
+          print(f"tag={tag}")
+          print(f"skip={'true' if existing else 'false'}")
+          PY
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+
+      - name: Nothing to do
+        if: steps.v.outputs.skip == 'true'
+        run: |
+          echo "::notice::${{ steps.v.outputs.tag }} already exists — version not bumped, no release cut."
+
+      # The archive Zenodo takes is the repository at this commit. Refuse to
+      # publish a state whose own checks do not pass: a DOI is permanent, and
+      # pointing one at a broken tree is not fixable afterwards.
+      - name: Verify before minting anything permanent
+        if: steps.v.outputs.skip == 'false'
+        env:
+          PYTHONPATH: src
+        run: |
+          pip install -r requirements.txt
+          python tools/check_firewall.py
+          python -m pytest tests -q --strict-markers
+
+      - name: Tag and release
+        if: steps.v.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.v.outputs.tag }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            --notes-file - <<'NOTES'
+          Archived to Zenodo, which mints a DOI for this release.
+
+          **This is exploratory research code. It is not validated, and it must
+          not be used for litigation, advocacy, or map adoption.** See README.md
+          and the limitations sections of docs/progress.md.
+
+          The election returns this work depends on are not included and are not
+          redistributable from here; see docs/CRITERIA.md section 9.1.
+          NOTES
+
+      - name: What has to happen by hand
+        if: steps.v.outputs.skip == 'false'
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'MSG'
+          ### Released ${{ steps.v.outputs.tag }}
+
+          If this repository is enabled at
+          [zenodo.org/account/settings/github](https://zenodo.org/account/settings/github/),
+          Zenodo has archived this release and minted a DOI.
+
+          **First release only:** copy the *concept* DOI (the one Zenodo says
+          "always resolves to the latest version") into `CITATION.cff` as a
+          `doi:` field and into the README badge. It does not change again.
+          MSG

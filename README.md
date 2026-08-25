@@ -247,6 +247,36 @@ behalf of any redistricting commission, court, political party, campaign, or
 advocacy organization. It takes no position on the merits of any cited decision
 and is not connected to the author's employment.
 
+## Citing this work
+
+Cite the archived release, not the repository — a release is a fixed state with a
+DOI, a branch is not. `CITATION.cff` carries the metadata; GitHub renders a
+"Cite this repository" button from it.
+
+Releases are archived to [Zenodo](https://zenodo.org), which mints a DOI for
+each one plus a *concept* DOI that always resolves to the newest. A release is
+cut when the `version` in `CITATION.cff` changes on `main` — deliberately not on
+every merge, because a DOI is permanent and cannot be withdrawn, only superseded.
+`.github/workflows/release.yml` runs the firewall check and the full test suite
+before tagging: a permanent identifier should not point at a tree whose own
+checks fail.
+
+> **Not yet deposited.** The Zenodo–GitHub webhook can only be installed by the
+> repository owner, at
+> [zenodo.org/account/settings/github](https://zenodo.org/account/settings/github/),
+> and it must be switched on *before* the first release — Zenodo does not see
+> releases published earlier. Once the first deposit exists, put the concept DOI
+> in `CITATION.cff` and here.
+
+Anything citing this should carry its status with it: **exploratory, not
+validated, not for litigation, advocacy, or map adoption.**
+
 ## License
 
-TBD before any public release.
+Apache License 2.0 — see `LICENSE`.
+
+This covers the code and documentation in this repository. It does **not** cover
+the input data, none of which is redistributed here. Census inputs are public
+domain (17 U.S.C. §105); the election returns carry no declared licence at all,
+which is why `data/` is gitignored and `tools/fetch_raw.sh` sends you to the
+source. See `docs/CRITERIA.md` §9.1.

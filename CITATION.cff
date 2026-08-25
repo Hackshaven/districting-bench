@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+message: >-
+  If you refer to this work, cite the archived release rather than the
+  repository. Each release is deposited to Zenodo and gets its own DOI; the
+  concept DOI below always resolves to the newest one.
+title: "districting-bench: measuring districting plans against explicit criteria"
+abstract: >-
+  A research system for evaluating legislative districting plans. It draws
+  neutral ensembles with ReCom under a mechanically enforced firewall that keeps
+  partisan and racial data out of generation, evaluates plans on many criteria at
+  once without combining them into a score, builds deliberate gerrymanders to
+  test detection against manufacturable ground truth, and reports three
+  measurements: which criteria actually bind, whether criteria trade off against
+  each other, and whether single-number fairness metrics can be gamed. Covers
+  Iowa (99 counties, 4 districts) and Colorado (3,108 VTDs, 8 districts).
+  Exploratory and not validated; not for litigation, advocacy, or map adoption.
+type: software
+authors:
+  - family-names: Hackathorn
+    given-names: Eric
+    # An ORCID makes the Zenodo record far more useful and cannot be guessed.
+    # Add it here if you have one; delete this comment if you do not.
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+version: 0.1.0
+date-released: "2026-08-23"
+license: Apache-2.0
+repository-code: "https://github.com/Hackshaven/districting-bench"
+keywords:
+  - redistricting
+  - gerrymandering
+  - Markov chain Monte Carlo
+  - ReCom
+  - electoral systems
+  - reproducible research
+references:
+  - type: data
+    title: "2020 Precinct-Level Election Results"
+    authors:
+      - name: "Voting and Election Science Team"
+    doi: "10.7910/DVN/K7760H"
+    notes: >-
+      Election returns for both states. Not redistributable from here; no
+      licence is declared on the deposit. See docs/CRITERIA.md section 9.1.
+  - type: article
+    title: "Redistricting Without Tradeoffs"
+    authors:
+      - family-names: Stephanopoulos
+        given-names: Nicholas
+    journal: "Columbia Law Review"
+    volume: 126
+    start: 1001
+    year: 2026
+    notes: "The hypothesis Experiment 2 tests."
+  - type: article
+    title: "Don't Trust A Single Gerrymandering Metric"
+    identifiers:
+      - type: other
+        value: "arXiv:2409.17186"
+    notes: "The gameability result Experiment 3 reproduces."
