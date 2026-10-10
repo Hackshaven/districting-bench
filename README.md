@@ -101,8 +101,10 @@ outlier claim built on it is void.
 
 This is enforced mechanically by `tools/check_firewall.py`, run in CI. The check
 was written before any implementation code and **must not be modified, relaxed,
-or worked around.** A change to the firewall config invalidates every result
-produced after it.
+or worked around.** Which results a change to the config casts doubt on depends
+on its direction. Loosening it makes every result produced after the change
+suspect. Closing a gap in it makes the results produced before the change
+suspect, until they are checked against the tightened rules.
 
 ```
 src/generate/     population + geometry only. May not import from any sibling.
