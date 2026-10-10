@@ -185,6 +185,8 @@ if set(cand) - set(cols):   # never drop a column silently
 for c in sorted(cols, key=lambda c: -max(auc(df[c], y), 1 - auc(df[c], y))):
     s = auc(df[c], y)
     print(f"  {c:<28} {max(s, 1 - s):.3f}  {'planted higher' if s >= .5 else 'planted lower'}")
+if not cols:
+    sys.exit("joint: no numeric feature column without missing values (joint UNCONFIRMED)")
 try:
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold, cross_val_score

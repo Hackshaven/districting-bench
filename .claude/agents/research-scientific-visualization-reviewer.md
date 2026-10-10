@@ -133,14 +133,16 @@ def lightness(cmap_name, n=256):
     return cspace_convert(rgb, "sRGB1", "CAM02-UCS")[:, 0]
 
 def lightness_is_monotonic(L, diverging=False):
-    """Sequential: one direction end to end. Diverging: each half runs toward the center."""
+    """Sequential: one direction end to end. Diverging: the halves run in opposite directions."""
     def mono(x):
         d = np.diff(x)
         return bool(np.all(d > 0) or np.all(d < 0))
     if not diverging:
         return mono(L)
     mid = len(L) // 2
-    return mono(L[:mid]) and mono(L[mid:])
+    lo, hi = L[:mid], L[mid:]
+    # A sequential map has two monotonic halves too: require the turn at the center
+    return mono(lo) and mono(hi) and (lo[-1] - lo[0]) * (hi[-1] - hi[0]) < 0
 
 def simulate_cvd(cmap_name, cvd_type="deuteranomaly", severity=100, n=256):
     """Colors as seen with a color-vision deficiency — plot these to eyeball the map."""

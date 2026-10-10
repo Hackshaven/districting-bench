@@ -188,7 +188,7 @@ The agents check claims; none of them owns one. Go to a person when:
 | A new state is added | Owner, with the election-law reader on that state's criteria and remedies |
 | Election data would be committed, or VEST's licence or version question gets an answer | Owner. Nothing is committed under an unstated licence (`docs/CRITERIA.md` §9.1) |
 | A version bump will mint a DOI | The science reviewer (someone outside the authoring loop who has built or used redistricting ensembles) and the election-law reader read the headline and legal claims first, then the owner releases |
-| Ballot styles is presented as a finding outside the repo | An election administrator: a county or state election official |
+| The ballot-styles metric is presented as a finding outside the repo | An election administrator: a county or state election official |
 | Anyone proposes softening the status line, or presenting a result as evidence about a real map | Owner, after outside validation that doesn't exist yet. Until then the answer is no |
 | The third review of the same claim fails | Owner, who drops the claim or takes it to the science reviewer |
 
