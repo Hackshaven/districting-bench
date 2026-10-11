@@ -22,6 +22,7 @@ from __future__ import annotations
 import copy
 import csv
 import gzip
+import hashlib
 import itertools
 import json
 import sys
@@ -228,7 +229,8 @@ def test_under_the_senate_vote_two_plans_early_in_one_chain_reach_3(dist):
     assert beyond["seats"] == 3
     assert beyond["draws"] == [(0, j) for j in range(232, 240)]
     assert beyond["distinct"] == 2
-    # beyond the rectangle they are not a warm-up's: chain 1's are far past it
+    # beyond the rectangle they are not confined to a chain's first draws:
+    # chain 1's are at draws 8,012-8,014
     everywhere = dist["alternate_beyond_all"]
     assert everywhere["draws"] == ([(0, j) for j in range(232, 240)]
                                    + [(1, j) for j in range(8_012, 8_015)]
@@ -430,27 +432,31 @@ def test_the_count_confirms_every_reading_and_a_contradiction_refuses(
         S.seat_distribution()
 
 
-def test_the_count_s_record_names_the_draws_read_here(tmp_path, monkeypatch):
-    # A counts file that merely agreed with the reading would pass the check
-    # above; the record says what the recount read, and it must be these draws.
+def test_the_count_s_record_names_the_draws_and_counts_read_here(tmp_path, monkeypatch):
+    # The record says what the recount read: it must be these draws, and the
+    # counts file beside it, byte for byte. That binds the pair to the draws; a
+    # pair made some other way only rerunning the recount can tell (D-043).
     record = json.loads(S.RECOUNT_RECORD.read_text())
     spec = S.X.ensemble_spec(S.STATE, S.ENSEMBLE)
     draws = S.X.draws_path(spec.prefix, S.ENSEMBLE)
-    S.check_recount_record(record, 57_553, spec, draws)
+    S.check_recount_record(record, 57_553, spec, draws, S.RECOUNT)
     assert record["n_rows"] == 57_553
-    assert record["gerrychain"] == "1.0.0"
-    assert record["largest_float_difference"]["polsby_popper_mean"] <= 1e-16
-    assert all(v == 0.0 for k, v in record["largest_float_difference"].items()
-               if k != "polsby_popper_mean")
-    # the returns: VEST's version 49 file, which D-043 names
+    assert (record["python"], record["gerrychain"]) == ("3.11.17", "1.0.0")
+    # under Python 3.11, as the README pins it, every committed row reproduced
+    assert set(record["largest_float_difference"].values()) == {0.0}
+    # the returns: VEST's version 49 file, which D-043 names, by the files read
     assert record["returns_source"] == {
         "dataset": "doi:10.7910/DVN/K7760H", "version": "49.0", "file_id": 14304797,
-        "file": "ia_2020.zip", "md5": "500252facae6107b93128406ebf5177b"}
+        "file": "ia_2020.zip", "md5": "500252facae6107b93128406ebf5177b",
+        "dbf_sha256": "c37230a71af50a83735ef80e1361447d23307175f7fcc22842f17706fbc16080",
+        "shp_sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a"}
     for change, why in (
             (lambda r: r.update(draws_sha256="0" * 64), "a draws file other than"),
+            (lambda r: r.update(counts_sha256="0" * 64), "a counts file other than"),
             (lambda r: r.update(config_digest="0" * 16), "configuration 0000"),
             (lambda r: r["chains"][4].update(n_rows=1), "row counts are not"),
             (lambda r: r["chains"].pop(), "row counts are not"),
+            (lambda r: r.update(chains=[1, 2]), "row counts are not"),
             (lambda r: r.update(n_rows=57_552), "it records 57552 rows"),
             (lambda r: r.update(contests=["G20USS", "G20PRE"]), "it counted"),
             (lambda r: r["certified_two_party_totals"]["G20USS"].reverse(),
@@ -458,13 +464,64 @@ def test_the_count_s_record_names_the_draws_read_here(tmp_path, monkeypatch):
         changed = copy.deepcopy(record)
         change(changed)
         with pytest.raises(ValueError, match=why):
-            S.check_recount_record(changed, 57_553, spec, draws)
+            S.check_recount_record(changed, 57_553, spec, draws, S.RECOUNT)
+    with pytest.raises(ValueError, match="is not a record"):
+        S.check_recount_record([], 57_553, spec, draws, S.RECOUNT)
     # and end to end
     path = tmp_path / "ia-seats-v2.json"
     path.write_text(json.dumps(record | {"draws_sha256": "0" * 64}))
     monkeypatch.setattr(S, "RECOUNT_RECORD", path)
     with pytest.raises(ValueError, match="does not describe the count read here"):
         S.seat_distribution()
+
+
+def test_a_plan_key_names_one_plan(dist, tmp_path, monkeypatch):
+    # Draws that share a key are one plan, so they share both seat counts and
+    # every integer metric; keys that name draws differing in any refuse.
+    counted, plans = S.counted_seats(S.RECOUNT)
+    spec = S.X.ensemble_spec(S.STATE, S.ENSEMBLE)
+    every = S.X.chains_from_draws(spec, S.X.draws_path(spec.prefix, S.ENSEMBLE))
+    rows = dict(zip(S.chain_indices(spec, every), (chain.rows for chain in every)))
+    S.check_plan_keys(plans, counted, rows)
+    one = {i: ["0" * 16] * len(keys) for i, keys in plans.items()}
+    with pytest.raises(ValueError, match="names draws that differ"):
+        S.check_plan_keys(one, counted, rows)
+    shifted = {i: keys[1:] + keys[:1] for i, keys in plans.items()}
+    with pytest.raises(ValueError, match="names draws that differ"):
+        S.check_plan_keys(shifted, counted, rows)
+    # and end to end, with a record that names the altered file, so that only
+    # the keys are wrong
+    with gzip.open(S.RECOUNT, "rt", newline="") as handle:
+        header, *lines = list(csv.reader(handle))
+    altered = tmp_path / "ia-seats-v2.csv.gz"
+    with gzip.open(altered, "wt", newline="") as handle:
+        csv.writer(handle).writerows([header, *([*r[:2], "0" * 16, *r[3:]] for r in lines)])
+    record = json.loads(S.RECOUNT_RECORD.read_text())
+    record["counts_sha256"] = hashlib.sha256(altered.read_bytes()).hexdigest()
+    (tmp_path / "ia-seats-v2.json").write_text(json.dumps(record))
+    monkeypatch.setattr(S, "RECOUNT", altered)
+    monkeypatch.setattr(S, "RECOUNT_RECORD", tmp_path / "ia-seats-v2.json")
+    with pytest.raises(ValueError, match="names draws that differ"):
+        S.seat_distribution()
+
+
+def test_a_malformed_counts_file_refuses(tmp_path):
+    with gzip.open(S.RECOUNT, "rt", newline="") as handle:
+        lines = handle.read().splitlines()
+    for name, text, why in (
+            ("short", "\n".join([lines[0], lines[1].rsplit(",", 1)[0]]),
+             "does not have one field for each column"),
+            ("long", "\n".join([lines[0], lines[1] + ",9"]),
+             "does not have one field for each column")):
+        path = tmp_path / f"{name}.csv.gz"
+        with gzip.open(path, "wt", newline="") as handle:
+            handle.write(text + "\n")
+        with pytest.raises(ValueError, match=why):
+            S.counted_seats(path)
+    truncated = tmp_path / "truncated.csv.gz"
+    truncated.write_bytes(S.RECOUNT.read_bytes()[:5_000])
+    with pytest.raises(ValueError, match="cannot be read"):
+        S.counted_seats(truncated)
 
 
 def test_a_missing_committed_file_refuses_rather_than_failing(
@@ -555,7 +612,8 @@ def test_the_figure_text_is_pinned(dist):
     footer = " ".join(text["footer"])
     for phrase in ("0–2 D seats of 4; none reached 3 or 4",
                    "2020 Senate vote, 8 draws reach 3 seats, in 2 distinct plans, "
-                   "all in one chain's first 500 draws",
+                   "all in one chain's first 500 draws; committed draws outside these "
+                   "reach it in 3 more plans.",
                    "2-seat share's standard error at 3.3–3.9 pts",
                    "R-hat 1.014, above CRITERIA §8's 1.00–1.01 band",
                    "Seats are counted from the returns (D-043). Dots"):
@@ -570,8 +628,8 @@ def footer_of(d: dict) -> str:
 def test_the_figure_text_follows_the_values(dist):
     # "Above" may not be a literal: it is read off the number it describes,
     # and so is each caution after it.
-    low_ess = ("24 effective draws per split chain are below the 50 Vehtari et al. (2021) "
-               "ask for before relying on R-hat")
+    low_ess = ("24 effective draws per split chain are below the 50 that Vehtari et al. "
+               "(2021) ask for before relying on R-hat")
     understate = "these standard errors may understate the uncertainty"
     assert (f"R-hat 1.014, above CRITERIA §8's 1.00–1.01 band; {low_ess}, and "
             f"{understate}.") in footer_of(dist)
@@ -591,6 +649,17 @@ def test_the_figure_text_follows_the_values(dist):
     # below the band is no warning
     d["primary"]["seat_count_split_rhat"] = 0.998
     assert "R-hat 0.998, below CRITERIA §8's 1.00–1.01 band. Regenerate" in footer_of(d)
+    # the Senate clause counts the plans only draws outside these reach, and
+    # says so even when these draws reach none
+    reach = "8 draws reach 3 seats, in 2 distinct plans, all in one chain's first 500 draws"
+    d["alternate_beyond_all"]["more_plans"] = 0
+    assert f"{reach}. Seats are counted" in footer_of(d)
+    d["alternate_beyond_all"]["more_plans"] = 1
+    assert f"{reach}; committed draws outside these reach it in 1 more plan." in footer_of(d)
+    d["alternate_beyond"].update(draws=[], distinct=0)
+    d["alternate_beyond_all"]["more_plans"] = 3
+    assert ("Under the 2020 Senate vote, none of these draws reach 3 seats, but committed "
+            "draws outside them do, in 3 plans.") in footer_of(d)
 
 
 def test_a_share_above_zero_is_never_printed_as_zero():

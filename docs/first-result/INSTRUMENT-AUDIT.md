@@ -2452,3 +2452,40 @@ windows. The recount's plan keys and the folded rows correspond one to one over
 all 57,553 draws, with no key carrying two folded rows and no folded row two keys.
 So the corrected numbers have had the audit CLAUDE.md asks of a corrected number,
 one auditor and one refuter, before they reached `docs/progress.md`.
+
+**After the routing reviews.** The `Code Reviewer`, the `Blinding & Leakage
+Auditor`, the `Computational Redistricting Scientist`, the `Pre-Submission Peer
+Reviewer`, the `Scientific Visualization Reviewer` and the `Technical Writer`,
+reading `3054a64`, found that its answers needed these corrections, made in the
+commit after it:
+
+- The record did not name the counts file it describes, so the plotter would have
+  drawn from any plan keys. The record now carries the counts file's SHA-256, the
+  plotter checks it, and the plotter refuses plan keys that name draws differing
+  in either seat count or any integer metric. The recount was run once more, under
+  Python 3.11, to write that record.
+- The record named VEST's file only when the zip was kept, which the README never
+  asked for, so a passing recount on a reader's machine would have failed the
+  suite. It now names the file by the hashes of the unpacked files
+  `tools/prepare_data.py` reads.
+- The record's inputs were hashed after the run, and the counts and the record
+  were not written as a pair. Both are now hashed before the run and written
+  together.
+- The plan key is now `generate.ensemble.canonical`'s definition, which also
+  refuses a plan with an empty district. Its blindness to the order of units, and
+  a tie under the Senate vote alone, are now tested.
+- Malformed counts files and records crashed the plotter; they now refuse.
+- "Far past any warm-up" claimed more than the record shows: chain 8's 3-seat
+  plan lies in its first 500 draws, and chain 1's at sixteen times that warm-up.
+- The experiments' fields at 4,020 were described as counting rows; they count
+  mean Polsby-Popper's distinct values.
+- The footer's Senate clause covered the rectangle only. It now adds the three
+  plans outside it.
+- D-043 called the licence statements stale, when version 48's own record already
+  stated CC BY 4.0, and its list of them was incomplete. It now lists them and
+  says the owner answers before merge.
+- The README did not say what a passing recount changes in a reader's tree, that
+  it prints about 6,100 warnings and nothing else until the end, or how to check
+  the committed files without replacing them. It now does, and its time estimates
+  are corrected: more cores barely help, because one chain runs for nine-tenths
+  of the time.

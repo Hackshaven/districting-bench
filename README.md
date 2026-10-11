@@ -187,7 +187,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 655 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 660 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -208,9 +208,11 @@ Then the election returns, **by hand** — VEST publishes on the Harvard Dataver
 behind a click-through that a script cannot accept for you:
 
 - VEST, *2020 Precinct-Level Election Results*, <https://doi.org/10.7910/DVN/K7760H>
-- Unpack Iowa to `data/raw/vest/ia_2020.shp` and Colorado to
-  `data/raw/vest_co/co_2020.shp`. Those directory names are this repository's
-  convention, not VEST's.
+- Save Iowa's `ia_2020.zip` in `data/raw/vest/` and unpack it there, so that
+  `data/raw/vest/ia_2020.shp` exists; `tools/recount_seats.py` identifies the
+  returns by the unpacked files, and by the zip if you keep it (D-043). Unpack
+  Colorado to `data/raw/vest_co/co_2020.shp`. Those directory names are this
+  repository's convention, not VEST's.
 
 `tools/fetch_raw.sh` prints these instructions itself if the files are absent.
 
@@ -229,14 +231,14 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 801 passed, 5 skipped (derived; see below)
+PYTHONPATH=src pytest tests -q         # 806 passed, 5 skipped (derived; see below)
 python tools/check_firewall.py         # must print: clean
 ```
 
-The 801 and the 5 are derived, not measured: with the data, this file
-recorded 719 passed and 5 skipped at v0.1.0; the 82 tests added since need
+The 806 and the 5 are derived, not measured: with the data, this file
+recorded 719 passed and 5 skipped at v0.1.0; the 87 tests added since need
 neither the data nor the network (without the data, passes rose from 573 to
-655 and skips stayed at 151); and no code that a v0.1.0 test runs has
+660 and skips stayed at 151); and no code that a v0.1.0 test runs has
 changed since, except docstrings.
 
 **Without the election returns you can still generate.** The neutral half needs
@@ -250,8 +252,8 @@ committed files, and PlanScore's.
 The experiments were each run once and are not meant to be re-run
 (`prompt.md`: *"Run each once… do not iterate to improve the result"*). Their
 outputs are committed. What you can re-derive from those committed artifacts
-(`phase_2_report.py`, `plot_experiment_3.py` and `recount_seats.py` also need the
-data built above):
+(`experiment_2_tradeoffs.py`, `phase_2_report.py`, `plot_experiment_3.py` and
+`recount_seats.py` also need the data built above):
 
 ```bash
 python tools/experiment_1_sensitivity.py --ensemble v2
@@ -262,27 +264,56 @@ python tools/plot_experiment_1.py --ensemble v2   # -> docs/figures/exp1-*.png
 python tools/plot_experiment_2.py --ensemble v2   # -> docs/figures/exp2-*.png
 python tools/plot_experiment_3.py                # -> docs/figures/exp3-gameability.png
 python tools/recount_seats.py                    # -> docs/first-result/ia-seats-v2.csv.gz, .json
-                                                 #    (needs the Iowa data; ~25 min on 4 cores)
+                                                 #    (needs the Iowa data; ~25–30 min on an idle 4-core machine)
 python tools/plot_seat_distribution.py           # -> docs/figures/ia-neutral-seat-distribution.png
                                                  #    (no data needed)
 ```
 
-The first result's seats are counts. The draws file records each draw's
-metrics, not its plan, so `plot_seat_distribution.py` reads each draw's seats off
-its committed |efficiency gap| (D-039). `tools/recount_seats.py` regenerates every
-committed Iowa v2 draw from its chain's seed, checks that it reproduces its
-committed row, and counts its seats from the returns (D-043). It runs Experiment
-2's sampler again, but asks it only for the committed draws, each of which must
-reproduce its row, so it counts the same draws rather than drawing new ones. It
-writes only if every draw reproduces and no district is tied; otherwise it exits
-non-zero and writes nothing. A passing run rewrites
-`docs/first-result/ia-seats-v2.csv.gz` and its record, `ia-seats-v2.json`, in
-place, so `git diff` shows what it changed (`--out <path>.csv.gz` writes
-elsewhere). The counts come out byte for byte the same; the record differs where
-your environment does, and under Python 3.12 or later it shows a last-bit
-difference in mean Polsby-Popper, because `sum` of floats became compensated. The
-plotter refuses to draw unless its reading of each draw agrees with that count,
-and the record names the draws file it reads.
+Every seat value in the first result equals a count from the returns.
+Experiment 2's draws file,
+`docs/experiment-2/ia-draws-v2.csv.gz`, records each draw's metrics, not its
+plan, so `tools/plot_seat_distribution.py` reads each draw's seats off its
+committed |efficiency gap| (D-039). `tools/recount_seats.py` checks that reading
+by counting (D-043): it regenerates every committed Iowa v2 draw from its
+chain's seed, checks that the draw reproduces its committed row, and counts its
+seats from the returns. It runs Experiment 2's sampler again, but asks it only
+for the committed draws, so it counts the same draws rather than drawing new
+ones. The plotter refuses to draw unless its reading of every draw agrees with
+that count, and unless the count's record matches the draws file the plotter
+reads: its SHA-256, configuration, chains, contests and certified totals.
+
+The recount writes only if every draw reproduces and no district is tied;
+otherwise it exits non-zero and writes nothing. Its docstring lists every
+condition under which it refuses or fails. Nothing reaches standard output until
+every chain is done; meanwhile gerrychain prints about 6,100
+`BipartitionWarning`s on standard error, one for each ReCom step that took over
+1,000 tries to split two districts, and they are not failures. By default a
+passing run rewrites the committed `docs/first-result/ia-seats-v2.csv.gz` and its
+record, `ia-seats-v2.json`. To check them without changing them, write elsewhere
+and compare:
+
+```bash
+python tools/recount_seats.py --out /tmp/ia-seats.csv.gz 2> /tmp/recount.log; echo "exit $?"
+grep -E '^(FAIL|refused|not written)' /tmp/recount.log
+cmp <(gzip -dc /tmp/ia-seats.csv.gz) <(gzip -dc docs/first-result/ia-seats-v2.csv.gz)
+diff /tmp/ia-seats.json docs/first-result/ia-seats-v2.json
+```
+
+The rows should match exactly; the compressed bytes also depend on your zlib.
+The record differs wherever your setup does:
+
+- `python`: your Python version.
+- `inputs_sha256` for `data/processed/ia_units.gpkg`: on every build, because a
+  GeoPackage stores the time it was written.
+- `largest_float_difference.polsby_popper_mean`: a last-bit difference rather
+  than 0.0 under Python 3.12 or later, which made `sum` of floats compensated on
+  most builds.
+- `returns_source`: `null` unless the files unpacked in `data/raw/vest/` are
+  VEST's version 49, and `vest` without the zip's entry if you did not keep it.
+
+A record whose `returns_source` is `null` fails `tests/test_seat_distribution.py`.
+If you ran the recount in place, `git checkout -- docs/first-result/` restores the
+committed files.
 
 One check reaches outside the repository. It needs the network, not the data:
 

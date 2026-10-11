@@ -122,8 +122,12 @@ RECTANGLES = ROOT / "docs" / "experiment-2" / "ia-convergence-rectangles.json"
 #: for the plan. The reading below must agree with it on every draw, or nothing
 #: is drawn.
 RECOUNT = ROOT / "docs" / "first-result" / "ia-seats-v2.csv.gz"
-#: What the recount read: it must name the draws file read here, byte for byte.
+#: What the recount read: it must name the draws file read here, and the counts
+#: file beside it, byte for byte.
 RECOUNT_RECORD = ROOT / "docs" / "first-result" / "ia-seats-v2.json"
+#: The draws file's integer metrics besides competitive districts, which a plan
+#: key's draws must share.
+INTEGER_METRICS = ("county_splits", "cut_edges", "population_spread")
 
 STATE, ENSEMBLE = "IA", "v2"
 #: The ensemble the v2 chains extend: same seeds, so its draws are their prefix.
@@ -173,7 +177,7 @@ BASELINE = "#8a8a8a"
 WIDTH = 0.5
 #: Footer and note characters per line: each fits the canvas in matplotlib's
 #: stock font, the widest of those this figure is rendered in.
-FOOTER_WIDTH, NOTE_WIDTH = 112, 41
+FOOTER_WIDTH, NOTE_WIDTH = 112, 43
 
 
 def seat_levels(dem_share: float, k: int) -> dict[int, float]:
@@ -428,41 +432,59 @@ def counted_seats(path: Path) -> tuple[dict[tuple[int, str], list[int]],
     Polsby-Popper in the last bit, and two plans can share every metric."""
     counted: dict[tuple[int, str], list[int]] = {}
     plans: dict[int, list[str]] = {}
-    with gzip.open(path, "rt", newline="") as handle:
-        reader = csv.DictReader(handle)
-        missing = ({"chain_index", "draw", "plan"}
-                   | {f"dem_seats@{c}" for c in (CONTEST, ALTERNATE)}) - set(
-                       reader.fieldnames or ())
-        if missing:
-            raise ValueError(f"{path.name} has no column {', '.join(sorted(missing))}")
-        for record in reader:
-            index, draw = int(record["chain_index"]), int(record["draw"])
-            keys = plans.setdefault(index, [])
-            if draw != len(keys):
-                raise ValueError(f"{path.name}: chain {index} has draw {draw} "
-                                 f"where draw {len(keys)} belongs")
-            if not re.fullmatch(r"[0-9a-f]{16}", record["plan"]):
-                raise ValueError(f"{path.name}: chain {index} draw {draw} has plan "
-                                 f"key {record['plan']!r}")
-            keys.append(record["plan"])
-            for contest in (CONTEST, ALTERNATE):
-                counted.setdefault((index, contest), []).append(
-                    int(record[f"dem_seats@{contest}"]))
+    try:
+        with gzip.open(path, "rt", newline="") as handle:
+            _read_counts(handle, path, counted, plans)
+    except (EOFError, gzip.BadGzipFile, UnicodeDecodeError, csv.Error) as exc:
+        raise ValueError(f"{path.name} cannot be read: {type(exc).__name__}: {exc}") from exc
     return counted, plans
 
 
-def check_recount_record(record: dict, n_counted: int, spec, draws: Path) -> None:
-    """Refuse a count made from other draws, another configuration or other
-    totals than the ones this script reads. Without this, a counts file that
-    merely agreed with the reading would pass for one made from the returns."""
+def _read_counts(handle, path: Path, counted: dict, plans: dict) -> None:
+    """:func:`counted_seats`'s reading of a file it has opened."""
+    reader = csv.DictReader(handle)
+    missing = ({"chain_index", "draw", "plan"}
+               | {f"dem_seats@{c}" for c in (CONTEST, ALTERNATE)}) - set(
+                   reader.fieldnames or ())
+    if missing:
+        raise ValueError(f"{path.name} has no column {', '.join(sorted(missing))}")
+    for record in reader:
+        if None in record or None in record.values():
+            raise ValueError(f"{path.name}: line {reader.line_num} does not have one "
+                             "field for each column")
+        index, draw = int(record["chain_index"]), int(record["draw"])
+        keys = plans.setdefault(index, [])
+        if draw != len(keys):
+            raise ValueError(f"{path.name}: chain {index} has draw {draw} "
+                             f"where draw {len(keys)} belongs")
+        if not re.fullmatch(r"[0-9a-f]{16}", record["plan"]):
+            raise ValueError(f"{path.name}: chain {index} draw {draw} has plan "
+                             f"key {record['plan']!r}")
+        keys.append(record["plan"])
+        for contest in (CONTEST, ALTERNATE):
+            counted.setdefault((index, contest), []).append(
+                int(record[f"dem_seats@{contest}"]))
+
+
+def check_recount_record(record, n_counted: int, spec, draws: Path, counts: Path) -> None:
+    """Refuse a record that describes other draws, another configuration, other
+    totals or another counts file than the ones this script reads. It binds the
+    counts to the draws they describe; it cannot tell a pair the recount wrote
+    from one made some other way, which only rerunning the recount can (D-043)."""
+    if not isinstance(record, dict):
+        raise ValueError(f"{RECOUNT_RECORD.name} is not a record")
     sidecar = json.loads(X._sidecar_for(draws).read_text())
     wrong = []
     if record.get("draws_sha256") != hashlib.sha256(draws.read_bytes()).hexdigest():
         wrong.append(f"it counted a draws file other than {draws.name}")
+    if record.get("counts_sha256") != hashlib.sha256(counts.read_bytes()).hexdigest():
+        wrong.append(f"it describes a counts file other than {counts.name}")
     if record.get("config_digest") != X.config_digest(spec):
         wrong.append(f"it records configuration {record.get('config_digest')}, not "
                      f"{X.config_digest(spec)}")
-    if [(c.get("index"), c.get("seed"), c.get("n_rows")) for c in record.get("chains", [])] \
+    chains = record.get("chains")
+    if not (isinstance(chains, list) and all(isinstance(c, dict) for c in chains)) \
+            or [(c.get("index"), c.get("seed"), c.get("n_rows")) for c in chains] \
             != [(c["index"], c["seed"], c["n_rows"]) for c in sidecar["chains"]]:
         wrong.append("its chains, seeds or row counts are not the draws sidecar's")
     if record.get("n_rows") != n_counted:
@@ -474,6 +496,25 @@ def check_recount_record(record: dict, n_counted: int, spec, draws: Path) -> Non
     if wrong:
         raise ValueError(f"{RECOUNT_RECORD.name} does not describe the count read "
                          "here: " + "; ".join(wrong))
+
+
+def check_plan_keys(plan_keys: dict[int, list[str]],
+                    counted: dict[tuple[int, str], list[int]],
+                    rows: dict[int, list[dict]]) -> None:
+    """Refuse plan keys that name draws differing in either seat count or in any
+    integer metric: one plan cannot give two. Mean Polsby-Popper is left out,
+    because a renumbered plan can move it in its last bits."""
+    columns = sorted(c for c in next(r for rs in rows.values() for r in rs)
+                     if c in INTEGER_METRICS or c.startswith("competitive_districts@"))
+    seen: dict[str, tuple] = {}
+    for index, keys in sorted(plan_keys.items()):
+        for draw, key in enumerate(keys):
+            value = (counted[(index, CONTEST)][draw], counted[(index, ALTERNATE)][draw],
+                     *(int(rows[index][draw][c]) for c in columns))
+            if seen.setdefault(key, value) != value:
+                raise ValueError(f"plan key {key} names draws that differ, at chain "
+                                 f"{index} draw {draw}: one plan cannot give two counts "
+                                 "or two integer metrics")
 
 
 def check_against_count(read: dict[tuple[int, str], list[int]],
@@ -546,7 +587,8 @@ def seat_distribution() -> dict:
     counted, plan_keys = counted_seats(RECOUNT)
     n_counted = check_against_count(read, counted)
     check_recount_record(json.loads(RECOUNT_RECORD.read_text()), n_counted, spec,
-                         X.draws_path(spec.prefix, ENSEMBLE))
+                         X.draws_path(spec.prefix, ENSEMBLE), RECOUNT)
+    check_plan_keys(plan_keys, counted, dict(zip(every_index, all_rows)))
     counted_totals = {contest: {} for contest in (CONTEST, ALTERNATE)}
     for (_, contest), seats_ in counted.items():
         for x in seats_:
@@ -723,10 +765,13 @@ def seat_distribution() -> dict:
             "draws": [w for w, _ in beyond],
             "distinct": len({key for _, key in beyond}),
         },
-        # the same over every committed draw, beyond the rectangle
+        # the same over every committed draw, beyond the rectangle, and how
+        # many plans only draws outside the rectangle reach
         "alternate_beyond_all": {
             "draws": [w for w, _ in beyond_all],
             "distinct": len({key for _, key in beyond_all}),
+            "more_plans": len({key for _, key in beyond_all}
+                              - {key for _, key in beyond}),
         },
         "two_seat_share_by_rectangle": by_rectangle,
         "population_spread_median": statistics.median(
@@ -782,8 +827,8 @@ def figure_text(d: dict) -> dict:
     # an effective sample too small to rely on R-hat, or an R-hat above the
     # band, each leaves the standard errors open to understating
     caution = ([f"{per_split:.0f} effective draws per split chain are below the "
-                f"{RHAT_MIN_ESS_PER_SPLIT} Vehtari et al. (2021) ask for before relying on "
-                "R-hat"] if per_split < RHAT_MIN_ESS_PER_SPLIT else [])
+                f"{RHAT_MIN_ESS_PER_SPLIT} that Vehtari et al. (2021) ask for before "
+                "relying on R-hat"] if per_split < RHAT_MIN_ESS_PER_SPLIT else [])
     if caution or rhat > RHAT_BAND[1]:
         caution.append("these standard errors may understate the uncertainty")
     blocks = [100 * v for b in p["batch_means_mcse"].values() for v in b.values()]
@@ -800,15 +845,25 @@ def figure_text(d: dict) -> dict:
             why = "1 chain only" if p["chains_seen"][x] < 2 else "no standard error"
             labels[x] = (share_text(p["shares"][x]), f"{why}\n{p['counts'][x]:,} draws")
 
-    beyond = d["alternate_beyond"]
+    # the alternate contest's reach above the span, in these draws and, since
+    # the figure travels alone, in the committed draws outside them
+    beyond, more = d["alternate_beyond"], d["alternate_beyond_all"]["more_plans"]
     reach = ""
-    if beyond["draws"]:
+    if beyond["draws"] or more:
         higher = any(alt["counts"][x] for x in xs if x > beyond["seats"])
-        plans = f"{beyond['distinct']} distinct plan{'s' if beyond['distinct'] > 1 else ''}"
-        reach = (f" Under the {CONTEST_NAMES[alt['contest']]} vote, "
-                 f"{len(beyond['draws'])} draws reach {beyond['seats']}"
-                 f"{'+' if higher else ''} seats, in {plans}, "
-                 f"{span_text(beyond['draws'], BURN_IN_CHECK)}.")
+        top = f"{beyond['seats']}{'+' if higher else ''} seats"
+        plural = "s" if more > 1 else ""
+        reach = f" Under the {CONTEST_NAMES[alt['contest']]} vote, "
+        if beyond["draws"]:
+            plans = f"{beyond['distinct']} distinct plan{'s' if beyond['distinct'] > 1 else ''}"
+            reach += (f"{len(beyond['draws'])} draws reach {top}, in {plans}, "
+                      f"{span_text(beyond['draws'], BURN_IN_CHECK)}")
+            if more:
+                reach += f"; committed draws outside these reach it in {more} more plan{plural}"
+        else:
+            reach += (f"none of these draws reach {top}, but committed draws outside "
+                      f"them do, in {more} plan{plural}")
+        reach += "."
     if two:
         se_low, se_high = min(two.values()), max(two.values())
         block = (f"; block means over all {d['n_rows_committed']:,} committed draws put "
@@ -825,7 +880,7 @@ def figure_text(d: dict) -> dict:
         + (f"; none reached {' or '.join(map(str, missing))}." if missing else ".") + reach
         + " Seats are counted from the returns (D-043). Dots: each chain's share. "
         "Whiskers and ±: 2 Monte Carlo standard errors of the pooled share, from "
-        f"its effective sample size{block}. Seat count split R-hat {rhat:.3f}, {where} "
+        f"its effective sample size{block}. Seat\u00a0count split R-hat {rhat:.3f}, {where} "
         f"CRITERIA §8's {RHAT_BAND[0]:.2f}–{RHAT_BAND[1]:.2f} band"
         + ("; " + ", and ".join(caution) if caution else "")
         + ". Regenerate: tools/plot_seat_distribution.py, from committed files only.",
@@ -853,7 +908,7 @@ def figure_text(d: dict) -> dict:
             f"{share_text(p['shares'][enacted])} of these draws do "
             f"({min(chain_range):.1f}–{max(chain_range):.1f}% across chains); its "
             f"{enacted} turns on one district at {100 * d['enacted_closest_share']:.1f}% D. "
-            f"Not like-for-like: the draws are not held to its {ENACTED_SPREAD}-person "
+            f"Not\u00a0like-for-like: the draws are not held to its {ENACTED_SPREAD}-person "
             "population spread (D-041).",
             NOTE_WIDTH, break_on_hyphens=False) + ["Not yet a finding."]),
         "footer": footer,
@@ -1135,7 +1190,9 @@ def summary_lines(d: dict) -> list[str]:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--out", type=Path, default=OUT)
+    parser.add_argument("--out", type=Path, default=OUT,
+                        help="where to write the figure (default: "
+                             "docs/figures/ia-neutral-seat-distribution.png)")
     args = parser.parse_args(argv)
     try:
         d = seat_distribution()

@@ -2,6 +2,7 @@
   "generated_by": "tools/recount_seats.py",
   "draws": "docs/experiment-2/ia-draws-v2.csv.gz",
   "draws_sha256": "bc77a174258bf9665fd93f28dce272e9f965a348df228fa806d2f8c4e5b1e2d1",
+  "counts_sha256": "70731357e66d395c5232b283e25925e8b7a03aff0aeea45ad9a8475b63ff3847",
   "config_digest": "9c12c12b71d67878",
   "chains": [
     {
@@ -91,7 +92,9 @@
     "version": "49.0",
     "file_id": 14304797,
     "file": "ia_2020.zip",
-    "md5": "500252facae6107b93128406ebf5177b"
+    "md5": "500252facae6107b93128406ebf5177b",
+    "dbf_sha256": "c37230a71af50a83735ef80e1361447d23307175f7fcc22842f17706fbc16080",
+    "shp_sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a"
   },
   "vest": {
     "data/raw/vest/ia_2020.zip": {

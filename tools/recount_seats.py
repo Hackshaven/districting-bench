@@ -3,51 +3,65 @@
 
 The draws file, ``docs/experiment-2/ia-draws-v2.csv.gz``, records each draw's
 metrics but not its plan, so D-039 reads the seat count off the committed
-|efficiency gap|. That reading cannot check itself: a plan that is not a sweep,
-one party winning every district, can land where a sweep would. This script
-checks it by counting.
+|efficiency gap|. That reading cannot check itself: a sweep is one party winning
+every district, and a plan that is not a sweep can land where a sweep would.
+This script checks it by counting.
 
 It regenerates every committed chain from its seed, exactly as
 ``tools/experiment_2_tradeoffs.py`` drew it, and measures each draw with that
 script's own ``measure_plan``. Every draw must reproduce its committed row: the
 :data:`INTEGER_COLUMNS` exactly, and the others to within :data:`FLOAT_TOLERANCE`.
-It counts each draw's Democratic seats under both contests from
-``data/processed/ia_elections.csv``, whose statewide two-party totals must first
-equal the certified ones, and keys each draw's plan in a way that ignores the
-districts' numbers, so that distinct plans can be counted rather than bounded.
+It counts each draw's Democratic seats under both contests, the 2020
+presidential and U.S. Senate votes, from ``data/processed/ia_elections.csv``,
+whose statewide two-party totals must first equal the certified ones, and keys
+each draw's plan in a way that ignores the districts' numbers, so that distinct
+plans can be counted.
 
 Run::
 
-    python tools/recount_seats.py              # about 25 minutes on 4 cores
-    python tools/recount_seats.py --jobs 2     # chains at once; default min(4, CPUs)
-    python tools/recount_seats.py --out x.csv.gz
+    python tools/recount_seats.py                      # rewrites the committed files
+    python tools/recount_seats.py --out /tmp/x.csv.gz  # writes /tmp/x.csv.gz and /tmp/x.json
+    python tools/recount_seats.py --jobs 2             # chains at once; default min(4, CPUs)
 
-On fewer cores it takes longer, about 45 minutes on 2 and 1.5 hours on 1; more
-than 4 helps only with ``--jobs`` above 4, down to about 18 minutes, which the
-two 12,000-draw chains set.
+It takes about 25 to 30 minutes on an idle 4-core machine and prints nothing to
+standard output until every chain is done. More cores barely help: chain 6, one
+of the two 12,000-draw chains, runs for about nine-tenths of that time on its
+own. On fewer cores it takes longer: by estimate from the chains' own times,
+about 50 minutes on 2 and an hour and a half on 1. Meanwhile gerrychain prints
+about 6,100 ``BipartitionWarning`` messages on standard error, one for each
+ReCom step that took over 1,000 tries to split two districts. They are not
+failures; failures are the ``FAIL:`` lines printed at the end.
 
 It writes ``docs/first-result/ia-seats-v2.csv.gz``, or the ``--out`` path, which
 must end in ``.csv.gz``: one row per committed draw, with its plan's key and its
 seats. Beside it, with ``.json`` in place of ``.csv.gz``, it writes a record of
-what it read: the draws file's hash, the configuration, every chain, the hashes
-of its inputs and of VEST's file, the Python and gerrychain versions, and the
-largest difference it found in each float column. It writes both only when every
-committed draw reproduces and no district is tied; otherwise it exits non-zero
-and writes nothing, so any earlier record at that path stays as it was. The
-counts file's bytes depend on the counts and keys alone, so a passing run
-rewrites it unchanged. The record also names the Python version, the input files
-and VEST's file as found, and under Python 3.12 or later it records a
-last-bit difference in mean Polsby-Popper (:data:`FLOAT_TOLERANCE`), so
-``git diff`` on it shows where a run's environment differs from the committed
-one's.
+what it read and wrote: the draws file's hash and the counts file's, the
+configuration, every chain, the hashes of its inputs and of VEST's files, taken
+before the run, the Python and gerrychain versions, and the largest difference
+it found in each float column. It writes both only when every
+check below passes; otherwise it exits non-zero and writes nothing, so any
+earlier files at that path stay as they were.
+
+The rows depend on the counts and keys alone; their compressed bytes also depend
+on the zlib library Python uses. The record differs from the committed one
+wherever the run's setup does, and ``git diff`` on it shows where: the Python
+version; the hash of ``data/processed/ia_units.gpkg`` on any other build of it,
+since a GeoPackage stores when it was written; under Python 3.12 or later, a
+last-bit difference in mean Polsby-Popper (:data:`FLOAT_TOLERANCE`); and
+``returns_source``, which is null unless the files unpacked in
+``data/raw/vest/`` are VEST's version 49 (:func:`returns_source`).
+``tests/test_seat_distribution.py`` requires the committed record to name that
+file, so to check the committed counts rather than replace them, write
+elsewhere with ``--out`` and compare.
 
 It refuses, printing one ``refused:`` line, if ``--out`` does not end in
 ``.csv.gz`` or a file it reads under ``data/processed`` is missing. It fails,
 printing a ``FAIL:`` line for each problem (at most five per chain), if:
 
 * a contest's statewide two-party totals are not the certified ones;
-* the draws file and its sidecar disagree: on the configuration, on which
-  chains there are, or on a chain's length;
+* the draws sidecar records a configuration other than Experiment 2's, or the
+  draws file and its sidecar disagree on which chains there are or on a chain's
+  length;
 * a chain's committed seed is not the one its index derives;
 * a draw is misnumbered or does not reproduce its committed row, or its
   measured columns are not the committed ones;
@@ -57,13 +71,16 @@ printing a ``FAIL:`` line for each problem (at most five per chain), if:
 
 ``tools/plot_seat_distribution.py`` reads each draw's seats off its
 |efficiency gap| as D-039 does, and refuses to draw unless every reading agrees
-with these counts and the record names the draws file it reads.
+with these counts and the record matches the draws file it reads: its SHA-256,
+configuration, chains, row count, contests and certified totals.
 
-It needs the Iowa data built (``tools/fetch_raw.sh ia``, VEST's ``ia_2020.shp``,
-``tools/prepare_data.py``) and gerrychain as ``requirements.txt`` pins it:
-another version may draw other plans from the same seeds, and the run then
-fails. No plan is kept: each is measured, counted, keyed and dropped. No vote
-count is written, only seat counts.
+It needs the Iowa data built (``tools/fetch_raw.sh ia``, VEST's ``ia_2020.zip``
+unpacked in ``data/raw/vest/``, ``tools/prepare_data.py``) and gerrychain as
+``requirements.txt`` pins it: another version may draw other plans from the same
+seeds, and the run then fails. No plan is kept: each is measured, counted, keyed
+and dropped. No vote count from the returns is written: the files hold seat
+counts, and the record holds the certified statewide totals the returns are
+checked against.
 
 These are the committed draws regenerated, not new ones: the sampler is asked
 for each chain's committed draws and no more, and a draw that does not
@@ -103,16 +120,22 @@ OUT = ROOT / "docs" / "first-result" / "ia-seats-v2.csv.gz"
 ELECTIONS = X.PROCESSED / "ia_elections.csv"
 NEUTRAL = tuple(X.PROCESSED / f"ia_{name}" for name in
                 ("units.gpkg", "units.csv", "adjacency.json"))
-#: VEST's file, if it is where tools/fetch_raw.sh says to put it. Its hashes
-#: identify the returns in the sidecar; nothing else is read from it here.
+#: VEST's files, where the README's 'Getting the data' puts them: the zip as
+#: downloaded, if kept, and the two files tools/prepare_data.py reads from what
+#: was unpacked. They are read only to be hashed, so the record can identify
+#: the returns.
 VEST = tuple(ROOT / "data" / "raw" / "vest" / f"ia_2020.{ext}"
              for ext in ("zip", "dbf", "shp"))
 #: The file the committed count was made from (D-043): VEST's 2020 precinct
-#: returns on the Harvard Dataverse, with the MD5 Dataverse publishes for it.
-#: The sidecar names it only when the zip present matches that MD5.
+#: returns on the Harvard Dataverse, with the MD5 Dataverse publishes for the
+#: zip and the SHA-256 of the two members tools/prepare_data.py reads. The
+#: record names it only when those members are the files read here
+#: (:func:`returns_source`).
 VEST_SOURCE = {"dataset": "doi:10.7910/DVN/K7760H", "version": "49.0",
                "file_id": 14304797, "file": "ia_2020.zip",
-               "md5": "500252facae6107b93128406ebf5177b"}
+               "md5": "500252facae6107b93128406ebf5177b",
+               "dbf_sha256": "c37230a71af50a83735ef80e1361447d23307175f7fcc22842f17706fbc16080",
+               "shp_sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a"}
 
 #: Iowa's certified 2020 two-party totals, ``(D, R)``, as tools/prepare_data.py
 #: and tests/test_elections.py assert them. The unsigned metrics the draws file
@@ -173,9 +196,10 @@ def work_list(rows: dict[int, list[dict]], sidecar: dict) -> tuple[list, list[st
     return work, failures
 
 
-def check_totals(path: Path = ELECTIONS) -> list[str]:
-    """Every contest whose statewide two-party totals are not the certified ones."""
-    el = E.load_elections(path)
+def check_totals(path: Path | None = None) -> list[str]:
+    """Every contest whose statewide two-party totals are not the certified ones,
+    in :data:`ELECTIONS` unless ``path`` names another file."""
+    el = E.load_elections(ELECTIONS if path is None else path)
     failures = []
     for contest, certified in CERTIFIED.items():
         dem, rep = E.two_party(el, *E.two_party_columns(el, contest))
@@ -208,15 +232,14 @@ def compare(measured: dict, record: dict) -> tuple[list[str], dict[str, float]]:
     return wrong, differences
 
 
-def plan_key(plan: dict) -> str:
-    """A key for the partition that does not depend on its district numbers:
-    each district as its sorted units, the districts in order of their first."""
-    districts: dict = {}
-    for unit, district in plan.items():
-        districts.setdefault(district, []).append(str(unit))
-    canonical = "|".join(",".join(units) for units in
-                         sorted(sorted(units) for units in districts.values()))
-    return hashlib.sha256(canonical.encode()).hexdigest()[:16]
+def plan_key(plan: dict, k: int) -> str:
+    """A key for the partition, as ``generate.ensemble.canonical`` defines it:
+    blind to the districts' numbers, and refusing a plan without ``k``
+    non-empty districts. Each district is written as its sorted units, the
+    districts in order of their first, and the text is hashed to 64 bits."""
+    blocks = sorted(sorted(str(unit) for unit in block)
+                    for block in ensemble.canonical(plan, k))
+    return hashlib.sha256("|".join(",".join(b) for b in blocks).encode()).hexdigest()[:16]
 
 
 def recount_chain(work: tuple[int, int, list[dict]]) -> dict:
@@ -274,7 +297,7 @@ def recount_chain(work: tuple[int, int, list[dict]]) -> dict:
             if len(failures) >= MAX_FAILURES_PER_CHAIN:
                 break
         result["seats"].append(tuple(counts))
-        result["plans"].append(plan_key(plan))
+        result["plans"].append(plan_key(plan, spec.k))
     result["seconds"] = time.time() - started
     return result
 
@@ -305,20 +328,9 @@ def sidecar_path(out: Path) -> Path:
     return out.with_name(out.name.removesuffix(".csv.gz") + ".json")
 
 
-def _write_atomically(path: Path, write) -> None:
-    """``write(temporary)`` to a file beside ``path``, then put it in place, so
-    a failure part-way leaves the last record that passed."""
-    temporary = path.with_name(path.name + ".tmp")
-    try:
-        write(temporary)
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
-
-
 def vest_digests() -> dict[str, dict[str, str]]:
     """VEST's files, where present: the zip by the MD5 its Dataverse record
-    publishes, the files extracted from it by SHA-256."""
+    publishes, the files unpacked from it by SHA-256."""
     found = {}
     for path in VEST:
         if path.exists():
@@ -327,13 +339,40 @@ def vest_digests() -> dict[str, dict[str, str]]:
     return found
 
 
-def write(results: dict[int, dict], out: Path) -> dict:
-    """The counts and plan keys, one row per committed draw, and a sidecar."""
-    out.parent.mkdir(parents=True, exist_ok=True)
+def returns_source(vest: dict[str, dict[str, str]]) -> dict | None:
+    """:data:`VEST_SOURCE`, if the ``.dbf`` and ``.shp`` tools/prepare_data.py
+    reads are its members, and the zip, where kept, is that file; otherwise
+    None. That ``ia_elections.csv`` was built from them is prepare_data.py's to
+    show: here the certified totals and the reproduced metrics are the checks."""
+    zipped, dbf, shp = (shown(path) for path in VEST)
+    if (vest.get(dbf, {}).get("sha256") != VEST_SOURCE["dbf_sha256"]
+            or vest.get(shp, {}).get("sha256") != VEST_SOURCE["shp_sha256"]):
+        return None
+    if zipped in vest and vest[zipped].get("md5") != VEST_SOURCE["md5"]:
+        return None
+    return VEST_SOURCE
 
-    def counts(path: Path) -> None:
+
+def provenance() -> dict:
+    """What the recount reads, hashed before it reads it: the neutral inputs, the
+    returns, and VEST's files."""
+    vest = vest_digests()
+    return {"inputs_sha256": {shown(p): digest(p) for p in (*NEUTRAL, ELECTIONS)},
+            "returns_source": returns_source(vest), "vest": vest}
+
+
+def write(results: dict[int, dict], out: Path, read: dict) -> dict:
+    """The counts and plan keys, one row per committed draw, and a record of
+    ``read`` and of what the run found. Both are written beside their places
+    and put in place only once both are complete; the record carries the
+    counts file's hash, so a pair that is not one cannot pass for one."""
+    out.parent.mkdir(parents=True, exist_ok=True)
+    record_path = sidecar_path(out)
+    counts_tmp = out.with_name(out.name + ".tmp")
+    record_tmp = record_path.with_name(record_path.name + ".tmp")
+    try:
         # mtime=0 and no file name in the header, so the bytes depend on the data
-        with open(path, "wb") as raw, \
+        with open(counts_tmp, "wb") as raw, \
                 gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as binary, \
                 io.TextIOWrapper(binary, encoding="utf-8", newline="") as handle:
             writer = csv.writer(handle)
@@ -343,52 +382,60 @@ def write(results: dict[int, dict], out: Path) -> dict:
                 for draw, (plan, seats) in enumerate(
                         zip(results[index]["plans"], results[index]["seats"])):
                     writer.writerow([index, draw, plan, *seats])
-    _write_atomically(out, counts)
 
-    draws = X.draws_path("ia", ENSEMBLE)
-    draws_sidecar = json.loads(X._sidecar_for(draws).read_text())
-    rows = {i: len(r["seats"]) for i, r in results.items()}
-    vest = vest_digests()
-    fetched = vest.get(shown(VEST[0]), {}).get("md5")
-    record = {
-        "generated_by": "tools/recount_seats.py",
-        "draws": shown(draws),
-        "draws_sha256": digest(draws),
-        "config_digest": X.config_digest(X.ensemble_spec(STATE, ENSEMBLE)),
-        "chains": [{"index": c["index"], "seed": c["seed"],
-                    "n_rows": rows.get(c["index"], 0)} for c in draws_sidecar["chains"]],
-        "n_rows": sum(rows.values()),
-        "contests": list(CONTESTS),
-        "certified_two_party_totals": {c: list(t) for c, t in CERTIFIED.items()},
-        "inputs_sha256": {shown(p): digest(p) for p in (*NEUTRAL, ELECTIONS)},
-        "returns_source": VEST_SOURCE if fetched == VEST_SOURCE["md5"] else None,
-        "vest": vest,
-        "python": platform.python_version(),
-        "gerrychain": importlib.metadata.version("gerrychain"),
-        "integer_columns": sorted(INTEGER_COLUMNS),
-        "float_tolerance": FLOAT_TOLERANCE,
-        "largest_float_difference": {
-            key: max(r["differences"].get(key, 0.0) for r in results.values())
-            for key in sorted({k for r in results.values() for k in r["differences"]})},
-    }
-    _write_atomically(sidecar_path(out), lambda path: path.write_text(
-        json.dumps(record, indent=2) + "\n", encoding="utf-8"))
+        draws = X.draws_path("ia", ENSEMBLE)
+        draws_sidecar = json.loads(X._sidecar_for(draws).read_text())
+        rows = {i: len(r["seats"]) for i, r in results.items()}
+        record = {
+            "generated_by": "tools/recount_seats.py",
+            "draws": shown(draws),
+            "draws_sha256": digest(draws),
+            "counts_sha256": digest(counts_tmp),
+            "config_digest": X.config_digest(X.ensemble_spec(STATE, ENSEMBLE)),
+            "chains": [{"index": c["index"], "seed": c["seed"],
+                        "n_rows": rows.get(c["index"], 0)}
+                       for c in draws_sidecar["chains"]],
+            "n_rows": sum(rows.values()),
+            "contests": list(CONTESTS),
+            "certified_two_party_totals": {c: list(t) for c, t in CERTIFIED.items()},
+            **read,
+            "python": platform.python_version(),
+            "gerrychain": importlib.metadata.version("gerrychain"),
+            "integer_columns": sorted(INTEGER_COLUMNS),
+            "float_tolerance": FLOAT_TOLERANCE,
+            "largest_float_difference": {
+                key: max(r["differences"].get(key, 0.0) for r in results.values())
+                for key in sorted({k for r in results.values() for k in r["differences"]})},
+        }
+        record_tmp.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        os.replace(counts_tmp, out)
+        os.replace(record_tmp, record_path)
+    finally:
+        counts_tmp.unlink(missing_ok=True)
+        record_tmp.unlink(missing_ok=True)
     return record
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(
+        description=__doc__.splitlines()[0],
+        epilog="Needs data/processed/ia_* (tools/prepare_data.py). Takes about half an "
+               "hour on 4 cores and prints nothing to standard output until every chain "
+               "is done. Exits 0 only if every committed draw reproduces; the module "
+               "docstring lists every refusal and failure.")
     parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1),
                         help="chains recounted at once (default: the smaller of 4 "
                              "and the CPU count)")
     parser.add_argument("--out", type=Path, default=OUT,
-                        help="counts file to write, ending in .csv.gz; the record goes "
-                             "beside it as .json (default: "
-                             "docs/first-result/ia-seats-v2.csv.gz)")
+                        help="counts file to write, ending in .csv.gz; its record goes "
+                             "beside it, with .json in place of .csv.gz (default: "
+                             "rewrite the committed docs/first-result/ia-seats-v2.csv.gz "
+                             "and its record)")
     args = parser.parse_args(argv)
     if not args.out.name.endswith(".csv.gz"):
-        print(f"refused: --out must name a .csv.gz file, so its sidecar, "
-              f"{sidecar_path(args.out).name}, cannot overwrite it", file=sys.stderr)
+        print(f"refused: --out must name a .csv.gz file, not {args.out.name}: the counts "
+              "are gzipped CSV, and the record goes beside them with .json in place "
+              "of .csv.gz", file=sys.stderr)
         return 1
     missing = [shown(p) for p in (*NEUTRAL, ELECTIONS) if not p.exists()]
     if missing:
@@ -396,17 +443,18 @@ def main(argv=None) -> int:
               "(the README's 'Getting the data', then 'Building the analysis "
               "inputs')", file=sys.stderr)
         return 1
+    read = provenance()
     results, failures = recount(args.jobs)
     for index in sorted(results):
         r = results[index]
-        print(f"chain {index}: {len(r['seats'])} draws reproduced and counted, "
+        print(f"chain {index}: {len(r['seats']):,} draws regenerated and counted, "
               f"{r['seconds']:.0f}s")
     if failures:
         for failure in failures:
             print("FAIL:", failure, file=sys.stderr)
-        print(f"not written: {args.out} is unchanged", file=sys.stderr)
+        print(f"not written: {args.out} and its record are unchanged", file=sys.stderr)
         return 1
-    record = write(results, args.out)
+    record = write(results, args.out, read)
     for c, contest in enumerate(CONTESTS):
         counts: dict[int, int] = {}
         for r in results.values():
