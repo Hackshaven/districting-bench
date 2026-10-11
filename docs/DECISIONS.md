@@ -1102,32 +1102,53 @@ is pinned by the outcome. With wasted votes counted against half of each
 district's votes, `EG = 2V − ½ − τ` exactly, where `τ` is the share of two-party
 votes cast in districts the Democrats win, and `τ = s/k` when turnout is equal.
 Each seat count therefore has a level, `|2V − ½ − s/k|`, and a draw sits off its
-own level only by its turnout imbalance. `tools/plot_seat_distribution.py`
-assigns each draw to its nearest level, and refuses the whole sample unless every
-draw is nearer its own level than half the smallest gap between levels.
+own level by its turnout imbalance. `tools/plot_seat_distribution.py` assigns
+each draw to its level only under two checks, and refuses the whole sample if
+either fails:
+- a draw read as a sweep (0 or `k` seats) must sit within the `k/2T` to `k/T`
+  that the strict-majority threshold allows;
+- every other draw must sit within half of the half-gap of its level.
 
 *Alternatives:*
 - **Recount from plans and returns.** Rejected: the plans are not committed (the
   draws file holds metrics only) and would have to be regenerated from their
   seeds, and the returns cannot be redistributed, so no reader could check the
   result.
-- **Keep the 1,820-draw figure.** Rejected: it is the one figure in the
-  repository nobody can regenerate (D-036), and its sample is the least converged
-  Iowa ensemble still quoted anywhere.
+- **Keep the 1,820-draw figure.** Rejected: no reader can regenerate it (D-036),
+  and its sample is the least converged Iowa ensemble the repository quotes.
 - **Add a seats column to the draws file.** Rejected: that is a new measurement,
   and the committed file is the record of the one that was made (D-027).
+- **Assign each draw to its nearest level, with no margin.** That was the first
+  version, and review showed the guard was nearly empty. Storing |EG| rather than
+  EG folds the sign away and brings Iowa's 1- and 2-seat levels to 0.083 apart,
+  and a nearest-level rule refuses only a draw exactly at the midpoint. A 1-seat
+  plan whose Democratic district cast 30% of the state's votes would have been
+  read as 2 seats without complaint.
 
 *Why it is a measurement and not a guess:* the identity is exact and its only
-free term is turnout. On Iowa's v2 rectangle the largest residual is 0.0143
-against a half-gap of 0.0413, a margin of nearly three. And the two plans whose
-seats were counted directly from the returns, the Phase 2 report's enacted
-plans, read back to the same counts: Iowa 0 of 4, Colorado 5 of 8.
+free term is turnout. Sweeps are checked to the vote, so the 0-seat count is
+verified outright. Every other draw sits at most 0.0143 from its level, about a
+third of the 0.0413 half-gap. Misreading a 1-seat plan as 2 would take a
+Democratic district casting over 31% of the state's two-party vote against 25% at
+equal turnout, four times the largest imbalance in the data. The two enacted
+plans in the Phase 2 report, counted directly from the returns, read back
+correctly, but that is weak support: Iowa's is a sweep, exact whatever the
+turnout, and Colorado's sits far from Colorado's closest levels. Under the 2020
+Senate vote the same checks pass with more room: the largest residual is 0.0159,
+against a half-gap of 0.0570.
 
-*Limits:* the method needs every draw's turnout imbalance to stay under half the
-gap between seat levels. That is a property of the state and the election, not of
-the method. It holds by a factor of nearly three on Iowa's four county-built
-districts. It is not established for Colorado, whose nine levels sit closer
-together (smallest gap 0.028) on VTD-built districts, and nothing uses it there.
+*Limits:* the method works only when every draw's turnout imbalance stays inside
+the margin. How close the folded levels sit is a property of the vote share, the
+district count, and the decision to store |EG|. On Colorado the closest levels
+are 0.028 apart, and 125 of the 20,000 v2 draws sit beyond that half-gap, so the
+plotter's own checks would refuse Colorado. Nothing uses the method there.
+Storing the signed gap, or the seat count, in the next measurement would remove
+the need for any of this.
+
+*Earlier entries:* D-012 and D-013 quote the 1,820-draw shares (2 seats at
+43.0%). Their conclusions rest on the 0–2 span, which stands under the
+presidential vote. The shares themselves are superseded by the ones recorded
+here, and the entries are left as written.
 
 ## D-040 — PlanScore's efficiency gap is a different formula; this repository keeps CRITERIA.md's
 

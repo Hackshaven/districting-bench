@@ -197,13 +197,15 @@ each measure on the side the search runs toward, so the ceiling *is* the anchor'
 own value — is a change of instrument rather than of a threshold, and it belongs
 in a round that can measure it independently rather than in this one's report.
 
-At 2 seats the classes genuinely overlap on the partisan metrics too. 43% of
-Iowa's neutral draws already give the Democrats two seats, and conditioned on
-that outcome the plants are indistinguishable from the neutral draws that also
-win two: AUC 0.53 on efficiency gap, 0.57 on mean-median, at efficiency-gap
-percentiles 0.16-0.94 of the full reference, nowhere near a 0.99 tail. **No
-percentile-tail detector can reach TPR 0.95 at a 2-seat shift in Iowa**, and that
-is a fact about the state and the magnitude rather than a defect in any rule.
+At 2 seats the classes genuinely overlap on the partisan metrics too. About half
+of Iowa's neutral draws already give the Democrats two seats (43% of the
+1,820-draw ensemble this was first measured on, 49.5% of v2's per D-039), and
+conditioned on that outcome the plants are indistinguishable from the neutral
+draws that also win two: AUC 0.53 on efficiency gap, 0.57 on mean-median, at
+efficiency-gap percentiles 0.16-0.94 of the full reference, nowhere near a 0.99
+tail. **No percentile-tail detector can reach TPR 0.95 at a 2-seat shift in
+Iowa**, and that is a fact about the state and the magnitude rather than a defect
+in any rule.
 
 Baselines: a shift is a difference, so say what from
 ----------------------------------------------------

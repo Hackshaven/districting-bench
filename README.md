@@ -13,13 +13,14 @@ map adoption.**
 
 ## First result
 
-![Iowa's neutral seat distribution](docs/figures/ia-neutral-seat-distribution.png)
+![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws, 1 seat in 49.0%, 2 seats in 49.5%, none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats, a comparison the text below calls not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
 
-Over 27,564 ReCom draws made with no access to election data, **Iowa's neutral
-process spans 0–2 Democratic seats of 4, and a 2-seat outcome is about half of
-the distribution** — 49.5% under the 2020 presidential vote, with the six chains
-that drew it ranging from 41% to 58%. The 1,820-draw ensemble archived in v0.1.0
-put it at 43%: a less precise estimate of the same spread.
+Across 27,564 draws from a ReCom sampler with no access to election data, **a
+neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
+presidential vote, and 2 seats in about half of its draws** (49.5%, with a Monte
+Carlo standard error of 3 to 4 points; the six chains range from 41% to 58%).
+Under the 2020 Senate vote the same draws reach 3 seats, in 8 of them, so the top
+of that range depends on the election.
 
 The consequence is a limit, not a score. Detectability is bounded below by the
 width of the neutral distribution, and that width is a property of the state rather
@@ -28,9 +29,17 @@ than of the method. A detection target stated in absolute seats — such as
 detector to separate an outcome from its own null, and is unreachable on a
 four-district state whose null already spans two seats.
 
-Iowa's enacted plan returns 0 D seats, which occurs in 1.4% of this ensemble. That
-comparison is **not yet a finding**: the reference is not held to the 94-person
-population equality the enacted plan meets — only 454 of its 27,564 draws are that
+Two cautions travel with these numbers. The seat count's split R-hat is 1.014,
+just outside `docs/CRITERIA.md` §8's 1.00–1.01 band. And v0.1.0 reported the
+2-seat share as 43%, from a 1,820-draw ensemble that was never committed: seven
+chains of 260 draws with no convergence diagnostic. Chains that short cannot
+pin a share this autocorrelated to within ten points, so the two numbers do not
+disagree. The 0–2 range is the same in both.
+
+Iowa's enacted plan returns 0 D seats, as 1.4% of these draws do (0.4–2.5% across
+the six chains), and its 0 turns on one district at 49.8% Democratic. That
+comparison is **not yet a finding**: the draws are not held to the 94-person
+population equality the enacted plan meets — only 454 of the 27,564 are that
 equal — so it is not like-for-like. See `docs/progress.md`.
 
 ---
@@ -133,7 +142,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 582 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 590 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -175,9 +184,12 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 728 passed, 5 skipped
+PYTHONPATH=src pytest tests -q         # 736 passed, 5 skipped
 python tools/check_firewall.py         # must print: clean
 ```
+
+That count is derived, not re-measured: the README recorded 719 with the data at
+v0.1.0, and the 17 tests added since read only committed files.
 
 **Without the election returns you can still generate.** The neutral half needs
 population, geometry and adjacency only — that is the firewall, not a
@@ -197,6 +209,7 @@ python tools/phase_2_report.py
 python tools/plot_experiment_1.py --ensemble v2   # -> docs/figures/exp1-*.png
 python tools/plot_experiment_2.py --ensemble v2   # -> docs/figures/exp2-*.png
 python tools/plot_experiment_3.py                # -> docs/figures/exp3-gameability.png
+python tools/plot_seat_distribution.py           # -> docs/figures/ia-neutral-seat-distribution.png
 
 python tools/check_planscore.py     # cross-check against PlanScore; needs the network
 ```
