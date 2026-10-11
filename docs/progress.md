@@ -2324,3 +2324,122 @@ clean checkout is **578 passed, 151 skipped** (measured). With the data built it
 should be **724 passed, 5 skipped**: that figure is derived, not measured, because
 the five new tests read only committed files and this container has no election
 returns. `python tools/check_firewall.py` prints `clean`.
+
+---
+
+# Cross-check against PlanScore
+
+`prompt.md`: *"Cross-check your metric implementations against PlanScore on
+plans it has already scored."* Until now that had not been done. PlanScore
+scores both enacted plans this repository studies, and for each one it
+publishes the district two-party totals of the 2016 and 2020 presidential and
+U.S. Senate races, together with the efficiency gap it computes from each. The
+same totals were run through `evaluate.partisan`, so every comparison below is
+on identical inputs. `tools/check_planscore.py` fetches PlanScore's files,
+pinned by sha256, and writes `docs/cross-checks/planscore.json`.
+
+## The plans are the ones this repository studies
+
+PlanScore titles the Iowa plan a draft ("Iowa Second Draft - US House"). It is
+the enacted map:
+
+- its district populations spread 94 persons, like the enacted plan's;
+- three of its four district populations match `docs/FEASIBILITY.md` §4
+  exactly, and the fourth is 8 persons short, as is PlanScore's statewide total;
+- its 2020 presidential metrics reproduce the Phase 2 report's to within
+  3×10⁻⁷.
+
+The Colorado plan is the commission's final approved plan. This repository
+represents that plan only approximately, in whole VTDs (D-015).
+
+## What agrees, and the one formula that does not
+
+| metric | on identical inputs, 8 elections | why |
+| --- | --- | --- |
+| partisan bias | identical | same definition, same sign |
+| mean-median | identical to six decimals, opposite sign | PlanScore computes median − mean |
+| declination | PlanScore's value is −ours × ln(k)/2 wherever ours is defined | PlanScore publishes a seat-scaled variant, and gives a one-party sweep −ln(k)/2 where ours returns None |
+| efficiency gap | **differs on Colorado by 0.0007 to 0.027** | **it is a different formula** |
+
+PlanScore's efficiency gap is `(S − ½) − 2(V − ½)`, computed from the seat share
+and the statewide vote share (`calculate_EG` in PlanScore's `planscore/score.py`,
+commit 3f866f9). This repository's counts wasted votes district by district,
+which is how `CRITERIA.md` §5.1 defines the metric. The two coincide only when
+every district casts the same number of votes. Otherwise they differ by
+`τ − S`, the share of votes cast in districts the Democrats won less the share
+of seats they won.
+
+Applying the equal-turnout form to this repository's seat counts and vote
+shares reproduces all eight of PlanScore's published values to their four
+decimal places. The wasted-vote form reproduces only Iowa's four, because
+Republicans win every Iowa district in all four elections, and with no
+Democratic wins `τ = S = 0`.
+
+| Colorado, enacted plan | PlanScore (equal turnout) | ours (wasted votes) | τ − S |
+| --- | --- | --- | --- |
+| President 2020 | −0.0138 | −0.0152 | −0.0015 |
+| Senate 2020 | +0.0296 | +0.0289 | −0.0007 |
+| President 2016 | −0.0537 | −0.0271 | **+0.0266** |
+| Senate 2016 | +0.0649 | +0.0637 | −0.0012 |
+
+Both columns are in PlanScore's convention: positive favours the Democrats.
+
+**`evaluate.partisan`'s docstring was wrong, and is corrected.** It said the
+magnitude was the same and only the sign differed. Under the 2016 presidential
+vote the two formulas disagree by a factor of two about the same map. This is
+`CRITERIA.md` §10's warning that turnout differences between districts
+materially affect the efficiency gap, now measured on a real plan. It changes
+nothing this repository has published, because every efficiency gap here is the
+wasted-vote form. What it changes is which published figures any of them can be
+compared with.
+
+The other three definitions were checked numerically once. PlanScore's own
+`calculate_MMD`, `calculate_PB` and `calculate_D2`, extracted from `score.py` at
+3f866f9, were run on the same eight sets of totals, giving the agreement in the
+first table. The committed script does not run PlanScore's code. It reproduces
+the published efficiency gaps, the only metric PlanScore computes on actual
+results. PlanScore's headline metrics are averages over elections simulated from
+its own vote model, and no input here could reproduce them.
+
+## What D-015's approximation costs
+
+Colorado's committed metrics describe a whole-VTD approximation of the enacted
+plan, with a 9,995-person spread and district 4 in two pieces. PlanScore's
+describe the enacted plan itself, at a 1-person spread. Under the 2020
+presidential vote the approximation moves the efficiency gap by 0.0005,
+mean-median by 0.0002 and declination by 0.0006, and leaves partisan bias at 0.0
+and the seat count at 5. **For the partisan metrics, D-015 is immaterial at this
+precision.** The difference also includes PlanScore's own allocation of
+precinct votes to the enacted districts, which this check cannot separate from
+the approximation.
+
+## Compactness, where the comparison is clean
+
+On Iowa both sides describe the same whole-county plan. Mean Polsby-Popper is
+0.33325 at PlanScore and 0.33338 here. The minima and maxima, and all three
+Reock figures, agree to within 0.005. That residual comes from geometry, the
+source outlines and projection, not from a different formula. On Colorado, mean
+Polsby-Popper differs by 0.022 (0.265 at PlanScore, 0.287 here). That comparison
+mixes the approximation, the two-piece district 4 and the geometry, so it is
+recorded and not interpreted.
+
+## What this does not check
+
+- PlanScore's simulated-election metrics, for the reason above.
+- Any plan other than the two enacted ones. Iowa's partisan comparison is also
+  weak by construction: with every district Republican, the efficiency gap
+  depends on the statewide share alone.
+- Ties. Neither plan has a tied district in any of the eight elections, and the
+  two implementations break ties differently (PlanScore counts a tie as a
+  Republican seat).
+
+## Reproducing
+
+```
+PYTHONPATH=src python tools/check_planscore.py     # fetches PlanScore's files
+```
+
+The script exits non-zero if a published value is not reproduced, or if a
+fetched file no longer matches its pin. `tests/test_planscore_check.py` pins the
+two-formula relation on hand-built plans, and pins the committed record. No
+district vote counts are committed (`CRITERIA.md` §9.1).

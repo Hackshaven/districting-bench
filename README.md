@@ -133,7 +133,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 578 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 582 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -175,7 +175,7 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 724 passed, 5 skipped
+PYTHONPATH=src pytest tests -q         # 728 passed, 5 skipped
 python tools/check_firewall.py         # must print: clean
 ```
 
@@ -197,6 +197,8 @@ python tools/phase_2_report.py
 python tools/plot_experiment_1.py --ensemble v2   # -> docs/figures/exp1-*.png
 python tools/plot_experiment_2.py --ensemble v2   # -> docs/figures/exp2-*.png
 python tools/plot_experiment_3.py                # -> docs/figures/exp3-gameability.png
+
+python tools/check_planscore.py     # cross-check against PlanScore; needs the network
 ```
 
 ---
@@ -210,7 +212,7 @@ python tools/plot_experiment_3.py                # -> docs/figures/exp3-gameabil
 3. `tools/check_firewall.py` — the boundary enforcement.
 4. `docs/progress.md` — the full write-up: what was run, what it found, and
    every result that was later retracted and why.
-5. `docs/DECISIONS.md` — D-001…D-039, each non-obvious choice logged when it was
+5. `docs/DECISIONS.md` — D-001…D-040, each non-obvious choice logged when it was
    made rather than reconstructed afterwards.
 
 ---

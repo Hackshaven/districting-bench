@@ -1128,3 +1128,37 @@ gap between seat levels. That is a property of the state and the election, not o
 the method. It holds by a factor of nearly three on Iowa's four county-built
 districts. It is not established for Colorado, whose nine levels sit closer
 together (smallest gap 0.028) on VTD-built districts, and nothing uses it there.
+
+## D-040 — PlanScore's efficiency gap is a different formula; this repository keeps CRITERIA.md's
+
+**Date:** 2026-10-11 · **Phase:** post-release
+
+`prompt.md` asks for the metric implementations to be cross-checked against
+PlanScore. On identical district totals three metrics agree, up to sign and
+scale, and the efficiency gap does not. PlanScore computes the equal-turnout form
+`(S − ½) − 2(V − ½)`, while `evaluate.partisan` counts wasted votes
+(`docs/progress.md`, "Cross-check against PlanScore").
+
+*Chosen:* keep the wasted-vote form, correct the docstring that called the two
+the same up to sign, and record how far apart they are on a real plan.
+
+*Alternatives:*
+- **Switch to PlanScore's form.** Rejected: `CRITERIA.md` §5.1 defines the
+  efficiency gap by wasted votes, and only the owner amends it. Switching would
+  also move every efficiency gap this repository has published, in the Phase 2
+  report and in all three experiments.
+- **Report both forms side by side.** Not done here. It is what `prompt.md`'s
+  "disagreements highlighted rather than resolved" points toward. But it adds a
+  metric to the report and to every experiment's columns, so it is the owner's
+  call.
+- **Commit PlanScore's files so the check runs offline.** Rejected: they hold
+  district-level election returns under no stated licence, and `CRITERIA.md`
+  §9.1 commits nothing under an unstated licence. The script fetches the files
+  and pins each by sha256, so a re-scored file fails the check rather than
+  passing as the same input. The cost is that the check needs the network, and
+  needs PlanScore's storage to stay up.
+
+*Not executed:* PlanScore's code. Its other three definitions were checked once,
+by running its functions on the same totals. That run is recorded in the write-up
+rather than built into the script, so nothing in this repository runs code
+fetched from elsewhere.

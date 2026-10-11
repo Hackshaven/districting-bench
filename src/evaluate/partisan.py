@@ -33,8 +33,10 @@ metrics should multiply through.
 
 The literature is not internally consistent either: several sources report the
 efficiency gap with the opposite sign (positive = favours Democrats) and the
-mean-median as ``median - mean``. When comparing a number here against a
-published one, check the sign convention before concluding anything.
+mean-median as ``median - mean``, and some compute the efficiency gap from seats
+and statewide votes rather than from wasted votes (see :func:`efficiency_gap`).
+When comparing a number here against a published one, check the sign convention
+and the formula before concluding anything.
 
 What every metric here shares, and what makes them all `VALUE` class:
 
@@ -343,10 +345,18 @@ def efficiency_gap(
     the Democrats. Zero means the two parties wasted votes in equal measure,
     which is what a symmetric plan does.
 
-    Be careful comparing this against published figures: several sources —
+    Be careful comparing this against published figures. Several sources —
     PlanScore among them — report the gap with the opposite sign, so that a
-    positive number means a Democratic advantage. The magnitude is the same;
-    only the convention differs. :data:`FAVOURS` records the one used here.
+    positive number means a Democratic advantage. **PlanScore also uses a
+    different formula**: the equal-turnout form ``(S - 1/2) - 2(V - 1/2)``,
+    built from the seat share ``S`` and the statewide vote share ``V`` alone.
+    It agrees with this function only when every district casts the same
+    number of two-party votes, and otherwise differs by ``tau - S``, where
+    ``tau`` is the share of all two-party votes cast in districts the Democrats
+    won. On Colorado's enacted plan the difference is 0.0015 under the 2020
+    presidential vote, and 0.027 under the 2016 one, where PlanScore's form
+    gives 0.054 and this function 0.027 (``tools/check_planscore.py``, D-040).
+    :data:`FAVOURS` records the sign used here.
 
     See :func:`wasted_votes` for the wasted-vote definition and the
     ``threshold`` parameter.
