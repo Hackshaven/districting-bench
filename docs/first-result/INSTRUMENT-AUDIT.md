@@ -2038,3 +2038,417 @@ in the commit after it:
   is 20,127 of the 27,564 draws, and the whole rectangle is 37% more.
 - The test probes `recover_seats` itself at the edges of the 1-versus-2 band,
   where it had checked only the arithmetic on the margin.
+
+---
+
+# Fifth audit — the recount (D-043)
+
+The owner chose to verify D-039's reading by counting. Commit `10564b0` added
+`tools/recount_seats.py`, which regenerated every committed Iowa v2 draw and
+counted its seats from the returns; the committed counts; the plotter's check of
+its reading against them; D-043; and the section of `docs/progress.md` that
+reports the count. A new result headed for the record goes through the audit
+first (D-007), sized to the claim: one auditor, and one refuter for its seven
+allegations.
+
+- **Audited state:** commit `10564b0`. Line numbers in the reports refer to it.
+- **Auditor:** the `Statistician` agent, a fresh instance, with an inference lens.
+- **Refuter:** a `Computational Redistricting Scientist` agent, a fresh instance
+  told to default to "refuted" and to reproduce every number with its own code
+  before agreeing.
+
+Both reports are verbatim. The last section is the author's response, and is not
+part of either report. The same commit also went to the `Code Reviewer`, the
+`Blinding & Leakage Auditor`, the `Computational Redistricting Scientist`, the
+`Pre-Submission Peer Reviewer`, the `Scientific Visualization Reviewer` and the
+`Technical Writer`; their findings are answered in the same revision and are not
+reproduced here.
+
+---
+
+## Fifth auditor — Statistician
+
+Instrument audit of D-043 (the recount of the Iowa v2 seats), Statistician lens. Change audited: `git diff 70e8137 HEAD`. I edited no repository file and wrote nothing to `data/`.
+
+**What I ran**
+- The plotter's `seat_distribution()`, from committed files only.
+- My own reading of the committed files.
+- Regeneration through `recount_seats.recount_chain`, unchanged, with `P.seat_counts` and `compare` wrapped in-process to capture each plan:
+  - chains 9 and 11 in full;
+  - the first 1,500 draws of chain 0, 1,600 of chain 5 and 1,500 of chain 6.
+  - That is 4,650 draws in all. You allowed a prefix of one long chain; I took prefixes of three, about 8% of the full recount.
+
+**Bottom line**
+On seats the recount holds. The count agrees with D-039's reading on every one of the 57,553 committed draws, under both contests, and no Iowa v2 seat count, share or interval moves. The overreach is in the prose around it, and the regeneration also exposes a published number about distinct plans that was always wrong. None of the allegations below moves a seat number.
+
+**Allegations, most important first**
+
+1. **The scope sentences claim more than an Iowa v2 recount can support.**
+   - docs/progress.md:2461-2463 says: "So every share and interval in this document rests on counted seats, and the ways a reading could go wrong ... no longer bear on any number quoted here."
+   - docs/DECISIONS.md:1386-1387 says: "no number the repository has published moves".
+   - Why it is wrong:
+     - The recount touches only the 57,553 Iowa v2 draws. progress.md quotes seat shares from other ensembles that it never touched:
+       - :283 and :713, "43%" of a neutral sampler;
+       - :311-312, 1.0% of the 806-plan Iowa ensemble;
+       - :625, Colorado's 4-6 of 8, and 7 D in 0.05% and 1.35% of two fresh ensembles;
+       - :2374, v0.1.0's 43%, from an ensemble never committed.
+     - The intervals are identical in value and in meaning, because the seat series is identical. They are Monte Carlo errors that hold only if the chains mix. They never included classification error, so the count does not touch what makes them uncertain:
+       - split R-hat 1.014;
+       - 24 effective draws per split chain;
+       - chains spread from 41% to 58%.
+       "Rests on counted seats" must not read as "the intervals are now verified".
+   - Smallest fix:
+     - progress.md: "So every Iowa v2 seat count, share and interval above rests on counted seats. The count removes the reading as a source of error and leaves the Monte Carlo intervals, and their convergence caveats, as they were."
+     - D-043: "no Iowa v2 seat number the repository has published moves".
+
+2. **Rows are not plans, so the published "at least N distinct plans" figures are not lower bounds.** This is pre-existing, outside the diff; the recount's regeneration is what exposes it.
+   - Where it appears:
+     - docs/progress.md:2287-2289: "At least 4,020 of the draws are distinct plans ... 18,303 (66.4%) repeat the draw before them";
+     - :2496: "68.5% of the 4,020 distinct rows";
+     - :2517-2518: "only 78 distinct rows ..., a lower bound on their distinct plans";
+     - tools/plot_seat_distribution.py:940-944;
+     - docs/first-result/INSTRUMENT-AUDIT.md:674 records "a valid lower bound".
+   - Why it is wrong:
+     - A lower bound needs each plan to produce exactly one row.
+     - ReCom often returns the same partition with its districts renumbered: 1,497 of 4,645 regenerated transitions.
+     - `measure_plan` averages Polsby-Popper over the districts in label order, so a renumbered partition can change PP in its last bit.
+     - The committed file holds 1,073 groups of rows that are equal in every column but PP and differ in PP by at most 1.1e-16.
+     - In the regenerated prefixes, 118 of 677 partitions carry more than one committed row. No row with PP folded is shared by two partitions.
+   - What the numbers become with PP folded to 1e-12:
+
+     | Count | Published | PP folded |
+     |---|---|---|
+     | Rectangle distinct rows | 4,020 | 3,361 |
+     | All-rows distinct rows | 6,703 | 5,588 |
+     | Distinct rows at 40-42 cut edges | 78 | 42 |
+     | Repeats | 18,303 (66.4%) | 20,060 (72.8%) |
+
+     The 68.5% and 19.4% at :2496-2497 count the same plans twice.
+   - Smallest fix:
+     - Fold PP to 1e-12 when counting rows (`rows.py` below does it). Better: `recount_seats.py` already holds every plan, so it could write a label-invariant key per draw, so that distinct plans are counted rather than bounded.
+     - Record the correction in progress.md. INSTRUMENT-AUDIT.md stays verbatim (D-018).
+
+3. **progress.md's returns sentence rests on |EG| alone, and |EG| cannot show district totals.**
+   - docs/progress.md:2466-2468 says: "Every committed |efficiency gap| reproducing exactly shows that it gives the district totals the draws were measured with."
+   - Why it is wrong:
+     - |EG| sees only three things: the statewide totals, the votes cast in districts the Democrats win, and the parity of each district's total.
+     - So it is blind to an even transfer of votes between districts the same party wins.
+     - Demonstration on the 677 regenerated partitions:
+       - O'Brien, Sioux and Woodbury are never in a district the Democrats win under the presidential vote.
+       - I moved 2 Democratic votes from Harrison (19085) to Monona (19133), two counties never split across a Democratic-won/Republican-won boundary.
+       - |EG| stays bit-identical on all 677 plans. District totals change on 16 of them, and |MM| changes on exactly those 16.
+   - D-043 (DECISIONS.md:1397-1399) uses |EG| and |MM| together, and that version is sound: no county pair shares a district in every regenerated plan, so any county-level change moves |MM| somewhere.
+   - It does not matter for the seats:
+     - A change of winner moves the Democratic-won vote share by a whole district, about 0.25, and |EG| with it.
+     - The Senate columns get the same exact check (difference 0.0), so there is no Senate-specific gap.
+     - The check is not academic. Regenerated plans have districts within 17 votes of a tie (presidential) and 67 (Senate), and 339 of 4,650 regenerated draws have a district within 100 votes.
+   - Smallest fix: "Every committed |efficiency gap| and |mean-median|, under both contests, reproducing exactly on every plan the chains visit shows ...".
+   - Also state the limit: this shows the file is equivalent to the one the draws were measured with, not that its county totals are accurate. Only statewide totals are checked against the certified figures (tests/test_elections.py:31-33), and with ties as close as 17 votes, county accuracy is the remaining data risk. That is the GIS QA lens, not mine.
+
+4. **The new all-rows Senate count contradicts the warm-up reading in the text.**
+   - docs/progress.md:2459 (Senate, all 57,553 draws: 14 at 3 seats) against :2320-2323 ("all inside the first 500 draws of one chain, so dropping the warm-up removes every one").
+   - Why it is a problem:
+     - The 14 draws are:
+       - chain 0, draws 232-239;
+       - chain 8, draws 414-416;
+       - chain 1, draws 8,012-8,014.
+     - That is 5 distinct rows in 3 chains, and chain 1's three survive any warm-up cut.
+     - The rectangle sentence is literally true. But the presidential sentence just before it (:2312-2313) covers all committed rows, the Senate sentence does not, and the new table publishes the all-rows count with no note.
+     - The footer adds to the confusion: plot_seat_distribution.py:731-753 prints "8 draws reach 3 ... all in one chain's first 500 draws" directly before "counted ... on all 57,553 committed draws".
+   - Smallest fix: add under the table: "The other 6 are outside the rectangle, at chain 8's draws 414-416 and chain 1's draws 8,012-8,014, so beyond it the Senate 3-seat plans are not confined to a warm-up."
+
+5. **"All 57,553 reproduce" overstates how much evidence there is.**
+   - docs/DECISIONS.md:1378-1382 and docs/progress.md:2448-2451.
+   - Why:
+     - `county_splits` is 0 by construction on Iowa (tools/experiment_2_tradeoffs.py:254-255 never looks at the plan), so "reproduced exactly" adds nothing for it.
+     - The 57,553 draws hold 5,588 distinct rows (PP folded) and 14,817 changes of plan. The strength comes from replaying the path: every change of plan happens at the same step, and all 1,166 regenerated moves changed the row. It is not 57,553 independent confirmations.
+     - Identity holds only up to district numbering, which does not matter for seats.
+     - The conclusion stands. In my prefixes, no row is shared by two partitions.
+   - Smallest fix:
+     - Drop county splits from the list, or mark it "(0 by construction)".
+     - Add "the 57,553 draws hold 5,588 distinct rows, and each of their 14,817 changes of plan recurs at the same step".
+     - Say "the same partitions, up to district numbering".
+
+6. **D-043's cost argument uses the wrong number, and "settled" reads as a verdict.**
+   - docs/DECISIONS.md:1402-1404 says: "for 37% more, every draw is counted, and the 1-versus-2 split ... is settled too."
+   - Why:
+     - 27,564 / 20,127 = 1.37, so 37% more buys the rectangle.
+     - The recount counted 57,553 draws, 2.86 times 20,127. Verifying all 832 committed 0-seat draws alone would need 55,159 regenerated.
+     - "Settled" reads as settling which of 1 or 2 seats is commoner. progress.md:2328-2331 says that is not identified: the shares are half a point apart and the chains disagree on the sign.
+   - Smallest fix: "for 37% more every rectangle draw would be counted; the recount went to all 57,553, and each draw's 1-or-2 reading is checked too."
+
+7. **Provenance is recorded but nothing checks it.**
+   - tools/recount_seats.py:184-199; tools/plot_seat_distribution.py:116 and :493; tests/test_seat_distribution.py:356-396.
+   - Why:
+     - Nothing reads docs/first-result/ia-seats-v2.json. The plotter checks that reading and count agree, not that the counts came from the committed draws file.
+     - The VEST zip's MD5 and dataset version appear only in DECISIONS.md:1392-1394.
+   - Smallest fix:
+     - One test asserting that the sidecar's draws_sha256 equals the committed draws file's sha256, and that its chains match the draws sidecar.
+     - Add the zip's MD5 and the dataset version to the sidecar.
+
+**What I checked and found sound**
+- **Coverage of the check (item 3 of the brief).** The agreement covers all 57,553 draws under both contests, not just the rectangle.
+  - The plotter reads every committed row through `recover_seats` under both contests (plot_seat_distribution.py:474-493 and :314).
+  - `check_against_count` (:427-449) requires the same chains, the same lengths and the same values.
+  - Run from committed files, the plotter gives n_rows_counted 57,553.
+  - My own nearest-level reading of the committed |EG| also agrees with the committed counts on every draw under both contests.
+  - All four rows of the progress.md table reproduce: 395/13,516/13,653/0; 270/11,410/15,876/8; 832/28,780/27,941/0; 389/23,408/33,742/14.
+- **Refusal paths.** The recount refuses on each of these and writes nothing when any occurs:
+  - a seed its index doesn't derive;
+  - rows out of order;
+  - a tied district;
+  - the sampler dying.
+  The sampler is never asked for a draw past a chain's last committed row.
+- **Hashes.** Both sidecar hashes match the committed draws file and `data/processed/ia_elections.csv`. data/raw/vest/ia_2020.zip has MD5 500252facae6107b93128406ebf5177b, as D-043 says.
+- **Regeneration.** All 4,650 regenerated draws reproduce their committed rows:
+  - |EG| and |MM| differ by 0.0;
+  - PP differs by at most 5.55e-17, on 1,220 draws.
+  - The seats returned by `recount_chain` match the committed counts file. A tally I computed straight from ia_elections.csv, without evaluate.partisan, also matches on every draw.
+- **Published plan counts that hold.** The figure's "2 distinct plans" (chain 0, draws 232-239) and "one plan drawn twice" (chain 5, draws 1,584-1,585) hold on the regenerated partitions.
+- **Enacted plan.** Under the current file it still gives 0 D seats, with district 3 at 0.498241, matching phase-2-report.json. Statewide two-party totals equal TWO_PARTY and the certified figures.
+- **Tests and scoring.**
+  - tests/test_recount_seats.py and tests/test_seat_distribution.py: 40 passed.
+  - Nothing in the change combines metrics into one score.
+  - The figure's note still reads "Not yet a finding."
+- **Outside my lens.** The diff adds a "*Since:*" note to D-039, which is already on main (DECISIONS.md:1174-1176). Whether that sits with the no-rewrite rule is a governance question for the owner.
+
+**To reproduce**
+Scratch directory: /tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/audit5-stat/
+- `python3 <dir>/rows.py`, run from the repository root, needs committed files only. It gives the 1,073 groups, 5,588 / 3,361 / 42 distinct rows, and 20,060 repeats.
+- Regenerating needs the data: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src <scratchpad>/venv/bin/python -B <dir>/regen.py <chain> <n> <out.pkl>`. On this loaded machine it took 11 to 14 minutes per 1,500 draws.
+- The pickles chain{0,5,6,9,11}.pkl are already in the directory. Run these on them:
+  - `analyze.py`: per-chain reproduction, transitions, the independent tally;
+  - `combined.py`: collisions and PP jitter across chains;
+  - `at_draws.py <pkl> <lo> <hi>`: distinct plans in a range of draws;
+  - `margins.py`: near-ties;
+  - `perturb.py` and `dwon.py`: the |EG| blind spot.
+
+---
+
+## Fifth refuter — Computational Redistricting Scientist
+
+## Refutation report: instrument audit of the D-043 recount (Statistician's seven allegations)
+
+**Scope.** I read `git diff 70e8137 HEAD` at 10564b0, the evidence files you named, and the code paths. I did not read any commit messages or anything under `audit5-stat/`, and I changed nothing in the repository.
+
+**What I regenerated.** 393 draws, using `generate.ensemble.sample` called the way `tools/recount_seats.py` calls it:
+- chain 0, draws 0–239
+- chain 1, draws 0–12
+- chain 5, draws 0–41
+- chain 11, all 49 draws. I ran this chain twice. My first attempt wrongly asked the sampler for a 50th draw; I fixed it to never ask past the last committed row, as the recount does.
+
+344 of those draws were analysed. All file counts below come from my own code reading the committed files directly.
+
+| # | Allegation | Result |
+|---|---|---|
+| 1 | Scope sentences overclaim | **Upheld in part** |
+| 2 | Rows are not plans | **Upheld** |
+| 3 | The returns sentence rests on \|EG\| alone | **Upheld** (core point) |
+| 4 | All-draws Senate count vs the warm-up reading | **Upheld in part** |
+| 5 | "All 57,553 reproduce" overstates | **Upheld in part** |
+| 6 | Cost arithmetic and "settled" | **Upheld** |
+| 7 | Provenance recorded, never checked | **Upheld** |
+
+---
+
+### 1. Scope sentences — UPHELD IN PART
+
+**Upheld: `docs/progress.md:2461–2463`.** "every share and interval in this document rests on counted seats" claims more than the count covers.
+- The count covers only the 57,553 Iowa v2 rows.
+- progress.md also quotes seat shares from other ensembles:
+  - the 1,820-draw ensemble: 1.0 / 56.0 / 43.0% at lines 267–274 and 311, and again at 2243 and 2373–2386, inside the same first-result section;
+  - Colorado's 720 draws: lines 338–342;
+  - two fresh Colorado ensembles that progress.md itself calls "not independently verified" (0.05% and 1.35%, lines 625 and 766).
+- Small correction to the auditor: the "1.0%" belongs to the 1,820-draw ensemble (line 311), not the 806-draw one. Line 353 puts it in the same table as the 806-draw health row.
+- The section also quotes shares and intervals that are not seat counts at all, such as the simulated "4.5% of replicates".
+- The program that wrote the 1,820-draw `dem_seat_counts` is in none of the 74 commits I could reach. Nothing in the repo can show those shares were counted.
+
+**Refuted: D-043's "no number the repository has published moves" (`docs/DECISIONS.md:1386–1387`).** It is accurate as worded. Reading and count agree on every draw, so no function of the seat series can change. Numbers from other ensembles cannot move either.
+
+**Refuted: the Monte Carlo interval point, as an allegation.** The facts are right: the intervals have the same values and meaning as before. But neither sentence says otherwise.
+
+**Fix.** Scope line 2461 to "every seat share and interval this section quotes for the Iowa v2 draws". The D-043 sentence needs no change.
+
+### 2. Rows are not plans — UPHELD
+
+**Reproduced from the committed draws file:**
+
+| | exact rows | PP folded at 1e‑12 |
+|---|---|---|
+| Distinct rows, rectangle | 4,020 | 3,361 |
+| Distinct rows, all committed | 6,703 | 5,588 |
+| Distinct rows at 40–42 cut edges (7,850 draws) | 78 | 42 |
+| Draws repeating the one before (of 27,564) | 18,303 (66.4%) | 20,060 (72.8%) |
+| Changes between consecutive draws, all rows (of 57,543 pairs) | — | 14,817 |
+
+- **PP-only groups:** 1,073. These are rows equal in all nine other columns but differing in PP: 1,031 groups with two PP values and 42 with three. The spread is 1–2 ulps, from 2.8e‑17 up to 1.11e‑16.
+- No nine-column key anywhere in the file holds PP values more than 1e‑12 apart. So dropping PP from the key gives exactly the folded counts.
+
+**Regenerated pairs: same partition, districts renumbered, committed rows differing only in PP.**
+- Chain 0, draws 7→8: districts 1 and 4 swap numbers. PP goes from 0.32508500321947137 to 0.3250850032194713, and every other column is identical.
+- Chain 1, draws 6→7: districts 2 and 3 swap. PP goes from 0.2697981528746961 to 0.26979815287469616.
+
+**Across the four regenerated windows:**
+- 52 partitions, against 59 distinct exact rows and 52 folded rows.
+- Folded rows and partitions match one to one in every window.
+- Chain 0's first 240 draws hold 34 partitions but 38 exact rows. So counting exact rows overcounts plans, and "at least N" is not a lower bound.
+- 115 of 257 consecutive same-partition pairs (45%) came back renumbered.
+
+**Mechanism confirmed.** `measure_plan` averages PP in district-label order (`tools/experiment_2_tradeoffs.py:237–238, 260`; `src/evaluate/compactness.py:918–921`). With Python 3.11's builtin `sum`, the per-district PP values summed in label order equal the committed PP on 344 of 344 draws. With Python 3.13's `sum` they match on only 311. The repo's own definition of a distinct plan is label-blind (`src/generate/ensemble.py:286–288`).
+
+**Is the fix accurate?** The four replacement numbers are right. Two additions are needed:
+- Line 2496's "68.5% … 19.4%" also changes, to **65.2% and 17.1% of 3,361**.
+- Key on the nine label-invariant columns, or fold at 1e‑12. A finer grid splits groups that straddle a rounding boundary: folding at 1e‑15 gives 3,387.
+
+**Wider reach.** The artifact also shows up in `experiment-2-results-v2.json` (`n_distinct_points: 4020`) and `experiment-1-results-v2.json` (`distinct_values: 4020`).
+
+### 3. The returns sentence (progress.md:2466–2468) — UPHELD (core point)
+
+The blind spot is wider than the auditor stated. Swapping x votes from D to R in one county and from R to D in another keeps every county total and both statewide totals. In that case |EG| is identical, in exact arithmetic, on every plan where no district's winner flips.
+
+Tested on 15 plans (14 regenerated partitions plus the enacted plan), both contests:
+
+| Swap | \|EG\| unchanged | \|MM\| changed |
+|---|---|---|
+| 10 votes, Polk ↔ Johnson | 30/30 | 30/30 |
+| 500 votes, Polk ↔ Sioux | 30/30 | 30/30 |
+| 2,000 votes, Linn ↔ Woodbury | 25/30 (the other 5 are winner flips) | 30/30 |
+
+- A natural case occurs too: chain 0, draws 234→235 are two different partitions with the same \|EG\| under the Senate vote but different \|MM\|.
+- D-043's combined \|EG\| + \|MM\| argument holds up as evidence ("shows" is slightly strong).
+- The "accuracy" remark is true but is not a defect: the sentence claims only that the file matches the one the draws used.
+
+**Fix:** cite \|EG\| and \|MM\| under both contests, as D-043 does.
+
+### 4. Senate 3-seat draws and the warm-up — UPHELD IN PART
+
+**Reproduced:** 14 Senate 3-seat draws across all committed rows:
+- chain 0, draws 232–239 (2 plans; regeneration confirms these are 2 distinct partitions);
+- chain 1, draws 8,012–8,014 (2 plans, though 3 exact rows because of the renumbering artifact);
+- chain 8, draws 414–416 (1 plan).
+
+That is 5 distinct plans in 3 chains.
+
+- The sentence at lines 2320–2323 is scoped to the rectangle and is true there, so it is not a literal contradiction. But "the same draws" follows a sentence that names all 57,553 rows, so its scope is ambiguous.
+- Chain 1's draws lie far past any warm-up. They are outside the rectangle only because the rectangle cuts chain 1 off at draw 4,594.
+- **Fix:** note this in the D-043 section.
+
+### 5. "All 57,553 reproduce" — UPHELD IN PART
+
+**Upheld:**
+- `county_splits` is 0 by construction (`experiment_2_tradeoffs.py:124, 254–255`), and every committed value is 0. Listing it at DECISIONS.md:1379–1380 as an exact reproduction adds nothing.
+- My counts of 5,588 distinct rows and 14,817 changes match the auditor's.
+
+**Not an error:** the text claims no independence between the 57,553 checks.
+
+**Immaterial:** "Identity only up to district numbering" is true of what the recount checks, but seat counts don't depend on numbering. My Python 3.11 summation test suggests the numbering reproduces too, on all 344 draws I regenerated.
+
+**New finding.** DECISIONS.md:1381–1382 attributes the 6×10⁻¹⁷ PP difference to "the geometry library's rounding", and so does the comment at `tools/recount_seats.py:67`. That is wrong. The difference comes from the Python version: the README and CI specify Python 3.11, while this venv runs 3.13, whose builtin `sum` is compensated. The geometry values themselves reproduce on 344 of 344 draws. The sidecar does not record which Python version was used.
+
+### 6. Cost argument — UPHELD
+
+- 20,127 reproduces: rerunning each chain to its last 0-seat draw.
+- 27,564 / 20,127 = 1.3695. So "37% more" buys the rectangle only.
+- 57,553 / 20,127 = 2.8595.
+- Covering all 832 committed 0-seat draws needs 55,159 regenerated draws, so counting everything costs only 4.3% more than that.
+- "Settled" is ambiguous rather than wrong: the relative clause shows it means each draw's classification. **Fix:** "each draw's 1-versus-2 classification is verified."
+
+### 7. Provenance — UPHELD
+
+- Nothing reads `ia-seats-v2.json`.
+- No hash is checked anywhere.
+- The VEST zip's MD5 and dataset version appear only in prose. `fetch_raw.sh` verifies neither.
+- Today everything matches: the recorded `draws_sha256` and `elections_sha256` equal the current files, and the zip in this checkout has MD5 500252fa…, as D-043 states.
+- Mitigation: the plotter's reading-vs-count check runs on every draw.
+- **Fix:** check `draws_sha256` offline. Record the MD5, dataset version and Python version in the sidecar. The elections hash cannot be checked in CI without the data (D-037).
+
+---
+
+### What held up
+
+- Every row of the progress.md seat table.
+- My nearest-level reading agrees with the committed count on all 115,106 draw-contest pairs.
+- On all 344 regenerated draws:
+  - every non-PP column reproduces exactly;
+  - PP is within 5.55e‑17;
+  - my own seat counts, \|EG\| and \|MM\| (exact arithmetic) match the committed values;
+  - no district is tied.
+- The 395 and 832 zero-seat counts.
+- The footer's "2 distinct plans".
+- `recount_seats.py` correctly refuses to ask the sampler past the last committed draw.
+- No new wording delivers a verdict on any map.
+
+### Handoffs
+
+- **Statistician:** the experiment JSON distinct counts and their dependence on the Python version.
+- **Code Reviewer:** the plotter's distinct-row key, the sidecar check, and pinning the Python version.
+- **Pre-Submission Peer Reviewer:** the progress.md and D-043 prose.
+
+This is an AI-assisted review and only a partial check. It is not outside review.
+
+Everything is in `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/refute5/`:
+- `rows.py`
+- `early.py`
+- `regen.py`
+- `check_regen.py`
+- `window.py`
+- `seats.py`
+- `eg_blind.py`
+- `chain0-240.json`, `chain1-13.json`, `chain5-42.json`, `chain11-49.json`
+
+---
+
+## Author's response to the fifth audit
+
+The refuter upheld all seven allegations, four of them in part, and added a
+cause for the Polsby-Popper difference. Each is answered by a change in the commit
+that follows `10564b0`. That commit reran the recount under Python 3.11, as the
+README and CI pin it, to record a key for each draw's plan and the provenance the
+allegations asked for. Numbers the answers quote are pinned by
+`tests/test_seat_distribution.py` or `tests/test_recount_seats.py`, except where
+they come from the reports above.
+
+| # | Allegation | Refuter | What changed |
+| --- | --- | --- | --- |
+| 1 | The scope sentences claim more than an Iowa v2 recount supports | Upheld in part. `docs/progress.md`'s sentence overclaims; D-043's "no number the repository has published moves" is accurate as worded; neither sentence says the intervals changed | `docs/progress.md` now says every seat count, share and interval the section quotes for the Iowa v2 draws rests on counted seats, that the count leaves the Monte Carlo intervals and their convergence caveats as they were, and that numbers from other ensembles were not recounted. D-043's sentence was right about seats, but the plan keys below do move published numbers, so it now says no seat count, share or interval moves and names the distinct-plan counts that do. |
+| 2 | Rows are not plans, so "at least N distinct plans" is not a lower bound | Upheld, with 65.2% and 17.1% of 3,361 added, and the experiments' committed results named | The recount records, for each draw, a key for its plan that ignores district numbers. The plotter counts distinct plans, repeats, plans by cut edges and the distinct-plan compactness shares by those keys, and `docs/progress.md` quotes them, saying what the rows gave: 3,361 plans in the rectangle, not "at least 4,020"; 20,060 repeats, not 18,303; 42 plans at 40–42 cut edges, not 78 rows; 65.2% and 17.1%, not 68.5% and 19.4%. Experiments 1's and 2's committed results count the same rows and stay as the record of those runs; `docs/progress.md` says so. |
+| 3 | The returns sentence rests on \|EG\| alone, which cannot show district totals | Upheld; the blind spot is wider, since a trade of votes between parties across two counties leaves \|EG\| unchanged wherever no district changes hands | `docs/progress.md` and D-043 now rest the claim on \|EG\| and \|MM\| under both contests, and say \|EG\| alone could not support it. Because both are unsigned, which party is which is now fixed separately: the recount refuses unless each contest's statewide two-party totals equal the certified ones. Both say the county totals' accuracy is not checked. |
+| 4 | The all-draws Senate count contradicts the warm-up reading | Upheld in part: the rectangle sentence is true, its scope ambiguous; 14 draws are 5 plans in three chains | `docs/progress.md` says where the 14 draws are, in five plans, and that beyond the rectangle the Senate vote's 3-seat plans are not a warm-up's; the rectangle sentence now says "the rectangle's draws". The README notes the plans beyond the rectangle, and the plotter prints both. |
+| 5 | "All 57,553 reproduce" overstates the evidence | Upheld in part; the refuter found the Polsby-Popper difference comes from the Python version, not from geometry | D-043 and `docs/progress.md` mark county splits as 0 by construction, say the match is of the chains' paths, with 5,588 distinct plans, and that it identifies plans up to their districts' numbering. The recount, rerun under Python 3.11, reproduces every committed float exactly, mean Polsby-Popper included. Its record names the Python version. |
+| 6 | D-043's cost argument uses the wrong number, and "settled" reads as a verdict | Upheld | D-043's alternative now gives 20,127 draws for the rectangle's 0-seat draws and 55,159 for all 832, the rectangle as 37% more than 20,127, and every committed draw as 2.9 times 20,127 and 4% more than 55,159. "Settled" is gone. |
+| 7 | Provenance is recorded but nothing checks it | Upheld | The plotter refuses unless the recount's record names the draws file it reads, by sha256, and its configuration, chains, row counts, contests and certified totals; tests pin the committed record offline and make each mismatch refuse. The record now carries VEST's dataset, version, file id and MD5, the hashes of the files the recount read, and the Python and gerrychain versions. |
+
+The routing reviews of `10564b0` also found:
+- the recount took its chains from the draws file's sidecar alone, so a chain the
+  sidecar did not list would have gone uncounted;
+- an `--out` not ending `.csv.gz` let the record overwrite the counts;
+- the recount's tests could not tell the two contests apart, and ten mutants of
+  the script survived them, among them one that ignored a downward change and
+  one that kept the last float difference rather than the largest;
+- three mutants of the plotter's check survived because both planted
+  contradictions sat inside the rectangle;
+- the recount blamed the sampler for errors in measuring;
+- its writes were not atomic, and its record held a literal for tied districts;
+- a missing counts file gave a traceback instead of a refusal;
+- the figure's footer named a second sample, the note's "returns" clashed with
+  "the returns", and the Senate clause wrapped as "reach 3: 2";
+- D-042 and D-043 gave the author's reasons under the owner's name, quoted
+  neither owner's decision, and used a marker the log does not define;
+- D-043 named one owner's decision of two, and did not list the statements on
+  VEST's licence and version that it makes stale;
+- `docs/progress.md`'s Reproducing section did not name the counts file or the
+  recount.
+
+Each is answered in the same commit. The recount's tests now kill all 28 mutants
+tried, the ten survivors among them. The Blinding & Leakage Auditor found no path
+from the returns into the sampler: a regeneration with scrambled returns drew the
+same plans. Its findings on guards that predate this change, and on whether
+county returns could be reconstructed from committed metrics, go to the owner.
+
+The corrected distinct-plan counts are the auditor's numbers. The auditor and the
+refuter each computed them by folding mean Polsby-Popper to 10⁻¹² before counting
+rows, and the refuter also matched folded rows to regenerated partitions in four
+windows. The recount's plan keys and the folded rows correspond one to one over
+all 57,553 draws, with no key carrying two folded rows and no folded row two keys.
+So the corrected numbers have had the audit CLAUDE.md asks of a corrected number,
+one auditor and one refuter, before they reached `docs/progress.md`.

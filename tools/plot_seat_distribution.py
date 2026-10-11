@@ -16,8 +16,9 @@ reads ``docs/experiment-2/ia-draws-v2.csv.gz`` (and its chain sidecar) through
 Experiment 2's own loader -- so the sample is the D-035 rectangle, six chains
 truncated to their common 4,594-draw prefix, with every seed checked against the
 one its index derives -- ``docs/phase-2/phase-2-report.json`` for the enacted
-plan's seat count, cut edges, mean Polsby-Popper and closest district, and two
-more committed files for the checks :func:`summary_lines` prints. All text on the
+plan's seat count, cut edges, mean Polsby-Popper and closest district, the
+recount's counts and its record (below), and two more committed files for the
+checks :func:`summary_lines` prints. All text on the
 figure is built by :func:`figure_text`, from those values, so it can be pinned;
 every count and share ``docs/progress.md`` quotes about this sample is printed by
 :func:`summary_lines`, except those it credits to the audit record: those, and the
@@ -30,11 +31,16 @@ describe.
 ``tools/recount_seats.py`` has since regenerated every committed draw from its
 chain's seed, checked that it reproduces its committed row, and counted its seats
 from the returns, which the repository does not redistribute; the counts are
-committed as ``docs/first-result/ia-seats-v2.csv.gz``. :func:`seat_distribution`
-reads every draw's seats as below and refuses unless the reading agrees with the
-count on every draw under both contests, so the figure's bars are counts. The
-reading stays because it is how the draws file is read, and the count is how it
-is checked. With wasted votes counted
+committed as ``docs/first-result/ia-seats-v2.csv.gz``, with a record of what the
+recount read. :func:`seat_distribution` reads every draw's seats as below and
+refuses unless the reading agrees with the count on every draw under both
+contests, and unless the record names the draws file read here, so every bar,
+dot and whisker is what the counts give. The reading stays because it is how the
+draws file is read, and the count is how it is checked. The recount also keys
+each draw's plan, and distinct plans are counted by those keys: rows of the
+draws file cannot count them, because a plan with its districts renumbered can
+move its mean Polsby-Popper in the last bit, and two plans can share every
+metric. With wasted votes counted
 against half of each district's votes the gap is exactly ``2V - 1/2 - tau``,
 where ``V`` is the statewide two-party Democratic share and ``tau`` the share of
 two-party votes cast in districts the Democrats win; ``tau`` is the seat share
@@ -84,6 +90,7 @@ from __future__ import annotations
 import argparse
 import csv
 import gzip
+import hashlib
 import json
 import math
 import numbers
@@ -111,9 +118,12 @@ OUT = ROOT / "docs" / "figures" / "ia-neutral-seat-distribution.png"
 REPORT = ROOT / "docs" / "phase-2" / "phase-2-report.json"
 RECTANGLES = ROOT / "docs" / "experiment-2" / "ia-convergence-rectangles.json"
 #: Every committed draw's Democratic seats under both contests, counted from the
-#: returns on its regenerated plan by tools/recount_seats.py (D-043). The reading
-#: below must agree with it on every draw, or nothing is drawn.
+#: returns on its regenerated plan by tools/recount_seats.py (D-043), with a key
+#: for the plan. The reading below must agree with it on every draw, or nothing
+#: is drawn.
 RECOUNT = ROOT / "docs" / "first-result" / "ia-seats-v2.csv.gz"
+#: What the recount read: it must name the draws file read here, byte for byte.
+RECOUNT_RECORD = ROOT / "docs" / "first-result" / "ia-seats-v2.json"
 
 STATE, ENSEMBLE = "IA", "v2"
 #: The ensemble the v2 chains extend: same seeds, so its draws are their prefix.
@@ -397,31 +407,73 @@ def share_at(seats: list[int], s: int) -> tuple[float | None, int]:
     return (seats.count(s) / len(seats) if seats else None), len(seats)
 
 
-def cut_edge_counts(rows: list[dict], seats: list[int], s: int) -> dict:
+def cut_edge_counts(rows: list[dict], seats: list[int], s: int, keys: list[str]) -> dict:
     """At each cut-edge count: how many draws, how many of them at ``s`` seats,
-    and how many distinct rows of committed metrics they hold."""
+    and how many distinct plans they hold."""
     draws, at, distinct = {}, {}, {}
-    for row, x in zip(rows, seats):
+    for row, x, key in zip(rows, seats, keys):
         e = int(row["cut_edges"])
         draws[e] = draws.get(e, 0) + 1
         at[e] = at.get(e, 0) + (x == s)
-        distinct.setdefault(e, set()).add(tuple(sorted(row.items())))
+        distinct.setdefault(e, set()).add(key)
     return {e: (draws[e], at[e], len(distinct[e])) for e in sorted(draws)}
 
 
-def counted_seats(path: Path) -> dict[tuple[int, str], list[int]]:
-    """Each chain's counted seats by contest, from the committed recount (D-043)."""
+def counted_seats(path: Path) -> tuple[dict[tuple[int, str], list[int]],
+                                       dict[int, list[str]]]:
+    """Each chain's counted seats by contest, and its draws' plan keys, from the
+    committed recount (D-043). A key names a partition whatever its districts'
+    numbers, so two draws share one only if they are the same plan. The rows of
+    the draws file cannot say that: a renumbered plan can move its mean
+    Polsby-Popper in the last bit, and two plans can share every metric."""
     counted: dict[tuple[int, str], list[int]] = {}
+    plans: dict[int, list[str]] = {}
     with gzip.open(path, "rt", newline="") as handle:
-        for record in csv.DictReader(handle):
+        reader = csv.DictReader(handle)
+        missing = ({"chain_index", "draw", "plan"}
+                   | {f"dem_seats@{c}" for c in (CONTEST, ALTERNATE)}) - set(
+                       reader.fieldnames or ())
+        if missing:
+            raise ValueError(f"{path.name} has no column {', '.join(sorted(missing))}")
+        for record in reader:
             index, draw = int(record["chain_index"]), int(record["draw"])
+            keys = plans.setdefault(index, [])
+            if draw != len(keys):
+                raise ValueError(f"{path.name}: chain {index} has draw {draw} "
+                                 f"where draw {len(keys)} belongs")
+            if not re.fullmatch(r"[0-9a-f]{16}", record["plan"]):
+                raise ValueError(f"{path.name}: chain {index} draw {draw} has plan "
+                                 f"key {record['plan']!r}")
+            keys.append(record["plan"])
             for contest in (CONTEST, ALTERNATE):
-                seats = counted.setdefault((index, contest), [])
-                if draw != len(seats):
-                    raise ValueError(f"{path.name}: chain {index} has draw {draw} "
-                                     f"where draw {len(seats)} belongs")
-                seats.append(int(record[f"dem_seats@{contest}"]))
-    return counted
+                counted.setdefault((index, contest), []).append(
+                    int(record[f"dem_seats@{contest}"]))
+    return counted, plans
+
+
+def check_recount_record(record: dict, n_counted: int, spec, draws: Path) -> None:
+    """Refuse a count made from other draws, another configuration or other
+    totals than the ones this script reads. Without this, a counts file that
+    merely agreed with the reading would pass for one made from the returns."""
+    sidecar = json.loads(X._sidecar_for(draws).read_text())
+    wrong = []
+    if record.get("draws_sha256") != hashlib.sha256(draws.read_bytes()).hexdigest():
+        wrong.append(f"it counted a draws file other than {draws.name}")
+    if record.get("config_digest") != X.config_digest(spec):
+        wrong.append(f"it records configuration {record.get('config_digest')}, not "
+                     f"{X.config_digest(spec)}")
+    if [(c.get("index"), c.get("seed"), c.get("n_rows")) for c in record.get("chains", [])] \
+            != [(c["index"], c["seed"], c["n_rows"]) for c in sidecar["chains"]]:
+        wrong.append("its chains, seeds or row counts are not the draws sidecar's")
+    if record.get("n_rows") != n_counted:
+        wrong.append(f"it records {record.get('n_rows')} rows, and holds {n_counted}")
+    if record.get("contests") != [CONTEST, ALTERNATE]:
+        wrong.append(f"it counted {record.get('contests')}, not {[CONTEST, ALTERNATE]}")
+    if record.get("certified_two_party_totals") != {c: list(t) for c, t in TWO_PARTY.items()}:
+        wrong.append("its certified totals are not the ones asserted here")
+    if wrong:
+        raise ValueError(f"{RECOUNT_RECORD.name} does not describe the count read "
+                         "here: " + "; ".join(wrong))
 
 
 def check_against_count(read: dict[tuple[int, str], list[int]],
@@ -429,8 +481,8 @@ def check_against_count(read: dict[tuple[int, str], list[int]],
     """How many draws the count confirms the reading of, under each contest.
 
     Raises ValueError unless the two cover the same chains, draws and contests
-    and agree on every draw: one disagreement means the reading is wrong, and so
-    is every share built on it.
+    and agree on every draw: one disagreement means the reading or the counts
+    file is wrong, and every share built on the reading is in doubt.
     """
     if set(read) != set(counted):
         raise ValueError(f"the recount covers {sorted(counted)}, the reading "
@@ -445,8 +497,9 @@ def check_against_count(read: dict[tuple[int, str], list[int]],
                 raise ValueError(
                     f"chain {index} draw {draw} reads as {a} D seats off its "
                     f"|efficiency gap| under {contest}, and counts {b} from the "
-                    "returns (D-043): the reading is wrong.")
-    return sum(len(seats) for (_, contest), seats in read.items() if contest == CONTEST)
+                    "returns (D-043): the reading or the counts file is wrong, and "
+                    "nothing built on either can be drawn.")
+    return sum(len(seats) for (_, contest), seats in counted.items() if contest == CONTEST)
 
 
 def seat_distribution() -> dict:
@@ -490,9 +543,12 @@ def seat_distribution() -> dict:
             read[(i, ALTERNATE)] = recover_seats(
                 [row[f"abs_efficiency_gap@{ALTERNATE}"] for row in rows_],
                 alt_levels, alt_dem + alt_rep)[0]
-    n_counted = check_against_count(read, counted_seats(RECOUNT))
+    counted, plan_keys = counted_seats(RECOUNT)
+    n_counted = check_against_count(read, counted)
+    check_recount_record(json.loads(RECOUNT_RECORD.read_text()), n_counted, spec,
+                         X.draws_path(spec.prefix, ENSEMBLE))
     counted_totals = {contest: {} for contest in (CONTEST, ALTERNATE)}
-    for (_, contest), seats_ in read.items():
+    for (_, contest), seats_ in counted.items():
         for x in seats_:
             counted_totals[contest][x] = counted_totals[contest].get(x, 0) + 1
 
@@ -524,13 +580,22 @@ def seat_distribution() -> dict:
 
     rows = [row for chain in chains for row in chain.rows]
     where = [(i, j) for i, chain in zip(index, chains) for j in range(len(chain.rows))]
+    keys = [plan_keys[i][j] for i, j in where]
     seats = [s for chain_seats in primary["seats"] for s in chain_seats]
     alt_seats = [s for chain_seats in alternate["seats"] for s in chain_seats]
     top = max(s for s in range(k + 1) if primary["counts"][s])
-    beyond = [(w, row) for w, row, s in zip(where, rows, alt_seats) if s > top]
+    beyond = [(w, key) for w, key, s in zip(where, keys, alt_seats) if s > top]
+    beyond_all = [((i, j), plan_keys[i][j])
+                  for i in sorted(plan_keys)
+                  for j, s in enumerate(counted[(i, ALTERNATE)]) if s > top]
     as_equal = [(w, row, s) for w, row, s in zip(where, rows, seats)
                 if row["population_spread"] <= ENACTED_SPREAD]
-    as_equal_enacted = [(w, row) for w, row, s in as_equal if s == enacted]
+    as_equal_enacted = [(w, plan_keys[w[0]][w[1]]) for w, _, s in as_equal
+                        if s == enacted]
+    # one row per distinct plan, for the counts that weigh each plan once
+    first_of: dict[str, dict] = {}
+    for key, row in zip(keys, rows):
+        first_of.setdefault(key, row)
 
     # The enacted plan's compactness, against the draws'. The draws carry two
     # measures, and they place the plan differently: ReCom leans compact on the
@@ -580,6 +645,9 @@ def seat_distribution() -> dict:
             "median": statistics.median(row[column] for row in rows),
             "measure_split_rhat": CV.split_rhat(values),
             "more_compact_share": share,
+            # each distinct plan counted once: a sensitivity check, not the
+            # ensemble's distribution, which weighs a plan by its draws
+            "more_compact_share_distinct": more_compact(list(first_of.values())),
             "more_compact_mcse": (math.sqrt(share * (1 - share) / ess)
                                   if ess and math.isfinite(ess) else None),
             "more_compact_by_chain": [more_compact(chain.rows) for chain in chains],
@@ -605,9 +673,9 @@ def seat_distribution() -> dict:
     compactness = {
         "cut_edges": against("cut_edges", larger_is_less_compact=True),
         "polsby_popper_mean": against("polsby_popper_mean", larger_is_less_compact=False),
-        # draws, draws at the enacted seat count, and distinct rows, at each
+        # draws, draws at the enacted seat count, and distinct plans, at each
         # cut-edge count: the enacted share is not monotone in cut edges
-        "by_cut_edges": cut_edge_counts(rows, seats, enacted),
+        "by_cut_edges": cut_edge_counts(rows, seats, enacted, keys),
         # how closely the two measures order the draws, both oriented so that
         # larger is less compact; CRITERIA.md section 3's bar is about 0.9
         "rank_correlation": C.spearman([row["cut_edges"] for row in rows],
@@ -634,11 +702,13 @@ def seat_distribution() -> dict:
         "n_rows_committed": sum(lengths),
         "n_rows_counted": n_counted,
         "counted_totals": {c: dict(sorted(t.items())) for c, t in counted_totals.items()},
-        "distinct_metric_rows": len({tuple(sorted(row.items())) for row in rows}),
-        "distinct_metric_rows_committed": len({tuple(sorted(row.items()))
-                                               for rows_ in all_rows for row in rows_}),
-        "repeats": sum(1 for chain in chains for a, b in zip(chain.rows, chain.rows[1:])
-                       if a == b),
+        "distinct_plans": len(first_of),
+        "distinct_plans_committed": len({key for keys_ in plan_keys.values()
+                                         for key in keys_}),
+        # draws whose plan is the one before it in the same chain
+        "repeats": sum(1 for i, chain in zip(index, chains)
+                       for a, b in zip(plan_keys[i][:len(chain.rows)],
+                                       plan_keys[i][1:len(chain.rows)]) if a == b),
         "chain_fates": [
             {"chain": i, "n_draws": len(chain.rows), "completed": chain.completed,
              "last_seats": seats_[-1] if seats_ else None,
@@ -651,7 +721,12 @@ def seat_distribution() -> dict:
         "alternate_beyond": {
             "seats": top + 1,
             "draws": [w for w, _ in beyond],
-            "distinct": len({tuple(sorted(row.items())) for _, row in beyond}),
+            "distinct": len({key for _, key in beyond}),
+        },
+        # the same over every committed draw, beyond the rectangle
+        "alternate_beyond_all": {
+            "draws": [w for w, _ in beyond_all],
+            "distinct": len({key for _, key in beyond_all}),
         },
         "two_seat_share_by_rectangle": by_rectangle,
         "population_spread_median": statistics.median(
@@ -659,8 +734,7 @@ def seat_distribution() -> dict:
         "n_as_equal_as_enacted": len(as_equal),
         "as_equal_counts": {s: sum(1 for *_, x in as_equal if x == s) for s in range(k + 1)},
         "as_equal_enacted_draws": [w for w, _ in as_equal_enacted],
-        "as_equal_enacted_distinct": len({tuple(sorted(row.items()))
-                                          for _, row in as_equal_enacted}),
+        "as_equal_enacted_distinct": len({key for _, key in as_equal_enacted}),
         "compactness": compactness,
         "enacted_dem_seats": enacted,
         "enacted_closest_district": district,
@@ -733,7 +807,7 @@ def figure_text(d: dict) -> dict:
         plans = f"{beyond['distinct']} distinct plan{'s' if beyond['distinct'] > 1 else ''}"
         reach = (f" Under the {CONTEST_NAMES[alt['contest']]} vote, "
                  f"{len(beyond['draws'])} draws reach {beyond['seats']}"
-                 f"{'+' if higher else ''}: {plans}, "
+                 f"{'+' if higher else ''} seats, in {plans}, "
                  f"{span_text(beyond['draws'], BURN_IN_CHECK)}.")
     if two:
         se_low, se_high = min(two.values()), max(two.values())
@@ -749,14 +823,13 @@ def figure_text(d: dict) -> dict:
     footer = textwrap.wrap(
         f"Range in these draws: {min(span)}–{max(span)} D seats of {k}"
         + (f"; none reached {' or '.join(map(str, missing))}." if missing else ".") + reach
-        + f" Seats are counted from the returns on all {d['n_rows_counted']:,} committed "
-        "draws (D-043). Dots: each chain's share. Whiskers and ±: 2 Monte Carlo standard "
-        "errors of the pooled share, from "
+        + " Seats are counted from the returns (D-043). Dots: each chain's share. "
+        "Whiskers and ±: 2 Monte Carlo standard errors of the pooled share, from "
         f"its effective sample size{block}. Seat count split R-hat {rhat:.3f}, {where} "
         f"CRITERIA §8's {RHAT_BAND[0]:.2f}–{RHAT_BAND[1]:.2f} band"
         + ("; " + ", and ".join(caution) if caution else "")
         + ". Regenerate: tools/plot_seat_distribution.py, from committed files only.",
-        FOOTER_WIDTH)
+        FOOTER_WIDTH, break_on_hyphens=False)
     return {
         "title": f"Seats in a neutral ReCom ensemble for {state}",
         "subtitle": [
@@ -770,18 +843,19 @@ def figure_text(d: dict) -> dict:
         "labels": labels,
         "enacted_x": enacted,
         # wrapped by width like the footer, so longer values cannot push it
-        # off the canvas, with the last line standing on its own. Population is
-        # the reason the comparison is not like-for-like. Compactness stays off
-        # the figure: where the plan sits depends on the measure, and whether to
-        # match on it is open (D-041)
+        # off the canvas, never inside a hyphenated word, with the last line
+        # standing on its own. Population is the reason the comparison is not
+        # like-for-like. Compactness stays off the figure: where the plan sits
+        # depends on the measure, and whether to match on it is open (D-041)
         "note": "\n".join(textwrap.wrap(
-            f"▲ {state}'s enacted plan returns {enacted} D seats, as "
+            # a no-break space, so the count does not end a line without its unit
+            f"▲ {state}'s enacted plan gives Democrats {enacted}\u00a0seats, as "
             f"{share_text(p['shares'][enacted])} of these draws do "
             f"({min(chain_range):.1f}–{max(chain_range):.1f}% across chains); its "
             f"{enacted} turns on one district at {100 * d['enacted_closest_share']:.1f}% D. "
             f"Not like-for-like: the draws are not held to its {ENACTED_SPREAD}-person "
             "population spread (D-041).",
-            NOTE_WIDTH) + ["Not yet a finding."]),
+            NOTE_WIDTH, break_on_hyphens=False) + ["Not yet a finding."]),
         "footer": footer,
     }
 
@@ -918,6 +992,7 @@ def compactness_line(name: str, c: dict, enacted: int) -> str:
         f"measure's split R-hat {c['measure_split_rhat']:.4f}; "
         f"{_pct(c['more_compact_share'])}{error} of draws more compact (chains "
         f"{_pct(min(by_chain))}-{_pct(max(by_chain))}; "
+        f"{_pct(c['more_compact_share_distinct'])} of distinct plans; "
         f"{_pct(c['more_compact_share_as_equal'])} of those at <= {ENACTED_SPREAD} persons); "
         f"{enacted} D share {_pct(c['no_more_compact'][0])} of {c['no_more_compact'][1]:,} "
         f"draws no more compact, {_pct(c['more_compact'][0])} of "
@@ -937,10 +1012,10 @@ def summary_lines(d: dict) -> list[str]:
         f"{d['n_draws']:,} draws: {d['n_chains']} of {d['n_chains_requested']} chains "
         f"({d['n_chains_never_started']} never started, {d['n_chains_stopped_early']} "
         f"stopped before {d['rectangle']:,}) x {d['rectangle']:,} (D-035), chains "
-        f"{d['chain_index']}; at least {d['distinct_metric_rows']:,} distinct plans "
-        f"(distinct rows of committed metrics; {d['distinct_metric_rows_committed']:,} "
-        f"in all {d['n_rows_committed']:,} committed rows)",
-        f"draws repeating the draw before them: {d['repeats']:,} of {d['n_draws']:,} "
+        f"{d['chain_index']}; {d['distinct_plans']:,} distinct plans, by the recount's "
+        f"plan keys ({d['distinct_plans_committed']:,} in all {d['n_rows_committed']:,} "
+        "committed draws)",
+        f"draws repeating the plan before them: {d['repeats']:,} of {d['n_draws']:,} "
         f"({100 * d['repeats'] / d['n_draws']:.1f}%)",
         f"seats read off |efficiency gap| agree with the count from the returns on all "
         f"{d['n_rows_counted']:,} committed draws, under both contests (D-043): "
@@ -1011,12 +1086,15 @@ def summary_lines(d: dict) -> list[str]:
             + ", ".join(f"{s} D {100 * v:.2f}%" for s, v in c["after_burn_in"].items()
                         if c["counts"][s])
         )
-    beyond = d["alternate_beyond"]
+    beyond, beyond_all = d["alternate_beyond"], d["alternate_beyond_all"]
     compact = d["compactness"]
     lines += [
         f"{d['alternate']['contest']} draws at {beyond['seats']}+ D seats: "
         f"{len(beyond['draws'])}, {beyond['distinct']} distinct plans, at (chain, draw) "
         f"{beyond['draws']}",
+        f"    over all {d['n_rows_committed']:,} committed draws: "
+        f"{len(beyond_all['draws'])}, {beyond_all['distinct']} distinct plans, at "
+        f"(chain, draw) {beyond_all['draws']}",
         "2-seat share by rectangle (chains x draws): "
         + ", ".join(f"{m}x{n}: {100 * v:.1f}%"
                     for (m, n), v in d["two_seat_share_by_rectangle"].items()),
@@ -1038,7 +1116,7 @@ def summary_lines(d: dict) -> list[str]:
                                ("polsby_popper_mean", "mean Polsby-Popper"))),
         f"    rank correlation of the two over the draws, both oriented so that larger is "
         f"less compact: {compact['rank_correlation']:.4f}",
-        f"    by cut edges (draws/{d['enacted_dem_seats']} D/distinct rows): "
+        f"    by cut edges (draws/{d['enacted_dem_seats']} D/distinct plans): "
         + ", ".join(f"{e}: {n}/{at}/{distinct}"
                     for e, (n, at, distinct) in compact["by_cut_edges"].items()),
         "    cut edges of the draws as equal as the enacted plan: "
@@ -1061,7 +1139,8 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     try:
         d = seat_distribution()
-    except ValueError as refusal:
+    except (ValueError, OSError) as refusal:
+        # OSError: a committed file missing or unreadable, so nothing to draw from
         print(f"refused: {refusal}", file=sys.stderr)
         return 1
     for line in summary_lines(d):

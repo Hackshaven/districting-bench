@@ -19,11 +19,12 @@ Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
 presidential vote, and 2 seats in about half of its draws** (49.5%, with a Monte
 Carlo standard error of 3 to 4 points or more; the six chains, separately seeded
-runs of the sampler, range from 41% to 58%). Each draw's seats are counted from
-the election returns, on its plan regenerated from the sampler's seed (D-043).
-Under the 2020 Senate vote the same draws reach 3 seats, though only in
-two plans early in one chain, so the top of the 0–2 range depends on the
-election. It is also the sampler's range, not the limit of what is possible: a
+runs of the sampler, range from 41% to 58%). Each draw's plan is regenerated
+from its chain's seed, and its seats are counted from VEST's 2020 precinct
+returns, aggregated to counties (D-043). Under the 2020 Senate vote the same
+draws reach 3 seats in two plans early in one chain, and committed draws outside
+the 27,564 reach it in three more plans, so the top of the 0–2 range depends on
+the election. It is also the sampler's range, not the limit of what is possible: a
 3-seat plan meeting the same population and contiguity constraints exists under
 the presidential vote, and `tests/test_adversarial.py` builds one when the data
 are present.
@@ -186,7 +187,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 645 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 655 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -228,13 +229,15 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 791 passed, 5 skipped (derived; see below)
+PYTHONPATH=src pytest tests -q         # 801 passed, 5 skipped (derived; see below)
 python tools/check_firewall.py         # must print: clean
 ```
 
-The 791 is derived, not measured: this file recorded 719 with the data at
-v0.1.0; the 72 tests added since need neither the data nor the network; and no
-code an earlier test runs has changed except docstrings.
+The 801 and the 5 are derived, not measured: with the data, this file
+recorded 719 passed and 5 skipped at v0.1.0; the 82 tests added since need
+neither the data nor the network (without the data, passes rose from 573 to
+655 and skips stayed at 151); and no code that a v0.1.0 test runs has
+changed since, except docstrings.
 
 **Without the election returns you can still generate.** The neutral half needs
 population, geometry and adjacency only — that is the firewall, not a
@@ -247,7 +250,8 @@ committed files, and PlanScore's.
 The experiments were each run once and are not meant to be re-run
 (`prompt.md`: *"Run each once… do not iterate to improve the result"*). Their
 outputs are committed. What you can re-derive from those committed artifacts
-(`phase_2_report.py` and `plot_experiment_3.py` also need the data built above):
+(`phase_2_report.py`, `plot_experiment_3.py` and `recount_seats.py` also need the
+data built above):
 
 ```bash
 python tools/experiment_1_sensitivity.py --ensemble v2
@@ -257,17 +261,28 @@ python tools/phase_2_report.py
 python tools/plot_experiment_1.py --ensemble v2   # -> docs/figures/exp1-*.png
 python tools/plot_experiment_2.py --ensemble v2   # -> docs/figures/exp2-*.png
 python tools/plot_experiment_3.py                # -> docs/figures/exp3-gameability.png
+python tools/recount_seats.py                    # -> docs/first-result/ia-seats-v2.csv.gz, .json
+                                                 #    (needs the Iowa data; ~25 min on 4 cores)
 python tools/plot_seat_distribution.py           # -> docs/figures/ia-neutral-seat-distribution.png
                                                  #    (no data needed)
-python tools/recount_seats.py                    # -> docs/first-result/ia-seats-v2.csv.gz
-                                                 #    (needs the Iowa data; ~25 min on 4 cores)
 ```
 
-The first result's seats are counts. `tools/recount_seats.py` regenerates every
-committed Iowa draw from its chain's seed, checks that it reproduces its committed
-row, and counts its seats from the returns (D-043). It writes only if every draw
-reproduces, and the plotter refuses to draw unless its own reading of each draw
-agrees with that count.
+The first result's seats are counts. The draws file records each draw's
+metrics, not its plan, so `plot_seat_distribution.py` reads each draw's seats off
+its committed |efficiency gap| (D-039). `tools/recount_seats.py` regenerates every
+committed Iowa v2 draw from its chain's seed, checks that it reproduces its
+committed row, and counts its seats from the returns (D-043). It runs Experiment
+2's sampler again, but asks it only for the committed draws, each of which must
+reproduce its row, so it counts the same draws rather than drawing new ones. It
+writes only if every draw reproduces and no district is tied; otherwise it exits
+non-zero and writes nothing. A passing run rewrites
+`docs/first-result/ia-seats-v2.csv.gz` and its record, `ia-seats-v2.json`, in
+place, so `git diff` shows what it changed (`--out <path>.csv.gz` writes
+elsewhere). The counts come out byte for byte the same; the record differs where
+your environment does, and under Python 3.12 or later it shows a last-bit
+difference in mean Polsby-Popper, because `sum` of floats became compensated. The
+plotter refuses to draw unless its reading of each draw agrees with that count,
+and the record names the draws file it reads.
 
 One check reaches outside the repository. It needs the network, not the data:
 

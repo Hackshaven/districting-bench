@@ -2284,9 +2284,9 @@ the spread of the six chain means gives 2.6 (audit record). The README therefore
 says 3 to 4 points or more, for the reason below. An ESS of 268 is about 45 per
 chain, or 22 per split chain, short of both thresholds Vehtari et al. (2021)
 recommend for reliable R-hat and ESS estimates: a total above 400, and 50 per
-split chain (audit record). At least 4,020 of the draws are distinct plans,
-counting distinct rows of the committed metrics, since the file carries no plan
-hash; 18,303 (66.4%) repeat the draw before them.
+split chain (audit record). The draws hold 3,361 distinct plans, counted by
+the key the recount records for each draw's plan (D-043), and 20,060 (72.8%)
+repeat the plan before them.
 
 The seat count has split R-hat **1.014** and ESS 286, near `CRITERIA.md` §8's
 1.00–1.01 band but not inside it. Of the three per-outcome indicators only the
@@ -2318,9 +2318,10 @@ with round 5 above, where a shape-constrained adversarial search built to reach
 the same population and contiguity constraints, three districts at 50.07–50.17%
 Democratic, which no committed draw reaches; `tests/test_adversarial.py` builds
 one and checks both constraints when the data are present. Under the Senate vote
-the same draws reach 3 seats 8 times, and those are two distinct plans, at draws
-232–239 of chain 0: all inside the first 500 draws of one chain, so dropping the
-warm-up removes every one. The Senate seat count's split R-hat is 1.020 (ESS
+the rectangle's draws reach 3 seats 8 times, and those are two distinct plans, at
+draws 232–239 of chain 0: all inside the first 500 draws of one chain, so dropping
+the warm-up removes every one from the rectangle. Beyond it they are not confined
+to a warm-up (next section). The Senate seat count's split R-hat is 1.020 (ESS
 263). The two contests give the same seat count on 82.5% of draws.
 
 D-013's argument needs only that the null spans at least two seats, which holds
@@ -2389,7 +2390,7 @@ in both.
 ## How the seats were read without the returns (D-039)
 
 The draws file records each draw's |efficiency gap|, not its seats, and a recount
-needs the election returns, which the repository cannot redistribute. With wasted
+needs the election returns, which the repository does not redistribute. With wasted
 votes counted against half of each district's votes, the gap is exactly
 `2V − ½ − τ`, where `V` is the statewide two-party Democratic share and `τ` the
 share of two-party votes cast in districts the Democrats win. When every district
@@ -2442,14 +2443,18 @@ cannot read Colorado's draws at all, and refuses them: its closest levels sit
 0.028 apart, and 9,857 of its 20,000 draws sit beyond the margin
 (`tests/test_seat_distribution.py`).
 
-## Every reading confirmed by count (D-043)
+## Every Iowa reading confirmed by count (D-043)
 
 The reading above has since been checked by counting. `tools/recount_seats.py`
-regenerated all 57,553 committed draws from their chains' seeds, and each
-reproduced its committed row: every integer column exactly, |efficiency gap| and
-|mean-median| exactly under both contests, and mean Polsby-Popper to within
-6×10⁻¹⁷. It then counted each draw's seats from the returns. The count agrees with
-the reading on every draw, under both contests:
+regenerated all 57,553 committed Iowa v2 draws from their chains' seeds, under
+Python 3.11 as the README pins it, and each reproduced its committed row exactly:
+cut edges, population spread and competitive districts, |efficiency gap| and
+|mean-median| under both contests, and mean Polsby-Popper. County splits match
+too, but every Iowa plan has none, since the units are whole counties. The match
+is of the chains' paths, not of 57,553 independent checks: the draws hold 5,588
+distinct plans, and each change of plan recurs at its committed step. The recount
+then counted each draw's seats from the returns. The count agrees with the reading
+on every draw, under both contests:
 
 | draws | 0 seats | 1 | 2 | 3 |
 | --- | --- | --- | --- | --- |
@@ -2458,14 +2463,47 @@ the reading on every draw, under both contests:
 | all 57,553, presidential vote | 832 | 28,780 | 27,941 | 0 |
 | all 57,553, Senate vote | 389 | 23,408 | 33,742 | 14 |
 
-So every share and interval in this document rests on counted seats, and the
-ways a reading could go wrong, set out above, no longer bear on any number quoted
-here. The counts are committed as `docs/first-result/ia-seats-v2.csv.gz`, and the
-plotter refuses to draw if its reading and the count differ on any draw. The
-returns are VEST's Iowa file as Harvard Dataverse served it on 2026-10-11
-(dataset version 49, uploaded 2026-10-03). Every committed |efficiency gap|
-reproducing exactly shows that it gives the district totals the draws were
-measured with.
+The Senate vote's 14 draws at 3 seats are five distinct plans in three chains: the
+rectangle's 8, at draws 232–239 of chain 0, and 6 outside it, at draws 414–416 of
+chain 8 and 8,012–8,014 of chain 1. Chain 1's lie far past any warm-up, outside
+the rectangle only because it cuts chain 1 at 4,594 draws, so beyond the rectangle
+the Senate vote's 3-seat plans are not a warm-up's.
+
+So every seat count, share and interval this section quotes for the Iowa v2 draws
+rests on counted seats. The count removes the reading as a source of error and
+leaves the Monte Carlo intervals, and their convergence caveats, as they were:
+they never included that error. Numbers this document quotes from other ensembles,
+the 1,820-draw one among them, were not recounted. The counts are committed as
+`docs/first-result/ia-seats-v2.csv.gz`, with a key for each draw's plan and a
+record of what the count read, and the plotter refuses to draw if its reading and
+the count differ on any draw, or if the record names another draws file.
+
+The returns are VEST's Iowa file as Harvard Dataverse served it on 2026-10-11:
+dataset version 49, uploaded 2026-10-03, whose attribute table holds the same
+values as version 48's. Every committed |efficiency gap| and |mean-median|, under
+both contests, reproducing exactly on every plan the chains visit ties the count
+to the district totals the draws were measured with. |Efficiency gap| alone could
+not: it does not move when an even number of votes shifts between districts the
+same party wins, or when the parties trade votes across two counties, wherever no
+district changes hands. Both metrics are unsigned, so which party is which is
+fixed separately: the recount refuses unless each contest's statewide two-party
+totals equal the certified ones. Whether the county totals themselves are accurate
+is not checked here.
+
+**Distinct plans, counted rather than bounded.** Earlier versions of this section
+counted distinct rows of the committed metrics and called them a lower bound on
+distinct plans. They are not one. ReCom often returns the same plan with its
+districts renumbered, and mean Polsby-Popper, averaged in district order, can then
+move in its last bit, so one plan can leave two rows. The plan keys give the
+counts this part of the record now quotes: 3,361 plans in the rectangle, where the
+rows numbered 4,020; 20,060 draws repeating the plan before them, where 18,303
+repeated the row; 42 plans among the 7,850 draws at 40–42 cut edges, where the
+rows numbered 78; and, counting each plan once, 65.2% with fewer cut edges than
+the enacted plan and 17.1% with a higher Polsby-Popper, where the audit record's
+4,020 rows gave 68.5% and 19.4%. The audit record stays verbatim, with the row
+counts its auditors used. Experiment 1's and 2's committed results count the same
+rows (`distinct_values` and `n_distinct_points`, 4,020), and stay as the record of
+those runs.
 
 ## The enacted plan's caveats, now with numbers
 
@@ -2493,8 +2531,8 @@ higher (±5.9 points; 36.1–60.4% by chain; 33.7% of the population-tight draws
 and the draws' median is 0.3325. Neither measure is itself inside `CRITERIA.md`
 §8's convergence band: its split R-hat is 1.023 for cut edges and 1.030 for
 Polsby-Popper. Counted as distinct plans, a sensitivity check rather than the
-ensemble's distribution, the two diverge further: 68.5% of the 4,020 distinct rows
-have fewer cut edges and 19.4% a higher Polsby-Popper (audit record). Over the
+ensemble's distribution, the two diverge further: 65.2% of the 3,361 distinct
+plans have fewer cut edges and 17.1% a higher Polsby-Popper. Over the
 draws the two measures' rank correlation, both oriented so that larger is less
 compact, is 0.76, below the ~0.9 above which `CRITERIA.md` §3 says the choice of
 measure does not matter, so the disagreement is shown rather than resolved. §3
@@ -2514,8 +2552,7 @@ record's tests: a circular-shift test that keeps each chain's autocorrelation
 gives p below 0.001 on the full rectangle and about 0.04 once each chain's first
 500 draws are dropped, and at splits of 45 and 47 cut edges the direction holds
 in all six chains at every warm-up (audit record). None of the 7,850 draws at
-40–42 cut edges gives 0 seats, though they show only 78 distinct rows of committed
-metrics, a lower bound on their distinct plans. The
+40–42 cut edges gives 0 seats, though they hold only 42 distinct plans. The
 contrast's size is not robust: 89 of the 151 zero-seat draws at 51 or more are one
 excursion of chain 6, early in its first 500 draws (audit record). Once each
 chain's first 500 are dropped the shares are 2.16% and 1.02%, with a chain-level
@@ -2625,18 +2662,26 @@ yet a finding.
 ## Reproducing
 
 ```
+python tools/recount_seats.py              # needs the Iowa data; about 25 minutes on 4 cores
 python tools/plot_seat_distribution.py     # no data needed
 ```
 
-It reads only committed files: the v2 draws and their chain sidecar, the v1
-draws, the rectangle report, and the Phase 2 report. It prints:
+The recount regenerates every committed draw, counts its seats, and writes the
+counts and their record only if every draw reproduces and no district is tied.
+It needs the Iowa data built, as the README's "Getting the data" describes. Its
+result is committed, so the plotter needs no data: it reads only committed files,
+the v2 draws and their chain sidecar, the v1 draws, the rectangle report, the
+Phase 2 report, and the recount's counts and record. It prints:
 - the table above, with each share's standard errors, effective sample size and
   R-hat, the counts over every committed row, and the levels and recovery
   diagnostics;
+- that the count confirms every reading, with the counts over every committed
+  draw under both contests, and the distinct plans by the recount's keys;
 - the three estimates of a seven-chain, 260-draw estimate's standard error;
 - the half-by-half, chain-by-chain, warm-up and rectangle checks, each chain's
   draws by seats in its first 500, and each chain's fate;
-- the Senate draws that reach 3 seats, and where they sit;
+- the Senate draws that reach 3 seats, and where they sit, in the rectangle and
+  over every committed draw;
 - the population-equality counts, and where the enacted plan sits on cut edges
   and on mean Polsby-Popper: the share of draws more compact on each, with its
   Monte Carlo error and chain range, the measure's own split R-hat, the enacted
@@ -2648,14 +2693,23 @@ draws, the rectangle report, and the Phase 2 report. It prints:
 prints, and what the figure draws. It also holds controls that must make the
 script refuse: a draw past the margin, a sweep off the half-vote grid at either
 end or of the wrong parity, a non-finite gap, Colorado's draws, a stale vote
-total, and a Phase 2 report for another contest, another district count, an
-outcome no draw produced, a non-finite compactness value, or without the closest
-district. The audit record is `docs/first-result/INSTRUMENT-AUDIT.md`: four
-audits (CLAUDE.md, D-007), the first two each of one auditor and one refuter,
-the second on the analysis review added; the third, on the compactness
-comparison, of one auditor and a refuter for each of its two allegations; and
-the fourth, on what the half-vote grid establishes, of one auditor and one
-refuter. The tests, intervals and reweightings this section credits to the audit
+total, a Phase 2 report for another contest, another district count, an outcome
+no draw produced, a non-finite compactness value, or without the closest
+district, a count that differs from the reading on any draw, in the rectangle or
+outside it, a counts file cut short, holding another chain, or missing a column
+or a plan key, a recount record naming another draws file, configuration, set of
+chains, row count, contest or vote total, and a committed file missing.
+`tests/test_recount_seats.py` holds the recount's own controls, offline: a draw
+that does not reproduce its row, a column measured or committed alone, a tie, a
+sampler that dies or stops early, a wrong seed, rows out of order, a measuring
+error, a draws file and sidecar that disagree, returns whose totals are not the
+certified ones, an output name its record would overwrite, and a run that fails
+and must write nothing. The audit record is `docs/first-result/INSTRUMENT-AUDIT.md`:
+five audits (CLAUDE.md, D-007), the first two each of one auditor and one
+refuter, the second on the analysis review added; the third, on the compactness
+comparison, of one auditor and a refuter for each of its two allegations; the
+fourth, on what the half-vote grid establishes, and the fifth, on the recount,
+each of one auditor and one refuter. The tests, intervals and reweightings this section credits to the audit
 record were computed by the auditors' and refuters' own scripts, as their
 reports there describe; the plotter does not recompute them.
 

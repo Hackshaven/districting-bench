@@ -114,8 +114,10 @@ def test_the_uncertainty_docs_progress_md_quotes_is_pinned(dist):
     everything = [s for seats in p["all_seats"] for s in seats]
     assert {s: everything.count(s) for s in range(K + 1)} == {
         0: 832, 1: 28_780, 2: 27_941, 3: 0, 4: 0}
-    assert dist["repeats"] == 18_303
-    assert dist["distinct_metric_rows"] == 4_020
+    # distinct plans by the recount's plan keys (D-043): rows of metrics
+    # overcount them, since a renumbered plan can leave two
+    assert dist["repeats"] == 20_060
+    assert (dist["distinct_plans"], dist["distinct_plans_committed"]) == (3_361, 5_588)
     assert dist["earlier_prefix"] == {i: (1500, 1500) for i in (0, 1, 2, 5, 6, 10)}
 
 
@@ -153,6 +155,8 @@ def test_the_enacted_plan_caveats_are_pinned(dist):
     assert edges["enacted"] == 51
     assert edges["median"] == 45
     assert edges["more_compact_share"] == pytest.approx(24_223 / 27_564)
+    # each distinct plan counted once: a sensitivity check, not the distribution
+    assert edges["more_compact_share_distinct"] == pytest.approx(2_190 / 3_361)
     # the location has its own Monte Carlo error, and the measure itself sits
     # outside CRITERIA.md section 8's band
     assert 2 * edges["more_compact_mcse"] == pytest.approx(0.0352, abs=1e-4)
@@ -170,7 +174,7 @@ def test_the_enacted_plan_caveats_are_pinned(dist):
     # and the share is not monotone in cut edges: none at 40-42, a tenth at
     # exactly 51, none past 57
     profile = compact["by_cut_edges"]
-    assert [sum(profile[e][i] for e in (40, 41, 42)) for i in range(3)] == [7850, 0, 78]
+    assert [sum(profile[e][i] for e in (40, 41, 42)) for i in range(3)] == [7850, 0, 42]
     assert profile[51][:2] == (999, 100) and profile[57][:2] == (126, 11)
     assert sum(profile[e][0] for e in range(58, 67) if e in profile) == 221
     assert sum(profile[e][1] for e in range(58, 67) if e in profile) == 0
@@ -182,6 +186,7 @@ def test_the_enacted_plan_caveats_are_pinned(dist):
     assert pp["enacted"] == pytest.approx(0.33338, abs=1e-5)
     assert pp["median"] == pytest.approx(0.33252, abs=1e-5)
     assert pp["more_compact_share"] == pytest.approx(13_425 / 27_564)
+    assert pp["more_compact_share_distinct"] == pytest.approx(575 / 3_361)
     assert 2 * pp["more_compact_mcse"] == pytest.approx(0.0592, abs=1e-4)
     assert pp["measure_split_rhat"] == pytest.approx(1.0302, abs=1e-4)
     assert (min(pp["more_compact_by_chain"]), max(pp["more_compact_by_chain"])) == (
@@ -223,6 +228,12 @@ def test_under_the_senate_vote_two_plans_early_in_one_chain_reach_3(dist):
     assert beyond["seats"] == 3
     assert beyond["draws"] == [(0, j) for j in range(232, 240)]
     assert beyond["distinct"] == 2
+    # beyond the rectangle they are not a warm-up's: chain 1's are far past it
+    everywhere = dist["alternate_beyond_all"]
+    assert everywhere["draws"] == ([(0, j) for j in range(232, 240)]
+                                   + [(1, j) for j in range(8_012, 8_015)]
+                                   + [(8, j) for j in range(414, 417)])
+    assert everywhere["distinct"] == 5
     assert dist["contests_agree"] == 22_734
 
 
@@ -357,42 +368,111 @@ def test_the_count_confirms_every_reading_and_a_contradiction_refuses(
         dist, tmp_path, monkeypatch):
     # tools/recount_seats.py regenerated every committed draw and counted its
     # seats from the returns (D-043). seat_distribution checks its reading
-    # against that count on every draw under both contests, so the bars are
-    # counts. Each way the two could part must refuse.
+    # against that count on every draw under both contests, so every value the
+    # figure draws is what the counts give. Each way the two could part must
+    # refuse, past the rectangle and outside it as much as in it.
     assert dist["n_rows_counted"] == dist["n_rows_committed"] == 57_553
-    counted = S.counted_seats(S.RECOUNT)
+    counted, plans = S.counted_seats(S.RECOUNT)
     assert sum(map(len, counted.values())) == 2 * 57_553
+    assert {i: len(keys) for i, keys in plans.items()} == {
+        0: 12_000, 1: 8_133, 2: 6_495, 3: 4_282, 5: 4_594, 6: 12_000, 8: 1_863,
+        9: 1, 10: 8_136, 11: 49}
     # docs/progress.md quotes the counts over every committed draw
-    totals = {c: {} for c in (S.CONTEST, S.ALTERNATE)}
-    for (_, contest), seats in counted.items():
-        for x in seats:
-            totals[contest][x] = totals[contest].get(x, 0) + 1
-    assert totals == {"G20PRE": {0: 832, 1: 28_780, 2: 27_941},
-                      "G20USS": {0: 389, 1: 23_408, 2: 33_742, 3: 14}}
+    assert dist["counted_totals"] == {"G20PRE": {0: 832, 1: 28_780, 2: 27_941},
+                                      "G20USS": {0: 389, 1: 23_408, 2: 33_742, 3: 14}}
     read = {key: list(seats) for key, seats in counted.items()}
     assert S.check_against_count(read, counted) == 57_553
-    read[(0, "G20USS")][7] += 1
-    with pytest.raises(ValueError, match="chain 0 draw 7 reads as .* under G20USS"):
-        S.check_against_count(read, counted)
-    del read[(0, "G20USS")]
-    with pytest.raises(ValueError, match="different draws"):
-        S.check_against_count(read, counted)
+    # a draw inside the rectangle, past its 4,594 draws, and in chains it drops
+    for index, draw, contest in ((0, 7, "G20USS"), (0, 11_999, "G20PRE"),
+                                 (6, 9_000, "G20USS"), (11, 48, "G20USS"),
+                                 (3, 0, "G20PRE"), (9, 0, "G20PRE")):
+        changed = {key: list(seats) for key, seats in counted.items()}
+        changed[(index, contest)][draw] += 1
+        with pytest.raises(ValueError, match=f"chain {index} draw {draw} reads as "
+                                             f".* under {contest}"):
+            S.check_against_count(changed, counted)
+    # a chain cut short, either side, and a chain or contest only one side has
+    short = {key: seats[:-1] if key == (0, "G20PRE") else seats
+             for key, seats in counted.items()}
+    for a, b in ((short, counted), (counted, short)):
+        with pytest.raises(ValueError, match=r"chain 0 has \d+ draws read and "
+                                             r"\d+ counted under G20PRE"):
+            S.check_against_count(a, b)
+    extra = counted | {(4, "G20PRE"): [1]}
+    for a, b in ((extra, counted), (counted, extra)):
+        with pytest.raises(ValueError, match="different draws"):
+            S.check_against_count(a, b)
+
     with gzip.open(S.RECOUNT, "rt", newline="") as handle:
         header, *rows = list(csv.reader(handle))
+    assert header == ["chain_index", "draw", "plan", "dem_seats@G20PRE",
+                      "dem_seats@G20USS"]
 
-    def recount(rows_):
+    def recount(rows_, header_=header):
         path = tmp_path / f"recount-{len(list(tmp_path.iterdir()))}.csv.gz"
         with gzip.open(path, "wt", newline="") as handle:
-            csv.writer(handle).writerows([header, *rows_])
+            csv.writer(handle).writerows([header_, *rows_])
         return path
     with pytest.raises(ValueError, match="where draw 1 belongs"):
         S.counted_seats(recount([rows[0], rows[2], rows[1], *rows[3:]]))
+    with pytest.raises(ValueError, match="has no column dem_seats@G20USS"):
+        S.counted_seats(recount([r[:4] for r in rows[:3]], header[:4]))
+    with pytest.raises(ValueError, match="has no column plan"):
+        S.counted_seats(recount([r[:2] + r[3:] for r in rows[:3]],
+                                header[:2] + header[3:]))
+    with pytest.raises(ValueError, match="chain 0 draw 1 has plan key ''"):
+        S.counted_seats(recount([rows[0], rows[1][:2] + [""] + rows[1][3:]]))
     # and end to end: one count changed, and the figure is not drawn
     changed = [list(r) for r in rows]
-    changed[123][2] = str(int(changed[123][2]) + 1)
+    changed[123][3] = str(int(changed[123][3]) + 1)
     monkeypatch.setattr(S, "RECOUNT", recount(changed))
     with pytest.raises(ValueError, match="chain 0 draw 123 reads as .* under G20PRE"):
         S.seat_distribution()
+
+
+def test_the_count_s_record_names_the_draws_read_here(tmp_path, monkeypatch):
+    # A counts file that merely agreed with the reading would pass the check
+    # above; the record says what the recount read, and it must be these draws.
+    record = json.loads(S.RECOUNT_RECORD.read_text())
+    spec = S.X.ensemble_spec(S.STATE, S.ENSEMBLE)
+    draws = S.X.draws_path(spec.prefix, S.ENSEMBLE)
+    S.check_recount_record(record, 57_553, spec, draws)
+    assert record["n_rows"] == 57_553
+    assert record["gerrychain"] == "1.0.0"
+    assert record["largest_float_difference"]["polsby_popper_mean"] <= 1e-16
+    assert all(v == 0.0 for k, v in record["largest_float_difference"].items()
+               if k != "polsby_popper_mean")
+    # the returns: VEST's version 49 file, which D-043 names
+    assert record["returns_source"] == {
+        "dataset": "doi:10.7910/DVN/K7760H", "version": "49.0", "file_id": 14304797,
+        "file": "ia_2020.zip", "md5": "500252facae6107b93128406ebf5177b"}
+    for change, why in (
+            (lambda r: r.update(draws_sha256="0" * 64), "a draws file other than"),
+            (lambda r: r.update(config_digest="0" * 16), "configuration 0000"),
+            (lambda r: r["chains"][4].update(n_rows=1), "row counts are not"),
+            (lambda r: r["chains"].pop(), "row counts are not"),
+            (lambda r: r.update(n_rows=57_552), "it records 57552 rows"),
+            (lambda r: r.update(contests=["G20USS", "G20PRE"]), "it counted"),
+            (lambda r: r["certified_two_party_totals"]["G20USS"].reverse(),
+             "certified totals")):
+        changed = copy.deepcopy(record)
+        change(changed)
+        with pytest.raises(ValueError, match=why):
+            S.check_recount_record(changed, 57_553, spec, draws)
+    # and end to end
+    path = tmp_path / "ia-seats-v2.json"
+    path.write_text(json.dumps(record | {"draws_sha256": "0" * 64}))
+    monkeypatch.setattr(S, "RECOUNT_RECORD", path)
+    with pytest.raises(ValueError, match="does not describe the count read here"):
+        S.seat_distribution()
+
+
+def test_a_missing_committed_file_refuses_rather_than_failing(
+        tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(S, "REPORT", tmp_path / "no-such-report.json")
+    assert S.main(["--out", str(tmp_path / "figure.png")]) == 1
+    assert capsys.readouterr().err.startswith("refused: ")
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_a_draw_past_the_margin_refuses_the_whole_sample(levels):
@@ -465,7 +545,7 @@ def test_the_figure_text_is_pinned(dist):
     # population is the reason, and compactness, whose reading depends on the
     # measure, stays off the figure (D-041)
     assert " ".join(text["note"].split()) == (
-        "▲ Iowa's enacted plan returns 0 D seats, as 1.4% of these draws do (0.4–2.5% "
+        "▲ Iowa's enacted plan gives Democrats 0 seats, as 1.4% of these draws do (0.4–2.5% "
         "across chains); its 0 turns on one district at 49.8% D. Not like-for-like: the "
         "draws are not held to its 94-person population spread (D-041). Not yet a "
         "finding.")
@@ -474,12 +554,11 @@ def test_the_figure_text_is_pinned(dist):
     assert all(len(line) <= S.NOTE_WIDTH for line in text["note"].splitlines())
     footer = " ".join(text["footer"])
     for phrase in ("0–2 D seats of 4; none reached 3 or 4",
-                   "2020 Senate vote, 8 draws reach 3: 2 distinct plans, all in "
-                   "one chain's first 500 draws",
+                   "2020 Senate vote, 8 draws reach 3 seats, in 2 distinct plans, "
+                   "all in one chain's first 500 draws",
                    "2-seat share's standard error at 3.3–3.9 pts",
                    "R-hat 1.014, above CRITERIA §8's 1.00–1.01 band",
-                   "Seats are counted from the returns on all 57,553 committed "
-                   "draws (D-043)"):
+                   "Seats are counted from the returns (D-043). Dots"):
         assert phrase in footer
     assert all(len(line) <= S.FOOTER_WIDTH for line in text["footer"])
 
