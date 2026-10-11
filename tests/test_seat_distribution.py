@@ -107,9 +107,19 @@ def test_the_uncertainty_docs_progress_md_quotes_is_pinned(dist):
     shares = {key: round(v, 3) for key, v in dist["two_seat_share_by_rectangle"].items()}
     assert shares == {(4, 8133): 0.453, (5, 6495): 0.480, (6, 4594): 0.495,
                       (7, 4282): 0.505, (8, 1863): 0.503}
+    everything = [s for seats in p["all_seats"] for s in seats]
+    assert {s: everything.count(s) for s in range(K + 1)} == {
+        0: 832, 1: 28_780, 2: 27_941, 3: 0, 4: 0}
     assert dist["repeats"] == 18_303
     assert dist["distinct_metric_rows"] == 4_020
     assert dist["earlier_prefix"] == {i: (1500, 1500) for i in (0, 1, 2, 5, 6, 10)}
+
+
+def test_a_row_that_differs_from_v1_is_counted():
+    rows = [{"x": 1.0}, {"x": 2.0}, {"x": 3.0}]
+    assert S.prefix_match(rows, rows[:2]) == (2, 2)
+    assert S.prefix_match(rows, [{"x": 1.0}, {"x": 2.5}]) == (1, 2)
+    assert S.prefix_match(rows, []) == (0, 0)
 
 
 def test_the_chains_that_died_are_counted_with_their_last_state(dist):
@@ -262,8 +272,8 @@ def test_the_figure_text_is_pinned(dist):
     assert text["subtitle"] == [
         "Democratic seats of 4 under the 2020 presidential vote, in 27,564 ReCom "
         "draws made without election data",
-        "6 of 12 chains (2 never started, 4 stopped early), each cut to its first "
-        "4,594 draws (D-035)",
+        "6 of 12 chains, each cut to its first 4,594 draws (D-035); 2 never started "
+        "and 4 stopped before 4,594",
         "About 286 effective draws for the seat count",
     ]
     assert text["labels"] == {
@@ -275,15 +285,18 @@ def test_the_figure_text_is_pinned(dist):
     }
     assert text["enacted_x"] == 0
     note = " ".join(text["note"].split())
-    for phrase in ("returns 0 D seats", "as 1.4% of these draws do (0.4–2.5% across",
-                   "on one district at 49.8% D", "not held to its population equality",
-                   "0 seats is more common among draws as uncompact as it (≥51 cut "
-                   "edges): 4.5%, or 2.2% after warm-up", "Not yet a finding"):
+    for phrase in ("returns 0 D seats", "as 1.4% of these draws do (0.4–2.5% across "
+                   "chains)", "on one district at 49.8% D",
+                   "not held to its population equality",
+                   "in every chain 0 seats is commoner among draws as uncompact as it "
+                   "(≥51 cut edges) than among the rest: 4.5% against 1.0%, or 2.2% "
+                   "against 1.0% without each chain's first 500 draws",
+                   "Not yet a finding"):
         assert phrase in note
     footer = " ".join(text["footer"])
     for phrase in ("0–2 D seats of 4; none reached 3 or 4",
                    "2020 Senate vote, 8 draws reach 3: 2 distinct plans, all in "
-                   "chain 0's first 500 draws",
+                   "one chain's first 500 draws",
                    "2-seat share's standard error at 3.3–3.9 pts",
                    "R-hat 1.014, outside CRITERIA §8's 1.00–1.01 band"):
         assert phrase in footer
@@ -298,7 +311,18 @@ def test_the_figure_text_follows_the_values(dist):
     assert "R-hat 1.004, inside" in " ".join(S.figure_text(d)["footer"])
     compact = d["compactness"]
     compact["at_or_above"], compact["below"] = compact["below"], compact["at_or_above"]
-    assert "0 seats is less common" in " ".join(S.figure_text(d)["note"].split())
+    compact["per_chain"] = [(i, b, a) for i, a, b in compact["per_chain"]]
+    assert "in every chain 0 seats is rarer" in " ".join(S.figure_text(d)["note"].split())
+    # and a chain that disagrees is counted, not hidden in "every"
+    i, a, b = compact["per_chain"][0]
+    compact["per_chain"][0] = (i, b, a)
+    assert "in 5 of 6 chains 0 seats is rarer" in " ".join(
+        S.figure_text(d)["note"].split())
+
+
+def test_a_share_above_zero_is_never_printed_as_zero():
+    assert (S.share_text(0.0), S.share_text(0.0003), S.share_text(0.0143)) == (
+        "0.0%", "<0.1%", "1.4%")
 
 
 def test_the_figure_draws_what_the_text_says(dist, tmp_path):
@@ -320,7 +344,7 @@ def test_an_outcome_seen_in_one_chain_draws_without_a_whisker(dist, tmp_path):
     d["primary"] = d["alternate"]
     placed = S.draw(d, tmp_path / "senate.png")
     assert 3 not in placed["whiskers"]
-    assert S.figure_text(d)["labels"][3] == ("0.0%", "1 chain only\n8 draws")
+    assert S.figure_text(d)["labels"][3] == ("<0.1%", "1 chain only\n8 draws")
 
 
 def _report_with(tmp_path, monkeypatch, change):

@@ -64,7 +64,7 @@
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
           },
-          "planscore_definitions_transcribed": {
+          "planscore_definitions": {
             "mean_median": 0.024256595815449644,
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
@@ -78,9 +78,9 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
-            "transcribed_mean_median": true,
-            "transcribed_partisan_bias": true,
-            "transcribed_declination": true
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
           }
         },
         "US Senate 2020": {
@@ -107,7 +107,7 @@
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
           },
-          "planscore_definitions_transcribed": {
+          "planscore_definitions": {
             "mean_median": 0.02554219994751561,
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
@@ -121,9 +121,9 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
-            "transcribed_mean_median": true,
-            "transcribed_partisan_bias": true,
-            "transcribed_declination": true
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
           }
         },
         "US President 2016": {
@@ -150,7 +150,7 @@
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
           },
-          "planscore_definitions_transcribed": {
+          "planscore_definitions": {
             "mean_median": 0.029956672943516227,
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
@@ -164,9 +164,9 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
-            "transcribed_mean_median": true,
-            "transcribed_partisan_bias": true,
-            "transcribed_declination": true
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
           }
         },
         "US Senate 2016": {
@@ -193,7 +193,7 @@
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
           },
-          "planscore_definitions_transcribed": {
+          "planscore_definitions": {
             "mean_median": 0.019408927103962137,
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
@@ -207,9 +207,9 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
-            "transcribed_mean_median": true,
-            "transcribed_partisan_bias": true,
-            "transcribed_declination": true
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
           }
         }
       },
@@ -309,7 +309,7 @@
             "partisan_bias": 0.0,
             "declination": -0.07616788620615457
           },
-          "planscore_definitions_transcribed": {
+          "planscore_definitions": {
             "mean_median": -0.020196911868702205,
             "partisan_bias": 0.0,
             "declination": -0.07616788620615457
@@ -323,9 +323,9 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
-            "transcribed_mean_median": true,
-            "transcribed_partisan_bias": true,
-            "transcribed_declination": true
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
           }
         },
         "US Senate 2020": {
@@ -352,7 +352,7 @@
             "partisan_bias": 0.0,
             "declination": 0.026898049861136166
           },
-          "planscore_definitions_transcribed": {
+          "planscore_definitions": {
             "mean_median": -0.017062227711129863,
             "partisan_bias": 0.0,
             "declination": 0.026898049861136315
@@ -366,9 +366,9 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
-            "transcribed_mean_median": true,
-            "transcribed_partisan_bias": true,
-            "transcribed_declination": true
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
           }
         },
         "US President 2016": {
@@ -395,7 +395,7 @@
             "partisan_bias": -0.125,
             "declination": -0.10626284366555377
           },
-          "planscore_definitions_transcribed": {
+          "planscore_definitions": {
             "mean_median": -0.021041942504684163,
             "partisan_bias": -0.125,
             "declination": -0.10626284366555377
@@ -409,9 +409,9 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
-            "transcribed_mean_median": true,
-            "transcribed_partisan_bias": true,
-            "transcribed_declination": true
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
           }
         },
         "US Senate 2016": {
@@ -438,7 +438,7 @@
             "partisan_bias": -0.125,
             "declination": 0.09991006689483212
           },
-          "planscore_definitions_transcribed": {
+          "planscore_definitions": {
             "mean_median": -0.01261076580057885,
             "partisan_bias": -0.125,
             "declination": 0.09991006689483212
@@ -452,9 +452,9 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
-            "transcribed_mean_median": true,
-            "transcribed_partisan_bias": true,
-            "transcribed_declination": true
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
           }
         }
       },

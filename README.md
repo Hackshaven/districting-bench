@@ -13,7 +13,7 @@ map adoption.**
 
 ## First result
 
-![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws, 1 seat in 49.0%, 2 seats in 49.5%, none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats, a comparison the text below calls not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
+![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws, 1 seat in 49.0% and 2 seats in 49.5%, each of those two give or take about 6 points (2 Monte Carlo standard errors), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats; the figure's note gives the reasons that comparison is not like-for-like and not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
 
 Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
@@ -22,8 +22,8 @@ Carlo standard error of 3 to 4 points; the six chains range from 41% to 58%).
 Under the 2020 Senate vote the same draws reach 3 seats, though only in two plans
 early in one chain, so the top of that range depends on the election. It is also
 the sampler's range, not the limit of what is possible: a 3-seat plan meeting the
-same population and contiguity constraints exists under the presidential vote
-(`src/adversarial/gerrymander.py`).
+same population and contiguity constraints exists under the presidential vote,
+and `tests/test_adversarial.py` builds one when the data are present.
 
 The consequence is a limit, not a score. Detectability is bounded below by the
 width of the neutral distribution, and that width is set by the state, the
@@ -36,20 +36,24 @@ Two cautions travel with these numbers. The seat count's split R-hat is 1.014,
 just outside `docs/CRITERIA.md` §8's 1.00–1.01 band, and with about 286 effective
 draws the diagnostic cannot resolve that band: a simulated chain that is
 stationary at the same effective size usually reads above it
-(`docs/first-result/INSTRUMENT-AUDIT.md`). And v0.1.0 reported the 2-seat share
-as 43%, from a 1,820-draw ensemble that was never committed: seven chains of 260
-draws with no convergence diagnostic. Estimated three ways from the committed
-chains, an estimate that size carries a standard error of 9 to 12 points, so the
-two numbers do not disagree. The 0–2 range is the same in both.
+(`docs/first-result/INSTRUMENT-AUDIT.md`). What the chains do show is drift: the
+2-seat share is 46.1% over the first half of the rectangle and 53.0% over the
+second, and 45.3–50.5% on the other prefix rectangles the convergence report
+offers. And v0.1.0 reported the 2-seat share as 43%, from a 1,820-draw ensemble
+that was never committed: seven chains of 260 draws with no convergence
+diagnostic. Estimated three ways from the committed chains, an estimate that size
+carries a standard error of 9 to 12 points, so the two numbers do not disagree.
+The 0–2 range is the same in both.
 
 Iowa's enacted plan returns 0 D seats, as 1.4% of these draws do (0.4–2.5% across
 the six chains), and its 0 turns on one district at 49.8% Democratic. That
 comparison is **not yet a finding**, because it is not like-for-like. The draws
 are not held to the 94-person population equality the enacted plan meets: only
-454 of the 27,564 are that equal. And ReCom leans compact: among draws at least
-as uncompact as the enacted plan (51 or more cut edges), 4.5% give 0 seats, or
-2.2% once each chain's first 500 draws are dropped, against 1.0% of the more
-compact rest. See `docs/progress.md`.
+454 of the 27,564 are that equal. Nor are they as uncompact: 88% have fewer cut
+edges than its 51, and in each of the six chains 0 seats is commoner among the
+draws with 51 or more. Pooled, 4.5% of those give 0 seats, or 2.2% once each
+chain's first 500 draws are dropped, against 1.0% of the rest. See
+`docs/progress.md` and D-041.
 
 ---
 
@@ -151,7 +155,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 626 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 634 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -193,12 +197,12 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 772 passed, 5 skipped (derived; see below)
+PYTHONPATH=src pytest tests -q         # 780 passed, 5 skipped (derived; see below)
 python tools/check_firewall.py         # must print: clean
 ```
 
-The 772 is derived, not measured: this file recorded 719 with the data at
-v0.1.0; the 53 tests added since need neither the data nor the network; and no
+The 780 is derived, not measured: this file recorded 719 with the data at
+v0.1.0; the 61 tests added since need neither the data nor the network; and no
 code an earlier test runs has changed except docstrings.
 
 **Without the election returns you can still generate.** The neutral half needs
@@ -211,7 +215,8 @@ committed files, and PlanScore's.
 
 The experiments were each run once and are not meant to be re-run
 (`prompt.md`: *"Run each once… do not iterate to improve the result"*). Their
-outputs are committed. What you can re-derive from those committed artifacts:
+outputs are committed. What you can re-derive from those committed artifacts
+(`phase_2_report.py` and `plot_experiment_3.py` also need the data built above):
 
 ```bash
 python tools/experiment_1_sensitivity.py --ensemble v2
@@ -221,18 +226,22 @@ python tools/phase_2_report.py
 python tools/plot_experiment_1.py --ensemble v2   # -> docs/figures/exp1-*.png
 python tools/plot_experiment_2.py --ensemble v2   # -> docs/figures/exp2-*.png
 python tools/plot_experiment_3.py                # -> docs/figures/exp3-gameability.png
-python tools/plot_seat_distribution.py           # -> docs/figures/ia-neutral-seat-distribution.png; no data needed
+python tools/plot_seat_distribution.py           # -> docs/figures/ia-neutral-seat-distribution.png
+                                                 #    (no data needed)
 ```
 
 One check reaches outside the repository: it fetches PlanScore's scores for
-both enacted plans (two files pinned by sha256), recomputes them with
-`evaluate.partisan`, and exits 0 only if every published efficiency gap and
-every converted definition reproduces. It rewrites its record only then.
-PlanScore titles the Iowa plan a draft; D-040 and `docs/progress.md` say why it
-is the enacted one.
+both enacted plans (two files pinned by sha256) and recomputes the per-election
+metrics from PlanScore's district totals with `evaluate.partisan`. It exits 0
+only if every efficiency gap PlanScore publishes is reproduced, and its
+definitions of mean-median, partisan bias and declination match ours once
+converted to its sign and scale; it rewrites its record only then. PlanScore
+titles the Iowa plan a draft; `docs/progress.md`, "The plans are the ones this
+repository studies", says why it is the enacted one.
 
 ```bash
-python tools/check_planscore.py   # -> docs/cross-checks/planscore.json; needs the network, not the data
+python tools/check_planscore.py   # -> docs/cross-checks/planscore.json
+                                  #    (needs the network, not the data)
 ```
 
 ---
@@ -246,7 +255,7 @@ python tools/check_planscore.py   # -> docs/cross-checks/planscore.json; needs t
 3. `tools/check_firewall.py` — the boundary enforcement.
 4. `docs/progress.md` — the full write-up: what was run, what it found, and
    every result that was later retracted and why.
-5. `docs/DECISIONS.md` — D-001…D-040, each non-obvious choice logged when it was
+5. `docs/DECISIONS.md` — D-001…D-041, each non-obvious choice logged when it was
    made rather than reconstructed afterwards.
 
 ---

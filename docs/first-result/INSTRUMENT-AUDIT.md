@@ -442,7 +442,7 @@ except where they come from the two reports above.
 | 9 | "Archived in v0.1.0" | Upheld | Now "never committed; v0.1.0 archived only its figure and its numbers". |
 | 10 | R-hat is printed without its target | Upheld | The figure and the README give `CRITERIA.md` §8's 1.00–1.01 band, and the figure reads inside or outside off the value. The README and `docs/progress.md` add the refuter's simulation: at 286 effective draws the band cannot be resolved. |
 | 11 | The labels 49.0% and 49.5% imply an order | Partly upheld | Each share is labelled with its ±2 standard errors and the per-chain dots stay. `docs/progress.md` says the order is not identified and the chains disagree about its sign. |
-| — | The auditor's "chain death is not tied to seat state" | Not reproduced as stated | `docs/progress.md` now says the tie is not significant on eight deaths (p = 0.22), notes that the two chains the rectangle drops for dying early have the highest 2-seat shares, and gives the 2-seat share on every rectangle the convergence report offers, from 45.3% to 50.5%. |
+| — | The auditor's "chain death is not tied to seat state" | Not reproduced as stated | `docs/progress.md` now says the tie is not significant on seven deaths (p = 0.22), notes that the two chains the rectangle drops for dying early have the highest 2-seat shares, and gives the 2-seat share on every rectangle the convergence report offers, from 45.3% to 50.5%. |
 
 The `Statistician`'s "Outside the diff" items are both answered:
 `src/adversarial/gerrymander.py` now names the ensemble behind each number it

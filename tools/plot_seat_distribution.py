@@ -127,9 +127,9 @@ INK, MUTED, HUE, SURFACE = "#1a1a1a", "#6b6b6b", "#4a6fa5", "#ffffff"
 BASELINE = "#8a8a8a"
 #: Bar width, narrow enough that each bar's labels clear the next bar's.
 WIDTH = 0.5
-#: Footer characters per line: fits the canvas in matplotlib's stock font,
-#: the widest of those this figure is rendered in.
-FOOTER_WIDTH = 112
+#: Footer and note characters per line: each fits the canvas in matplotlib's
+#: stock font, the widest of those this figure is rendered in.
+FOOTER_WIDTH, NOTE_WIDTH = 112, 41
 
 
 def seat_levels(dem_share: float, k: int) -> dict[int, float]:
@@ -205,7 +205,7 @@ def batch_means_tau(series: list[list[float]], b: int) -> float:
     variance = statistics.pvariance(pooled)
     batches = [statistics.fmean(s[j * b:(j + 1) * b])
                for s in series for j in range(len(s) // b)]
-    return b * sum((m - mean) ** 2 for m in batches) / len(batches) / variance
+    return b * math.fsum((m - mean) ** 2 for m in batches) / len(batches) / variance
 
 
 def short_run_se(all_seats: list[list[int]], s: int, share: float, tau: float,
@@ -351,6 +351,11 @@ def chain_indices(spec, chains) -> list[int]:
     return [by_seed[chain.seed] for chain in chains]
 
 
+def prefix_match(rows: list[dict], before: list[dict]) -> tuple[int, int]:
+    """How many of ``before``'s rows a chain repeats in place, and how many there are."""
+    return sum(a == b for a, b in zip(rows, before)), len(before)
+
+
 def zero_share(seats: list[int]) -> tuple[float | None, int]:
     """The share of ``seats`` at 0, and how many draws it rests on."""
     return (seats.count(0) / len(seats) if seats else None), len(seats)
@@ -410,10 +415,8 @@ def seat_distribution() -> dict:
     earlier_spec = X.ensemble_spec(STATE, EARLIER)
     earlier = {chain.seed: chain.rows for chain in X.chains_from_draws(
         earlier_spec, X.draws_path(earlier_spec.prefix, EARLIER))}
-    earlier_prefix = {}
-    for i, chain in zip(index, chains):
-        before = earlier.get(chain.seed, [])
-        earlier_prefix[i] = (sum(a == b for a, b in zip(chain.rows, before)), len(before))
+    earlier_prefix = {i: prefix_match(chain.rows, earlier.get(chain.seed, []))
+                      for i, chain in zip(index, chains)}
 
     rows = [row for chain in chains for row in chain.rows]
     where = [(i, j) for i, chain in zip(index, chains) for j in range(len(chain.rows))]
@@ -502,13 +505,19 @@ def chain_offsets(m: int) -> list[float]:
 
 
 def span_text(draws: list[tuple[int, int]], window: int) -> str:
-    """Where a handful of draws sit, in words: one chain and an early window, or not."""
-    chains = sorted({i for i, _ in draws})
+    """Where a handful of draws sit, in words: one chain and an early window, or not.
+    The figure has no key to chain indices, so it names none."""
+    chains = {i for i, _ in draws}
     if len(chains) == 1:
         last = max(j for _, j in draws)
-        early = f"'s first {window} draws" if last < window else ""
-        return f"all in chain {chains[0]}{early}"
+        return (f"all in one chain's first {window} draws" if last < window
+                else "all in one chain")
     return f"in {len(chains)} chains"
+
+
+def share_text(share: float) -> str:
+    """A share to one decimal, without rounding a share above zero down to it."""
+    return "<0.1%" if 0 < share < 0.0005 else f"{100 * share:.1f}%"
 
 
 def figure_text(d: dict) -> dict:
@@ -524,9 +533,13 @@ def figure_text(d: dict) -> dict:
     where = "inside" if RHAT_BAND[0] <= rhat <= RHAT_BAND[1] else "outside"
     compact = d["compactness"]
     high, _ = compact["at_or_above"]
-    high_late, _ = compact["at_or_above_after_burn_in"]
     low, _ = compact["below"]
-    commoner = "more" if high > low else "less"
+    high_late, _ = compact["at_or_above_after_burn_in"]
+    low_late, _ = compact["below_after_burn_in"]
+    commoner = "commoner" if high > low else "rarer"
+    agree = sum(1 for _, a, b in compact["per_chain"] if (a > b) == (high > low))
+    where_chains = ("in every chain" if agree == len(compact["per_chain"])
+                    else f"in {agree} of {len(compact['per_chain'])} chains")
     blocks = [100 * v for b in p["batch_means_mcse"].values() for v in b.values()]
     two = p["batch_means_mcse"].get(2, {})
 
@@ -535,11 +548,11 @@ def figure_text(d: dict) -> dict:
         if not p["counts"][x]:
             labels[x] = ("", "no draws")
         elif p["mcse"][x]:
-            labels[x] = (f"{100 * p['shares'][x]:.1f}%",
+            labels[x] = (share_text(p["shares"][x]),
                          f"±{200 * p['mcse'][x]:.1f} pts\n{p['counts'][x]:,} draws")
         else:
             why = "1 chain only" if p["chains_seen"][x] < 2 else "no standard error"
-            labels[x] = (f"{100 * p['shares'][x]:.1f}%", f"{why}\n{p['counts'][x]:,} draws")
+            labels[x] = (share_text(p["shares"][x]), f"{why}\n{p['counts'][x]:,} draws")
 
     beyond = d["alternate_beyond"]
     reach = ""
@@ -575,26 +588,26 @@ def figure_text(d: dict) -> dict:
         "subtitle": [
             f"Democratic seats of {k} under the {CONTEST_NAMES[p['contest']]} vote, "
             f"in {d['n_draws']:,} ReCom draws made without election data",
-            f"{d['n_chains']} of {d['n_chains_requested']} chains "
-            f"({d['n_chains_never_started']} never started, "
-            f"{d['n_chains_stopped_early']} stopped early), each cut to its first "
-            f"{d['rectangle']:,} draws (D-035)",
+            f"{d['n_chains']} of {d['n_chains_requested']} chains, each cut to its first "
+            f"{d['rectangle']:,} draws (D-035); {d['n_chains_never_started']} never "
+            f"started and {d['n_chains_stopped_early']} stopped before {d['rectangle']:,}",
             f"About {p['seat_count_ess']:.0f} effective draws for the seat count",
         ],
         "labels": labels,
         "enacted_x": enacted,
-        "note": (
-            f"▲ {state}'s enacted plan returns {enacted} D seats,\n"
-            f"as {100 * p['shares'][enacted]:.1f}% of these draws do "
-            f"({min(chain_range):.1f}–{max(chain_range):.1f}%\n"
-            f"across chains); its {enacted} turns on one\n"
-            f"district at {100 * d['enacted_closest_share']:.1f}% D. Not like-for-like:\n"
-            "the draws are not held to its population\n"
-            f"equality, and {enacted} seats is {commoner} common among\n"
-            f"draws as uncompact as it (≥{compact['enacted_cut_edges']} cut edges):\n"
-            f"{100 * high:.1f}%, or {100 * high_late:.1f}% after warm-up.\n"
-            "Not yet a finding."
-        ),
+        # wrapped by width like the footer, so longer values cannot push it
+        # off the canvas
+        "note": "\n".join(textwrap.wrap(
+            f"▲ {state}'s enacted plan returns {enacted} D seats, as "
+            f"{share_text(p['shares'][enacted])} of these draws do "
+            f"({min(chain_range):.1f}–{max(chain_range):.1f}% across chains); its "
+            f"{enacted} turns on one district at {100 * d['enacted_closest_share']:.1f}% D. "
+            "Not like-for-like: the draws are not held to its population equality, "
+            f"and {where_chains} {enacted} seats is {commoner} among draws as uncompact "
+            f"as it (≥{compact['enacted_cut_edges']} cut edges) than among the rest: "
+            f"{100 * high:.1f}% against {100 * low:.1f}%, or {100 * high_late:.1f}% "
+            f"against {100 * low_late:.1f}% without each chain's first {BURN_IN_CHECK} "
+            "draws. Not yet a finding.", NOTE_WIDTH)),
         "footer": footer,
     }
 
@@ -653,9 +666,9 @@ def draw(d: dict, out: Path = OUT) -> dict:
                       clip_on=False, zorder=6)
     placed["marker_x"] = marker.get_xdata()[0]
     note = ax.annotate(text["note"], xy=(max(x for x in xs if p["counts"][x]) + WIDTH / 2
-                                         + 0.33, 0.47),
+                                         + 0.33, 0.5),
                        xycoords=("data", "axes fraction"), ha="left", va="center",
-                       color=INK, fontsize=9.5, linespacing=1.35, zorder=6,
+                       color=INK, fontsize=9.5, linespacing=1.25, zorder=6,
                        bbox=dict(facecolor=SURFACE, edgecolor="none", pad=2))
     placed["note_x"] = note.xy[0]
 
@@ -735,6 +748,10 @@ def summary_lines(d: dict) -> list[str]:
                           + f" pts at b={'/'.join(map(str, batch))}") if batch else ""
             lines.append(f"    {s} D: {n:6,d}  {100 * c['shares'][s]:5.2f}%  {mcse}"
                          f"  chains {min(chain):.1f}-{max(chain):.1f}%{batch_text}")
+        if c["all_seats"]:
+            everything = [s for seats in c["all_seats"] for s in seats]
+            lines.append(f"    all {len(everything):,} committed rows: "
+                         + ", ".join(f"{s} D {everything.count(s):,}" for s in c["counts"]))
         for s, se in c["short_run_se"].items():
             lines.append(
                 f"    {s} D, standard error of a {V010_CHAINS}-chain, {V010_LENGTH}-draw "

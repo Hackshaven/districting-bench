@@ -1168,8 +1168,8 @@ agree up to sign and scale, and the efficiency gap does not. PlanScore computes
 the equal-turnout form `(S − ½) − 2(V − ½)`, while `evaluate.partisan` counts
 wasted votes (`docs/progress.md`, "Cross-check against PlanScore"). In
 PlanScore's orientation the two differ by `τ − S`, plus a strict-majority term
-of at most `k/T`, so they agree only where `τ = S`: at equal turnout, and in any
-one-party sweep.
+of at most `k/T`, so they agree whenever `τ = S`, which includes equal turnout
+and any one-party sweep.
 
 *Chosen:* keep the wasted-vote form, correct the docstring that called the two
 the same up to sign, and record how far apart they are on a real plan. Whether
@@ -1191,11 +1191,45 @@ to report both forms is left open below, for the owner.
   passing as the same input. The cost is that the check needs the network, and
   needs PlanScore's storage to stay up.
 
-*How the check is built:* PlanScore's four definitions are transcribed into
-`tools/check_planscore.py` from `planscore/score.py` at 566cda4, the commit both
-pinned files record as having scored them; the four functions read the same at
-3f866f9. Every run checks each conversion against the transcription, the
-efficiency gap against PlanScore's published values, and the identity above
-with `τ` computed from the district totals, so a defect in the wasted-vote count
-fails rather than passing as a difference of definition. The transcription was
-made by reading PlanScore's code; nothing in this repository runs it.
+*How the check is built:* PlanScore's four definitions are re-implemented in
+`tools/check_planscore.py` from the formulas in `planscore/score.py` at 566cda4,
+the commit both pinned files record as having scored them, sign, scale and tie
+rules included; 3f866f9 rewrites the four functions in vectorized form, and they
+compute the same. None of PlanScore's code is copied, and its repository states
+no licence. Every run checks each conversion against the re-implementation, the
+efficiency gap against PlanScore's published values, and the identity above with
+`τ` computed from the district totals, so a defect in the wasted-vote count fails
+rather than passing as a difference of definition. Nothing in this repository
+runs PlanScore's code.
+
+## D-041 — The enacted-plan comparison is not conditioned on population equality or compactness
+
+**Date:** 2026-10-11 · **Phase:** post-release · **VALUE**
+
+The README locates Iowa's enacted plan in the v2 ensemble's seat distribution: it
+returns 0 seats, as 1.43% of the draws do. The comparison is not like-for-like on
+two counts (`docs/progress.md`, "The enacted plan's caveats, now with numbers").
+The draws are not held to the enacted plan's 94-person population spread, and
+only 454 of the 27,564 are that equal. And they are more compact: 88% have fewer
+cut edges than its 51, and in every chain 0 seats is commoner among those with 51
+or more.
+
+*Chosen:* report the unconditioned share with both caveats beside it, and call
+the comparison not yet a finding.
+
+*Alternatives:*
+- **Filter the ensemble to draws as equal, or as uncompact, as the enacted
+  plan.** Not done. A filter shows what goes with more equality or less
+  compactness inside this ensemble, not what a sampler drawing at that tolerance
+  or that compactness produces (Experiment 1 §3), and the filtered samples are
+  small: the 454 population-tight draws hold one zero-seat plan, and among the
+  3,341 draws at 51 or more cut edges the zero-seat share halves once each
+  chain's warm-up is dropped.
+- **Re-sample at the enacted plan's tolerance, or under a compactness
+  constraint.** That is a new experiment with its own name (D-036), and which
+  compactness measure to constrain, and at what level, is itself a normative
+  choice.
+
+*Why this is the owner's:* which features of an enacted plan a neutral ensemble
+must match before a comparison with it counts is a judgment `docs/CRITERIA.md`
+does not settle.

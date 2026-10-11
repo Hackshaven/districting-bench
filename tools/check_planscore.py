@@ -36,7 +36,7 @@ Only the efficiency gap is compared against a *published* PlanScore number,
 because it is the only metric PlanScore computes on actual past results. Its
 headline metrics are averages over elections simulated from its own vote
 model, so no input here could reproduce them. The other three conversions are
-checked against PlanScore's definitions transcribed below --
+checked against PlanScore's definitions, re-implemented below --
 :func:`planscore_mean_median`, :func:`planscore_partisan_bias` and
 :func:`planscore_declination` -- from :data:`PLANSCORE_SOURCE`, the commit both
 files were scored by. This script never runs PlanScore's code.
@@ -58,7 +58,7 @@ Run::
 It writes ``docs/cross-checks/planscore.json`` only when every check passes.
 It exits non-zero and writes nothing if a fetched file no longer matches its
 pin, if the Phase 2 report is not on the 2020 presidential vote, or if a
-published PlanScore number or a transcribed definition cannot be reproduced
+published PlanScore number or a re-implemented definition cannot be reproduced
 from this repository's under the conversions above. See D-040.
 """
 from __future__ import annotations
@@ -84,9 +84,9 @@ REPORT = ROOT / "docs" / "phase-2" / "phase-2-report.json"
 URL = "https://planscore.s3.amazonaws.com/uploads/{id}/index.json"
 
 #: The commit that scored both pinned files (their ``commit_sha``), and the
-#: source the transcribed definitions below follow. The four metric functions
-#: read the same at 3f866f9, the head of PlanScore's main branch when this
-#: check was written.
+#: source whose formulas the definitions below re-implement. 3f866f9, the head of
+#: PlanScore's main branch when this check was written, rewrites the four
+#: metric functions in vectorized form; they compute the same.
 PLANSCORE_COMMIT = "566cda433ab7d145c2c86daf5872aff0cc175707"
 PLANSCORE_SOURCE = (
     f"https://github.com/PlanScore/planscore/blob/{PLANSCORE_COMMIT}/planscore/score.py"
@@ -124,7 +124,7 @@ COMMITTED_CONTEST, COMMITTED_RACE = "G20PRE", "US President 2020"
 #: slack keeps a value exactly half a unit away from failing on representation.
 PUBLISHED_ROUNDING = 5e-5 + 1e-12
 
-#: How closely a transcribed PlanScore definition must match its conversion
+#: How closely a re-implemented PlanScore definition must match its conversion
 #: of ours. Both read the same integers, so only floating point separates them.
 DEFINITION_TOLERANCE = 1e-9
 
@@ -202,9 +202,11 @@ def equal_turnout_gap(dem_seat_share: float, dem_vote_share: float) -> float:
     return (dem_seat_share - 0.5) - 2 * (dem_vote_share - 0.5)
 
 
-# PlanScore's other three definitions, transcribed from PLANSCORE_SOURCE so the
-# conversions can be checked without running fetched code. Each takes district
-# totals in district order and is positive for the Democrats, as PlanScore's is.
+# PlanScore's other three definitions, re-implemented from the formulas in
+# PLANSCORE_SOURCE -- sign, scale and tie rules included -- so the conversions
+# can be checked without running fetched code. None of PlanScore's code is
+# copied: its repository states no licence. Each takes district totals in
+# district order and is positive for the Democrats, as PlanScore's is.
 
 def planscore_mean_median(dem: list[float], rep: list[float]) -> float:
     """``calculate_MMD``: median minus mean of the district D shares."""
@@ -224,10 +226,13 @@ def planscore_partisan_bias(dem: list[float], rep: list[float]) -> float:
 
     A district tied after the swing is a Republican seat, as PlanScore counts it.
     """
-    margin = (sum(dem) - sum(rep)) / (sum(dem) + sum(rep))
+    margin = (math.fsum(dem) - math.fsum(rep)) / (math.fsum(dem) + math.fsum(rep))
     dem50, rep50 = _swing(dem, rep, -margin / 2)
     seats = sum(1 for d, r in zip(dem50, rep50) if r < d)
-    return seats / len(dem50) - sum(dem50) / (sum(dem50) + sum(rep50))
+    # fsum, not sum: the built-in rounds differently from Python 3.12 on, and
+    # the committed record must not depend on which Python wrote it
+    total50 = math.fsum(dem50) + math.fsum(rep50)
+    return seats / len(dem50) - math.fsum(dem50) / total50
 
 
 def planscore_declination(dem: list[float], rep: list[float]) -> float:
@@ -302,7 +307,7 @@ def compare_race(index: dict, race: str) -> dict:
         "declination": declination_in_planscore_convention(
             ours["declination"], dem_seats, k),
     }
-    transcribed = {
+    definitions = {
         "mean_median": planscore_mean_median(dem_list, rep_list),
         "partisan_bias": planscore_partisan_bias(dem_list, rep_list),
         "declination": planscore_declination(dem_list, rep_list),
@@ -310,8 +315,8 @@ def compare_race(index: dict, race: str) -> dict:
     checks = {
         "published_efficiency_gap": _close(predicted, published, PUBLISHED_ROUNDING),
         "efficiency_gap_identity": abs(difference - turnout_term) <= k / total + 1e-12,
-    } | {f"transcribed_{m}": _close(converted[m], value, DEFINITION_TOLERANCE)
-         for m, value in transcribed.items()}
+    } | {f"definition_{m}": _close(converted[m], value, DEFINITION_TOLERANCE)
+         for m, value in definitions.items()}
     return {
         "n_districts": k,
         "dem_seats": dem_seats,
@@ -319,7 +324,7 @@ def compare_race(index: dict, race: str) -> dict:
         "tau": tau,
         "ours": ours,
         "ours_in_planscore_convention": converted,
-        "planscore_definitions_transcribed": transcribed,
+        "planscore_definitions": definitions,
         "planscore_published_efficiency_gap": published,
         "efficiency_gap_terms": {
             "wasted_minus_equal_turnout": difference,
@@ -380,11 +385,11 @@ def check(indexes: dict[str, dict], report: dict) -> tuple[dict, list[str]]:
         if index.get("commit_sha") != PLANSCORE_COMMIT:
             failures.append(f"{state}: scored by PlanScore commit "
                             f"{index.get('commit_sha')}, not the {PLANSCORE_COMMIT} "
-                            "the transcribed definitions follow")
-        present = index["districts"][0]["totals"]
+                            "the re-implemented definitions follow")
         races = {}
         for race in RACES:
-            if f"{race} - DEM" not in present or f"{race} - REP" not in present:
+            if not all(f"{race} - {party}" in d["totals"] for d in index["districts"]
+                       for party in ("DEM", "REP")):
                 failures.append(f"{state} {race}: PlanScore's file has no totals")
                 continue
             races[race] = compare_race(index, race)
@@ -480,8 +485,8 @@ def summary_lines(result: dict) -> list[str]:
                         f"{plan['population_minus_documented']}"))
         for race, r in plan["races"].items():
             conv, terms = r["ours_in_planscore_convention"], r["efficiency_gap_terms"]
-            transcribed = [m for m in r["planscore_definitions_transcribed"]
-                           if not r["checks"][f"transcribed_{m}"]]
+            differ = [m for m in r["planscore_definitions"]
+                      if not r["checks"][f"definition_{m}"]]
             lines.append(
                 f"  {race}: {r['dem_seats']}/{r['n_districts']} D, "
                 f"V {r['dem_vote_share']:.4f}, tau {r['tau']:.4f} | PlanScore EG "
@@ -493,7 +498,7 @@ def summary_lines(result: dict) -> list[str]:
                 f"{_signed(terms['threshold_term'], 7)} "
                 f"{'ok' if r['checks']['efficiency_gap_identity'] else 'NOT AN IDENTITY'}"
                 f" | MM, PB, D2 against PlanScore's definitions: "
-                + ("ok" if not transcribed else "DIFFER: " + ", ".join(transcribed))
+                + ("ok" if not differ else "DIFFER: " + ", ".join(differ))
             )
         if plan["phase_2_report"]:
             diffs = plan["phase_2_report"]["differences"]
@@ -517,12 +522,12 @@ def main(argv=None) -> int:
     try:
         indexes = {state: fetch(*PLANS[state]) for state in PLANS}
         result, failures = check(indexes, json.loads(REPORT.read_text()))
+        phase_2 = result["plans"][APPROXIMATED]["phase_2_report"]
+        if phase_2:
+            result["ensemble_location"] = ensemble_location(APPROXIMATED, phase_2)
     except (ValueError, OSError) as refusal:
         print(f"refused: {refusal}", file=sys.stderr)
         return 1
-    phase_2 = result["plans"][APPROXIMATED]["phase_2_report"]
-    if phase_2:
-        result["ensemble_location"] = ensemble_location(APPROXIMATED, phase_2)
     for line in summary_lines(result):
         print(line)
     if failures:

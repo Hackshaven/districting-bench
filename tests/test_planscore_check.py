@@ -156,18 +156,25 @@ def test_a_race_missing_from_the_file_fails_cleanly():
     assert failures == [f"CO {C.RACES[0]}: PlanScore's file has no totals"]
     assert result["plans"]["CO"]["phase_2_report"] is None
     C.summary_lines(result)
+    # missing from one district only, not the first
+    index = planscore_index()
+    del index["districts"][2]["totals"][f"{C.RACES[3]} - REP"]
+    _, failures = C.check({"CO": index}, {"CO": phase_2_report()})
+    assert failures == [f"CO {C.RACES[3]}: PlanScore's file has no totals"]
 
 
-def test_a_defect_in_the_wasted_vote_count_fails(monkeypatch):
+@pytest.mark.parametrize("extra", [50, 5])
+def test_a_defect_in_the_wasted_vote_count_fails(monkeypatch, extra):
     # The published gap is reproduced from seats and votes alone, so it cannot
-    # see a wrong wasted-vote count. The identity with tau can.
+    # see a wrong wasted-vote count. The identity with tau can, down to a few
+    # votes: 5 more in each of two districts is 10 of 4,000, past k/T = 0.001.
     honest = P.wasted_votes
 
     def overcounted(plan, dem, rep, *, threshold="majority"):
-        # 50 more wasted Democratic votes in every district the Democrats win
+        # more wasted Democratic votes in every district the Democrats win
         wasted = honest(plan, dem, rep, threshold=threshold)
         totals = P.district_votes(plan, dem, rep)
-        return {d: (w_d + 50 if totals[d][0] > totals[d][1] else w_d, w_r)
+        return {d: (w_d + extra if totals[d][0] > totals[d][1] else w_d, w_r)
                 for d, (w_d, w_r) in wasted.items()}
 
     monkeypatch.setattr(P, "wasted_votes", overcounted)
@@ -184,10 +191,26 @@ def test_a_conversion_with_the_wrong_sign_fails(monkeypatch, metric):
     assert honest(*as_plan(LOPSIDED)) != 0
     monkeypatch.setattr(P, metric, lambda *a, **k: -honest(*a, **k))
     _, failures = run(districts=LOPSIDED)
-    assert failures and all(f"transcribed_{metric}" in f for f in failures)
+    assert failures and all(f"definition_{metric}" in f for f in failures)
 
 
-def test_each_transcribed_definition_reads_on_paper():
+@pytest.mark.parametrize("metric", ["mean_median", "partisan_bias", "declination"])
+def test_a_conversion_a_millionth_off_fails(monkeypatch, metric):
+    # Both sides read the same integers, so the tolerance is float error, not
+    # rounding: a millionth is already a different definition.
+    honest = getattr(P, metric)
+    monkeypatch.setattr(P, metric, lambda *a, **k: honest(*a, **k) + 1e-6)
+    _, failures = run(districts=LOPSIDED)
+    assert failures and all(f"definition_{metric}" in f for f in failures)
+
+
+def test_planscore_counts_a_tie_after_the_swing_as_republican():
+    # 50-50 statewide, so no swing; district 1 ties and is not a Democratic seat
+    assert C.planscore_partisan_bias([500, 700, 300], [500, 300, 700]) == pytest.approx(
+        1 / 3 - 1 / 2)
+
+
+def test_each_planscore_definition_reads_on_paper():
     dem, rep = [d for d, _ in UNEQUAL.values()], [r for _, r in UNEQUAL.values()]
     # D shares 0.6, 0.3, 0.6, 0.4: median 0.5, mean 0.475
     assert C.planscore_mean_median(dem, rep) == pytest.approx(0.025)
@@ -209,13 +232,13 @@ def test_a_sweep_passes_with_ours_undefined():
     assert failures == []
     race = result["plans"]["CO"]["races"]["US President 2020"]
     assert race["ours"]["declination"] is None
-    assert race["planscore_definitions_transcribed"]["declination"] == pytest.approx(
+    assert race["planscore_definitions"]["declination"] == pytest.approx(
         -math.log(4) / 2)
 
 
 def test_fractional_totals_are_read_as_whole_votes_on_both_sides():
     # PlanScore's totals are fractional. evaluate.partisan truncates them and
-    # the transcribed definitions would not, so the script rounds first; read
+    # the re-implemented definitions would not, so the script rounds first; read
     # unrounded, the two sides would differ by far more than float error.
     fractional = {d: (dv + 0.6, rv + 0.6) for d, (dv, rv) in UNEQUAL.items()}
     result, failures = run(districts=fractional)
@@ -247,6 +270,11 @@ def test_iowa_must_match_the_phase_2_report():
     index = planscore_index(populations=dict(C.ENACTED_POPULATIONS["IA"]))
     _, failures = C.check({"IA": index}, {"IA": phase_2_report(EQUAL)})
     assert "IA efficiency_gap" in " ".join(failures)
+    # and the tolerance is a few votes, not a different election: 2e-4 fails
+    report = phase_2_report()
+    report["partisan"]["efficiency_gap"] += 2e-4
+    _, failures = C.check({"IA": index}, {"IA": report})
+    assert len(failures) == 1 and failures[0].startswith("IA efficiency_gap")
 
 
 def test_a_file_scored_by_another_commit_fails():
@@ -303,6 +331,14 @@ def test_main_refuses_without_writing_when_a_pin_fails(monkeypatch, tmp_path):
     def wrong(plan_id, sha256):
         raise ValueError("no longer matches its pin")
     code, out = _main(monkeypatch, tmp_path, fetch=wrong)
+    assert code == 1 and not out.exists()
+
+
+def test_main_refuses_without_writing_when_the_ensemble_is_missing(monkeypatch, tmp_path):
+    def missing(state, phase_2):
+        raise FileNotFoundError("no draws file")
+    monkeypatch.setattr(C, "ensemble_location", missing)
+    code, out = _main(monkeypatch, tmp_path)
     assert code == 1 and not out.exists()
 
 
