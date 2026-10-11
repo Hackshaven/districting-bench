@@ -13,7 +13,7 @@ map adoption.**
 
 ## First result
 
-![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws, 1 seat in 49.0% and 2 seats in 49.5%, each with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats; the figure's note gives the reasons that comparison is not like-for-like and not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
+![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws, 1 seat in 49.0% and 2 seats in 49.5%, each with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats; the figure's note gives the reason that comparison is not like-for-like, with compactness as context, and calls it not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
 
 Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020

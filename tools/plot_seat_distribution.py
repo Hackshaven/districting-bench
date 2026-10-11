@@ -72,6 +72,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.text import Text
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -448,6 +449,8 @@ def seat_distribution() -> dict:
     late_above, late_below = by_cut(late)
     def cut_edge_profile(selected):
         edges = [row["cut_edges"] for row in selected]
+        if not edges:
+            return None
         return (statistics.fmean(edges), sum(1 for e in edges if e >= cut) / len(edges),
                 len(edges))
 
@@ -551,7 +554,16 @@ def figure_text(d: dict) -> dict:
     compact = d["compactness"]
     high, _ = compact["at_or_above"]
     low, _ = compact["below"]
-    commoner = "commoner" if high > low else "rarer"
+    # population is the reason the comparison is not like-for-like; compactness
+    # is context only (D-041), and its comparison needs draws on both sides
+    context = ("Compactness is context, not an adjustment (D-041): the plan is less "
+               f"compact than {100 * compact['more_compact_share']:.0f}% of the draws")
+    if high is not None and low is not None:
+        commoner, move = (("commoner", "raise") if high > low else
+                          ("rarer", "lower") if high < low else ("no commoner", "not change"))
+        context += (f", and {enacted} seats is {commoner} among draws at least as uncompact "
+                    f"as it, so comparing it only with those would {move} the "
+                    f"{enacted}-seat share whether or not it was drawn for that outcome")
     blocks = [100 * v for b in p["batch_means_mcse"].values() for v in b.values()]
     two = p["batch_means_mcse"].get(2, {})
 
@@ -593,8 +605,10 @@ def figure_text(d: dict) -> dict:
         "share. Whiskers and ±: 2 Monte Carlo standard errors of the pooled share, from "
         f"its effective sample size{block}. Seat count split R-hat {rhat:.3f}, {where} "
         f"CRITERIA §8's {RHAT_BAND[0]:.2f}–{RHAT_BAND[1]:.2f} band"
-        + (f", on {per_split:.0f} effective draws per split chain, below the "
-           f"{RHAT_MIN_ESS_PER_SPLIT} Vehtari et al. (2021) ask for before relying on it"
+        + (f"; {per_split:.0f} effective draws per split chain are below the "
+           f"{RHAT_MIN_ESS_PER_SPLIT} Vehtari et al. (2021) ask for before relying on "
+           "R-hat, so it settles convergence neither way, and these standard errors may "
+           "understate the uncertainty"
            if per_split < RHAT_MIN_ESS_PER_SPLIT else "")
         + ". Regenerate: tools/plot_seat_distribution.py, from committed files only.",
         FOOTER_WIDTH)
@@ -611,16 +625,14 @@ def figure_text(d: dict) -> dict:
         "labels": labels,
         "enacted_x": enacted,
         # wrapped by width like the footer, so longer values cannot push it
-        # off the canvas
+        # off the canvas, with the last line standing on its own
         "note": "\n".join(textwrap.wrap(
             f"▲ {state}'s enacted plan returns {enacted} D seats, as "
             f"{share_text(p['shares'][enacted])} of these draws do "
             f"({min(chain_range):.1f}–{max(chain_range):.1f}% across chains); its "
             f"{enacted} turns on one district at {100 * d['enacted_closest_share']:.1f}% D. "
-            "Not like-for-like: the draws are not held to its population equality. "
-            f"The plan is also less compact than {100 * compact['more_compact_share']:.0f}% of "
-            f"them, and {enacted} seats is {commoner} among less compact draws. "
-            "Not yet a finding.", NOTE_WIDTH)),
+            f"Not like-for-like: the draws are not held to its population equality. {context}.",
+            NOTE_WIDTH) + ["Not yet a finding."]),
         "footer": footer,
     }
 
@@ -636,7 +648,8 @@ def draw(d: dict, out: Path = OUT) -> dict:
     offsets = chain_offsets(d["n_chains"])
     placed = {"whiskers": {}, "label_y": {}}
 
-    fig, ax = plt.subplots(figsize=(8.2, 6.0), dpi=200)
+    # tall enough that the note, the longest text, clears the labels under it
+    fig, ax = plt.subplots(figsize=(8.2, 6.8), dpi=200)
     fig.patch.set_facecolor(SURFACE); ax.set_facecolor(SURFACE)
 
     bars = ax.bar(xs, pct, width=WIDTH, color=HUE, zorder=2)
@@ -713,6 +726,14 @@ def draw(d: dict, out: Path = OUT) -> dict:
     for i, line in enumerate(footer):
         fig.text(left, 0.008 + 0.024 * (len(footer) - 1 - i), line, color=MUTED,
                  fontsize=9, va="bottom")
+    # every string as rendered, in pixels from the canvas's lower left, so the
+    # tests can hold each one to the canvas whatever the wrap widths are
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    placed["canvas"] = (fig.bbox.width, fig.bbox.height)
+    placed["text_extents"] = [(t.get_text(), tuple(t.get_window_extent(renderer).extents))
+                              for t in fig.findobj(Text)
+                              if t.get_visible() and t.get_text().strip()]
     fig.savefig(out, facecolor=SURFACE)
     plt.close(fig)
     return placed
@@ -828,11 +849,14 @@ def summary_lines(d: dict) -> list[str]:
         f"{_pct(compact['below_after_burn_in'][0])}; by chain (at or above / below) "
         + ", ".join(f"{i}: {_pct(a)}/{_pct(b)}" for i, a, b in compact["per_chain"]),
         f"    {_pct(compact['more_compact_share'])} of draws have fewer cut edges than "
-        f"the enacted plan; the {compact['as_equal_profile'][2]} at <= {ENACTED_SPREAD} "
-        f"persons average {compact['as_equal_profile'][0]:.1f} cut edges, "
-        f"{_pct(compact['as_equal_profile'][1])} at >= {compact['enacted_cut_edges']}, "
-        f"against {compact['rest_profile'][0]:.1f} and "
-        f"{_pct(compact['rest_profile'][1])} for the other {compact['rest_profile'][2]:,}",
+        f"the enacted plan; "
+        + (f"the {compact['as_equal_profile'][2]} at <= {ENACTED_SPREAD} "
+           f"persons average {compact['as_equal_profile'][0]:.1f} cut edges, "
+           f"{_pct(compact['as_equal_profile'][1])} at >= {compact['enacted_cut_edges']}, "
+           f"against {compact['rest_profile'][0]:.1f} and "
+           f"{_pct(compact['rest_profile'][1])} for the other {compact['rest_profile'][2]:,}"
+           if compact["as_equal_profile"] and compact["rest_profile"] else
+           f"no profile: no draws on one side of {ENACTED_SPREAD} persons"),
         f"enacted plan: {d['enacted_dem_seats']} D seats ({CONTEST}); closest "
         f"district {d['enacted_closest_district']} at {d['enacted_closest_share']:.6f}",
     ]

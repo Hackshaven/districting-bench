@@ -160,8 +160,15 @@ def test_the_enacted_plan_caveats_are_pinned(dist):
 
 
 def test_zero_seat_plans_in_the_warm_up_are_one_chain_s_excursion(dist):
-    early = [w[0] for w in dist["primary"]["warm_up_counts"]]
-    assert dict(zip(dist["chain_index"], early)) == {0: 2, 1: 0, 2: 21, 5: 0, 6: 89, 10: 0}
+    early = dict(zip(dist["chain_index"], dist["primary"]["warm_up_counts"]))
+    assert {i: w[0] for i, w in early.items()} == {0: 2, 1: 0, 2: 21, 5: 0, 6: 89, 10: 0}
+    # the whole window, so its length is pinned too
+    assert early == {
+        0: {0: 2, 1: 314, 2: 184, 3: 0, 4: 0}, 1: {0: 0, 1: 111, 2: 389, 3: 0, 4: 0},
+        2: {0: 21, 1: 261, 2: 218, 3: 0, 4: 0}, 5: {0: 0, 1: 320, 2: 180, 3: 0, 4: 0},
+        6: {0: 89, 1: 290, 2: 121, 3: 0, 4: 0}, 10: {0: 0, 1: 280, 2: 220, 3: 0, 4: 0},
+    }
+    assert all(sum(w.values()) == S.BURN_IN_CHECK for w in early.values())
 
 
 def test_under_the_senate_vote_two_plans_early_in_one_chain_reach_3(dist):
@@ -300,11 +307,15 @@ def test_the_figure_text_is_pinned(dist):
     note = " ".join(text["note"].split())
     for phrase in ("returns 0 D seats", "as 1.4% of these draws do (0.4–2.5% across "
                    "chains)", "on one district at 49.8% D",
-                   "not held to its population equality",
-                   "The plan is also less compact than 88% of them, and 0 seats is commoner "
-                   "among less compact draws",
-                   "Not yet a finding"):
+                   "Not like-for-like: the draws are not held to its population equality. "
+                   "Compactness is context, not an adjustment (D-041): the plan is less "
+                   "compact than 88% of the draws, and 0 seats is commoner among draws at "
+                   "least as uncompact as it, so comparing it only with those would raise "
+                   "the 0-seat share whether or not it was drawn for that outcome."):
         assert phrase in note
+    # the last line stands on its own, and no line outruns the wrap width
+    assert text["note"].splitlines()[-1] == "Not yet a finding."
+    assert all(len(line) <= S.NOTE_WIDTH for line in text["note"].splitlines())
     footer = " ".join(text["footer"])
     for phrase in ("0–2 D seats of 4; none reached 3 or 4",
                    "2020 Senate vote, 8 draws reach 3: 2 distinct plans, all in "
@@ -322,15 +333,33 @@ def test_the_figure_text_follows_the_values(dist):
     d["primary"]["seat_count_split_rhat"] = 1.004
     assert "R-hat 1.004, inside" in " ".join(S.figure_text(d)["footer"])
     # the caution about relying on R-hat is read off the effective sample size
-    assert "on 24 effective draws per split chain, below the 50 Vehtari et al. " \
-           "(2021) ask for" in " ".join(" ".join(S.figure_text(dist)["footer"]).split())
+    assert ("24 effective draws per split chain are below the 50 Vehtari et al. (2021) "
+            "ask for before relying on R-hat, so it settles convergence neither way, and "
+            "these standard errors may understate the uncertainty") in " ".join(
+        " ".join(S.figure_text(dist)["footer"]).split())
     d["primary"]["seat_count_ess"] = 5_000
-    assert "Vehtari" not in " ".join(S.figure_text(d)["footer"])
+    footer = " ".join(S.figure_text(d)["footer"])
+    assert "Vehtari" not in footer and "understate" not in footer
     compact = d["compactness"]
     compact["at_or_above"], compact["below"] = compact["below"], compact["at_or_above"]
     compact["more_compact_share"] = 0.25
     note = " ".join(S.figure_text(d)["note"].split())
-    assert "less compact than 25% of them, and 0 seats is rarer among less compact" in note
+    assert ("less compact than 25% of the draws, and 0 seats is rarer among draws at least "
+            "as uncompact as it, so comparing it only with those would lower the 0-seat "
+            "share") in note
+    # equal shares are neither commoner nor rarer
+    compact["below"] = compact["at_or_above"]
+    note = " ".join(S.figure_text(d)["note"].split())
+    assert "0 seats is no commoner among" in note
+    assert "would not change the 0-seat share" in note
+    # with no draw as uncompact as the plan there is nothing to compare, and the
+    # summary still prints without the population-tight draws' profile
+    compact["at_or_above"], compact["as_equal_profile"] = (None, 0), None
+    text = S.figure_text(d)
+    assert "less compact than 25% of the draws." in " ".join(text["note"].split())
+    assert "uncompact" not in text["note"]
+    assert text["note"].splitlines()[-1] == "Not yet a finding."
+    assert any("no profile" in line for line in S.summary_lines(d))
 
 
 def test_a_share_above_zero_is_never_printed_as_zero():
@@ -348,6 +377,17 @@ def test_the_figure_draws_what_the_text_says(dist, tmp_path):
     assert placed["marker_x"] == dist["enacted_dem_seats"]
     # the note sits right of every bar a draw reached, never on one
     assert placed["note_x"] > 2 + S.WIDTH / 2
+    # every string lies on the canvas as rendered, whatever the wrap widths,
+    # and the note, the longest, covers none of the others
+    width, height = placed["canvas"]
+    for text, (x0, y0, x1, y1) in placed["text_extents"]:
+        assert 0 <= x0 and x1 <= width and 0 <= y0 and y1 <= height, text
+    (note,) = [box for text, box in placed["text_extents"]
+               if text.endswith("Not yet a finding.")]
+    for text, box in placed["text_extents"]:
+        if box != note:
+            assert not (note[0] < box[2] and box[0] < note[2]
+                        and note[1] < box[3] and box[1] < note[3]), text
 
 
 def test_an_outcome_seen_in_one_chain_draws_without_a_whisker(dist, tmp_path):
