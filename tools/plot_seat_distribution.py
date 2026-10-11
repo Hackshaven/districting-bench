@@ -39,28 +39,28 @@ Folding the sign away brings the levels closer than ``1/k``: on Iowa the 1- and
 :func:`recover_seats` therefore checks two things, and it is the checks, not
 nearness, that make the reading a measurement:
 
-* **Sweeps are exact, to the half vote.** A plan the Democrats win none (or all)
-  of sits off its level only by the strict-majority threshold the committed gap
-  uses: each district's winner wastes one vote fewer when its total is even and
-  half a vote fewer when it is odd. Over ``k`` districts that is ``k - j/2``
-  votes, ``j`` the number of odd totals, and ``j`` has the parity of the
-  statewide total ``T``. While ``V`` lies between 1/4 and 3/4 the offset puts a
-  sweep above its level, never below. Every draw read as a sweep must sit above
-  its level by a value on that grid. The grid is necessary, not sufficient: a
-  plan that is not a sweep can land on it too, but only if the districts the
-  Democrats win cast ``4V - 1`` of the two-party vote, to within a few votes.
-  Under Iowa's 2020 presidential vote that is 83%: a turnout imbalance of
-  0.083 at 3 seats, 0.333 at 2 and 0.583 at 1, where no draw read as 1 or 2
-  seats sits more than 0.0143 off its level. So the 0-seat count the
-  enacted-plan comparison rests on is a reading under the same turnout
-  assumption as the others, with more room, and only a recount from the plans
-  and the returns would verify it.
+* **A draw read as a sweep must sit on a half-vote grid.** A plan the Democrats
+  win none (or all) of sits off its level only by the strict-majority threshold
+  the committed gap uses: each district's winner wastes one vote fewer when its
+  total is even and half a vote fewer when it is odd. Over ``k`` districts that
+  is ``k - j/2`` votes, ``j`` the number of odd totals, and ``j`` has the parity
+  of the statewide total ``T``. While ``V`` lies between 1/4 and 3/4 the offset
+  puts a sweep above its level, never below. The grid is necessary, not
+  sufficient. With ``V`` below 1/2, as under both Iowa contests, a plan that is
+  not a sweep never lands on the ``k``-seat grid, and lands on the 0-seat one
+  only if the districts the Democrats win cast ``4V - 1`` of the two-party vote,
+  to within a few votes: under Iowa's 2020 presidential vote, one of six totals,
+  1,379,512 to 1,379,517 of 1,656,733. Any other plan whose gap lands
+  nearest the 0-seat level is refused. So the 0-seat count the enacted-plan
+  comparison rests on is a reading, though a harder one to get wrong than the
+  1-versus-2 split, and only a recount from the plans and the returns would
+  verify it.
 * **Every other draw needs a clear margin.** It must sit within half of the
   half-gap of its level, so the middle of every gap must be empty. A 1-seat plan
   is misread as 2 only if its one Democratic district casts over 31% of the
-  state's two-party votes against an equal-turnout 25%, four times the largest
-  imbalance in these draws; anything between that and the margin is refused,
-  not assigned.
+  state's two-party vote against an equal-turnout 25%, a turnout term of 0.062:
+  three times the margin, and four times the largest residual in these draws.
+  Anything between that and the margin is refused, not assigned.
 
 The chains are drawn, not only the pool: six chains that disagree about the
 2-seat share by 17 points are the uncertainty a pooled bar hides. Whiskers are

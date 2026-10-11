@@ -20,6 +20,7 @@ No data guard: every file read here is committed.
 from __future__ import annotations
 
 import copy
+import itertools
 import json
 import sys
 from pathlib import Path
@@ -234,32 +235,65 @@ def test_every_sweep_sits_on_the_half_vote_grid(dist, levels):
     assert dist["alternate"]["total_votes"] % 2 == 0
     assert dist["alternate"]["sweeps_on_grid"] == {2.0: 23, 3.0: 222, 4.0: 25}
     # The grid is necessary, not sufficient, so the 0-seat count the
-    # enacted-plan comparison quotes is a reading like the others (D-039). On
-    # Iowa's statewide totals, a plan the Democrats win 2 of lands on it when
-    # the districts they win cast 4V - 1 of the vote, 83%: a turnout term of
-    # 0.333, where no draw read as 1 or 2 seats sits more than 0.0143 off.
+    # enacted-plan comparison quotes is a reading, not a count (D-039). On
+    # Iowa's statewide totals, district vote totals that give the Democrats 2
+    # seats land on it when the districts they win cast 4V - 1 of the vote, 83%,
+    # to within a few votes: a turnout term of 0.333.
     votes = {"d1": (350_000, 339_756), "d2": (350_000, 339_758),
              "d3": (29_000, 109_609), "d4": (30_061, 108_549)}
     dem, rep = S.TWO_PARTY["G20PRE"]
     assert tuple(map(sum, zip(*votes.values()))) == (dem, rep)
-    gap = P.efficiency_gap({u: int(u[1]) for u in votes},
-                           {u: v[0] for u, v in votes.items()},
-                           {u: v[1] for u, v in votes.items()})
+    plan = {u: int(u[1]) for u in votes}
+    dem_votes = {u: v[0] for u, v in votes.items()}
+    rep_votes = {u: v[1] for u, v in votes.items()}
+    assert P.seat_counts(plan, dem_votes, rep_votes) == (2, 2, 0)
+    gap = P.efficiency_gap(plan, dem_votes, rep_votes)
     seats, diagnostics = S.recover_seats([abs(gap)], levels, IOWA_VOTES)
     assert (seats, diagnostics["sweeps_on_grid"]) == ([0], {3.5: 1})
     won = sum(d + r for d, r in votes.values() if d > r)
-    assert abs(won - (4 * dem - IOWA_VOTES)) <= K
-    assert (won / IOWA_VOTES, won / IOWA_VOTES - 2 / K) == pytest.approx(
-        (0.833, 0.333), abs=5e-4)
+    terms = {s: 4 * dem / IOWA_VOTES - 1 - s / K for s in (1, 2, 3)}
+    assert terms == pytest.approx({1: 0.583, 2: 0.333, 3: 0.083}, abs=5e-4)
+    assert won / IOWA_VOTES - 2 / K == pytest.approx(terms[2], abs=1e-5)
+    # Every way in, from the identity evaluate.partisan.wasted_votes states: a
+    # plan that is not a sweep reads as 0 only if the votes cast where the
+    # Democrats win are 4D - T plus the grid offset plus the threshold term
+    # (each district's winner wastes 1 vote fewer at an even total, 1/2 at an
+    # odd one). Over every seat count and parity pattern that leaves six totals,
+    # the ones D-039 quotes; the plan above casts the third.
+    base = 4 * dem - IOWA_VOTES
+    totals = set()
+    for s in (1, 2, 3):
+        for odd in itertools.product((0, 1), repeat=K):
+            if sum(odd) % 2 != IOWA_VOTES % 2:
+                continue
+            threshold = (sum(1 - o / 2 for o in odd[s:])
+                         - sum(1 - o / 2 for o in odd[:s]))
+            for offset in S.sweep_grid(K, IOWA_VOTES):
+                cast = base + offset + threshold
+                if cast == int(cast) and int(cast) % 2 == sum(odd[:s]) % 2:
+                    totals.add(int(cast))
+    assert sorted(totals) == list(range(1_379_512, 1_379_518))
+    assert won == 1_379_514
 
 
-def test_every_other_draw_keeps_a_wide_margin(dist):
+def test_every_other_draw_keeps_a_wide_margin(dist, levels):
     # recover_seats refuses beyond MARGIN of the half-gap. The data sit much
     # closer than that, and docs/progress.md quotes how much closer.
     p = dist["primary"]
     assert p["max_residual"] == pytest.approx(0.0143, abs=1e-4)
     assert p["max_residual"] < 0.35 * p["half_gap"]
+    assert p["half_gap"] == pytest.approx(0.0413, abs=1e-4)
     assert p["residual_sd"] == pytest.approx({1: 0.0020, 2: 0.0030}, abs=1e-4)
+    # A 1-seat plan is read as 2 from a turnout term of 0.062 (its district
+    # casting over 31% of the vote) to 0.103, a band about 68,000 votes wide.
+    # The 0.062 is three times the margin by construction, and four times the
+    # largest residual by measurement (D-039).
+    margin = S.MARGIN * p["half_gap"]
+    edge, top = levels[1] - levels[2] - margin, levels[1] - levels[2] + margin
+    assert (edge, 0.25 + edge, top) == pytest.approx((0.062, 0.312, 0.103), abs=5e-4)
+    assert round((top - edge) * IOWA_VOTES, -3) == 68_000
+    assert edge / margin == pytest.approx(3.0)
+    assert int(edge / p["max_residual"]) == 4
 
 
 @pytest.mark.parametrize("state", ["IA", "CO"])

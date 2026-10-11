@@ -1746,3 +1746,268 @@ support it first gave the 2.4%, its quotation of *Karcher v. Daggett*, its accou
 of how the sampler's per-district tolerance relates to the spread, and a README
 sentence that left a lay reader to infer the enacted plan's purpose. The README
 paragraph was also rewritten for readers outside the field.
+
+---
+
+# Fourth audit — the 0-seat reading, after review of pull request #7
+
+GitHub Copilot's automated review of pull request #7, at commit `1cc22f8`, showed
+that the half-vote grid D-039 relied on to call the 0-seat count verified is
+necessary, not sufficient: it constructed district vote totals that give the
+Democrats 2 of 4 seats and land on the grid. Commit `ef1060c` withdrew "verified"
+from D-039, `docs/progress.md` and the plotter. A corrected claim goes through the
+audit first (D-007), sized to a corrected claim: one auditor, and one refuter for
+its four allegations.
+
+- **Audited state:** commit `ef1060c`. Line numbers in the reports refer to it.
+- **Auditor:** the `Statistician` agent, a fresh instance, with an inference lens.
+- **Refuter:** a `Computational Redistricting Scientist` agent, a fresh instance
+  told to default to "refuted" and to reproduce every number with its own code
+  before agreeing.
+
+Both reports are verbatim. The last section is the author's response, and is not
+part of either report. The same commit also went to the `Code Reviewer`, the
+`Computational Redistricting Scientist`, the `Pre-Submission Peer Reviewer`, the
+`Technical Writer` and the `Scientific Visualization Reviewer`; their findings are
+answered in the same revision and are not reproduced here.
+
+---
+
+## Fourth auditor — Statistician
+
+## Instrument audit, inference lens: the corrected 0-seat claim (git diff 1cc22f8 HEAD)
+
+**Verdict:** The arithmetic of the correction is right, and "only a recount would verify it" is right as a statement about proof. Four problems remain:
+- The sentence that ends with "only a recount would verify it" now **understates** the 0-seat count. The difference from the other counts is one of kind, not only of distance.
+- The recount D-039 points to would **not** verify the 0-seat count.
+- The 0.0143 yardstick is a residual measured after the readings it is used to defend, and it is selected.
+- Nothing in the changed text reads as a verdict.
+
+I reproduced everything below from committed files. The plotter exits 0 and the two changed tests pass. My scripts and outputs are in `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/audit4-stat/` (`probe.py` to `probe4.py`, `probe-out.txt`, `plotter-stdout.txt`). Nothing was written in the repo.
+
+### Allegations
+
+**1. "Rests on the turnout assumption like the others, with more room" understates the evidence in kind.**
+- **Where:** `docs/progress.md:2414-2417`, `docs/DECISIONS.md:1139-1141`, `tools/plot_seat_distribution.py:53-57`, `tests/test_seat_distribution.py:236-237` ("a reading like the others").
+- **Why it is wrong:** the sentence compares distance only. The two kinds of misread need different things, and fail differently on a near miss.
+  - **1 vs 2 seats:** a misread is admitted silently for any turnout term from 0.062 to 0.103. That band is 0.041 wide, about 68,000 votes.
+  - **A non-sweep entering the 0 bar:** admitted only if the districts the Democrats win total 1,379,511 plus 0 to 6 votes. The exact window is 3 to 6 at 1 seat, 1.5 to 4.5 at 2, and 0 to 3 at 3. In turnout-term units that target is about 4e-6 wide.
+  - **A near miss:** any other value in the 0 bar's window (|EG| from 0.375 to 0.500, residuals from −68,000 to +139,000 votes) makes `recover_seats` refuse the whole sample (`plot_seat_distribution.py:192-202`).
+  - So if the turnout assumption failed, the 0 bar would show it as a refusal, while the 1-vs-2 split could pass it silently. That is the opposite of "like the others".
+- **What the committed data show:**
+  - **No refusals.** Under the presidential vote, none over all 57,553 committed rows (the plotter reads them all). Under the Senate vote, none either: I read all rows; the plotter reads only the rectangle.
+  - **Nothing near the 0 bar.** No non-sweep has |EG| above 0.1730. The nearest sits 0.243 (about 403,000 votes) below the 0-seat level.
+  - **The binding 3-seat case.** The only 3-seat plans observed (the Senate vote's 8 draws, 2 plans) carry a turnout term of 0.007, against the 0.083 a misread would need.
+  - **The Senate vote.** 194 of the 395 also sit exactly on the Senate sweep grid. The other 201 read as 1 or 2 Senate seats, within 0.006 of their levels.
+- **Smallest fix:** replace the clause with something like: "is a reading too, but a harder one to get wrong: a non-sweep is admitted only on one of a few vote totals, and one that came near and missed would stop the plotter, which no committed row does". In the test comment, change "a reading like the others" to "a reading, not a count".
+
+**2. The recount D-039 names would not verify the 0-seat count.**
+- **Where:** `docs/DECISIONS.md:1141` ("only the recount above would verify it") points to `docs/DECISIONS.md:1119-1121` ("A one-time recount of one chain would turn this reading into a verified count").
+- **Why it is wrong:**
+  - **One chain cannot cover the 395.** They are spread over all six chains: 68, 70, 76, 48, 113 and 20 (chains 0, 1, 2, 5, 6, 10). One chain covers at most 113.
+  - **A one-chain recount verifies only that chain.** For the other five chains it tests the method; it does not verify their readings.
+  - **The 0-seat reading can only overcount.** A true sweep always lands on its grid point and is always read as 0. The plotter refuses a bad draw rather than dropping it. So the count can be too high, never too low.
+  - **A recount of only the draws read as 0 is enough.** That is 395 draws, at least 97 distinct plans counted by distinct metric rows. It would verify the count outright, whatever the other draws hold.
+- **Smallest fix:**
+  - At `:1141`: "only a recount of the draws read as 0 would verify it (every sweep is read as one, so the count can be too high, not too low)".
+  - At `:1120-1121`: "would verify that chain's readings and test the method on the rest".
+
+**3. The 0.0143 yardstick is a residual measured after the readings, and it is selected.**
+- **Where:**
+  - `docs/DECISIONS.md:1145` ("four times the largest imbalance in the data")
+  - `docs/progress.md:2424-2425` ("four times the largest in these draws")
+  - `tools/plot_seat_distribution.py:61-62` ("four times the largest imbalance in these draws")
+  - Used as evidence for the 0 bar at `progress.md:2414-2415`, `plot_seat_distribution.py:53-54` and `tests/test_seat_distribution.py:240`.
+- **Why it is unsupported:** a residual is measured from the level a draw was assigned to. It equals the draw's turnout term only if the reading is right.
+- **The selection effect (Q1):**
+  - **Draws read as 0 are excluded.** Any non-sweep read as 0 is outside the population 0.0143 is computed on, by construction. So 0.0143 says nothing directly about the turnout term of draws read as sweeps. It bears on them only through the assumption that all plans share one turnout distribution, which is the turnout assumption itself. The evidence that doesn't need that assumption is in allegation 1.
+  - **1-vs-2 misreads stay in, at small residuals.** The draw that sets the 0.0143 (chain 2, draw 667, |EG| 0.09797, read as 2 seats) lies on the side facing the 1-seat level. Read as 1 seat, its turnout term would be 0.068, inside the band that is admitted silently.
+  - **The tail is one-sided.** The 2-seat residuals have 195 draws beyond 0.008 on the side facing the 1-seat level and none on the other side.
+  - So "four times the largest imbalance" assumes the readings it is offered to defend.
+- **Evidence that does not assume the readings is committed:**
+  - Draw 667 reads as 2 seats under the Senate vote too, with residual 0.0159, the Senate maximum.
+  - 161 of the 195 tail draws read as 2 under the Senate vote, with residuals within 0.0024 of their presidential ones.
+  - Same-seat residuals correlate at 0.95 across the two contests.
+  - A misread 1-seat plan would repeat its residual only if a second district happened to carry a particular share of the vote.
+- **Smallest fix:** change "imbalance" to "residual" at all three places. Optionally, cite the cross-contest agreement as the support that does not assume the readings.
+
+**4. (Q2) "With more room" is true, but it measures the smaller of the two differences.**
+- **Where:** same places as allegation 1.
+- **The numbers:**
+  - At the binding case (3 seats, 0.083) the room is about 1.3 times the 1-vs-2 room (0.062).
+  - That comparison sets a 3-seat turnout term against 1- and 2-seat residuals, and no draw is read as 3 under the presidential vote.
+  - At the seat counts that do occur, the room is 0.333 and 0.583: 5.4 and 9.4 times.
+  - The difference that matters more is the target width in allegation 1, about 4e-6 against 0.041.
+- **Fix:** covered by allegation 1. If the room comparison stays, cite the Senate vote's 3-seat plans (0.007) for the 3-seat case.
+
+### Q3: what else rests on verification
+
+- **Only one sentence claims verification:** `DECISIONS.md:1120-1121` (allegation 2).
+- **I checked these and none calls the 0-seat count verified:**
+  - README:16 (alt text) and README:53-58
+  - the figure's note and footer; the footer says "Seats are read off each draw's |efficiency gap| (D-039)"
+  - the `progress.md:2272` table: MCSE 0.38 points, chains 0.4–2.5%
+  - `progress.md` at 2353-2357, 2428-2434, 2440-2443, 2471-2498 and 2565
+  - D-041 at 1232-1234
+  - CITATION.cff, which doesn't quote the share
+  - the verbatim audit record
+- **Two sentences depend on the readings and are consistent with the corrected status. Neither needs a change:**
+  - The mid-ranks at `progress.md:2578-2582` need each draw's sign, which the committed |EG| doesn't carry. A non-sweep on the 0 grid would have the opposite sign (−0.4163), and would sit at the bottom of the ranking, not the top.
+  - `progress.md:2312`, "no draw gives Democrats 3 or more seats", inherits the same protection. The 3→0 misread is exactly the case the corrected text names.
+- **Intervals:** the MCSE (0.38), the figure's ±0.8 points and the chain range are Monte Carlo errors only, and labelled as such. The 0 bar's reading error can only push the count up, and on this evidence it is negligible. They need no change.
+
+### Q4: verdict wording
+
+None in the changed text. One caution about allegation 2's fix: "can only be too high" implies the true 0-seat share is at most 1.43%. Put it in D-039's method text, not next to the enacted-plan comparison, or keep "not yet a finding" beside it.
+
+### Checked and sound
+
+- **The algebra.** For a non-sweep landing on the grid, the winning districts' total minus 1,379,511 must be the grid value plus (Σ_R δ − Σ_D δ). So "4V − 1, to within a few votes" and "83%" (0.83267) are right. The turnout terms are 0.0827, 0.3327 and 0.5827.
+- **The 0 grid is the only hole.** The positive branch and the 4-seat grid would each need the winning districts' total, or the losing district's total, to be zero or negative.
+- **The plotter reproduces every number:** 395 draws; the grid split {2.5: 216, 3.5: 179}; largest residual 0.0143; half-gap 0.0413; residual SDs 0.0020 and 0.0030; the Senate grid split {2: 23, 3: 222, 4: 25}; Senate largest residual 0.0159.
+- **"Necessary, not sufficient" is right.** No committed column (mean-median, competitive districts) separates a sweep from a non-sweep landing on the grid, so "only a recount" holds as a statement about proof.
+- **"Iowa's is a sweep, exact whatever the turnout"** (`progress.md:2430-2431`, `DECISIONS.md:1147-1148`) is about the enacted plan, counted from the returns. Correct.
+- **The test's constructed 2-seat plan lands on the 3.5 grid.** Its bound of K holds for that 2-seat example. The general window reaches 6 votes at 1 seat, which "a few votes" covers.
+
+Not in my lens and not assessed: whether rewriting D-039 in place fits the decision log's append-only rule while the PR is still open.
+
+---
+
+## Fourth refuter — Computational Redistricting Scientist
+
+## Refuter report: instrument audit of the D-039 0-seat wording (refute4)
+
+**Scope**: `git diff 1cc22f8 HEAD` on docs/DECISIONS.md, docs/progress.md, tools/plot_seat_distribution.py and tests/test_seat_distribution.py, at ef1060c. Evidence: docs/experiment-2/ia-draws-v2.csv.gz and its sidecar, src/evaluate/partisan.py, the plotter and the loader.
+
+I did not open the auditor's scratch directory (`audit4-stat`) and did not read any commit message.
+
+**Method**: I wrote my own scripts and did not use `recover_seats`.
+- Every committed |EG| multiplied by T lands within 6e-11 votes of a half-integer, for all 57,553 rows under both contests. So the CSV keeps full precision, the totals in `TWO_PARTY` are the ones the gaps were computed on, and each row's |wasted D − wasted R| can be recovered exactly.
+- With the majority threshold (partisan.py:325-334), the identity is W = 2D − T/2 − N_W + Δ, where N_W is the two-party vote cast in the districts the Democrats win.
+- I implemented the reading rule myself in exact fractions. It reproduces every pinned count:
+  - Rectangle, presidential: 395 / 13,516 / 13,653 / 0 / 0.
+  - Rectangle, Senate: 270 / 11,410 / 15,876 / 8 / 0.
+  - All committed rows, presidential: 832 / 28,780 / 27,941 / 0 / 0.
+  - Sweep grid offsets: {2.5: 216, 3.5: 179} presidential and {2: 23, 3: 222, 4: 25} Senate.
+- Zero refusals over all 57,553 rows under either contest.
+
+---
+
+### Allegation 1: UPHELD
+
+The concluding phrase "rests on the turnout assumption like the others, with more room" (DECISIONS.md:1140-1141, progress.md:2415-2417, plotter:54-56) presents the protection as a matter of distance only. The protection is different in kind.
+
+My reproduction, under the presidential vote:
+- **Silent band for 1-seat plans.** A 1-seat plan is read as 2 without complaint for turnout terms from 0.062002 to 0.103337. That band is 0.041335 wide, or 68,481 votes.
+- **Exact target for the 0 bar.** With integrality and parity enforced, a non-sweep is read as 0 only if N_W − (4D − T) = N_W − 1,379,511 takes one of these values:
+  - {1, 2} at 3 seats;
+  - {2, 3, 4} at 2 seats;
+  - {3, 4, 5, 6} at 1 seat.
+  
+  The auditor's ranges ("0 to 6", "1.5 to 4.5", "0 to 3") are correct bounds, but the exact set is 1 to 6. Measured in turnout-term units, the target is at most 1.8e-6 wide per seat count, and 6e-7 at the binding 3-seat case. "About 4e-6" overstates the width, which works against the auditor's own point.
+- **Other routes in are impossible.** A non-sweep with a positive gap would need N_W ≤ 0. Reaching the 4-seat grid would need N_W ≥ T.
+- **Refusals.** Every |EG| of 0.354333 or more that misses the admissible totals is refused. That covers the 0 window [0.375, 0.5], the band just above the 3-seat margin, and the 4-seat window.
+- **Committed data.**
+  - The largest non-sweep |EG| is 0.17303 over all rows (0.17244 on the rectangle). So "above 0.1730" is off in the fifth decimal.
+  - That draw sits 0.24330 below the 0-seat level, which is 403,086 votes.
+  - 194 of the 395 zero draws also sit on the Senate sweep grid. The other 201 read as 1 Senate seat (187 draws) or 2 (14), with residuals of at most 0.00597.
+- **Scope slip.** "The only observed 3-seat plans (8 draws, 2 plans), turnout term 0.007" holds on the rectangle (t3 = 0.00696). Over all committed rows, which is the scope the same bullet uses for refusals, there are 14 draws, 6 distinct rows, with t3 from 0.0039 to 0.0088. The conclusion is unchanged.
+- **Mitigation.** The diff already says "to within a few votes". What is missing is a conclusion that uses that fact, and any statement that near misses are refused.
+- **Refinement.** The plotter also runs the Senate check on the rectangle (plot_seat_distribution.py:425). It would refuse a plan that is 1 seat under both votes with t1 between 0.0620 and 0.0855. So the band that is silent under both contests is 0.0855 to 0.1033, about 29,500 votes. That is still about four orders of magnitude wider than the 0-bar target.
+
+**The proposed fix is accurate in substance, with two precision points:**
+- **"One that came near and missed would stop the plotter"** holds for every miss within 0.062 below the target in turnout-term units (about 103,000 votes), and for any miss above it. Failures further below are read silently as 3 instead of stopping the plotter: 1-seat plans with t1 from 0.479 to 0.521, and 2-seat plans with t2 from 0.229 to 0.271. Say "any other plan whose gap lands in the 0-seat window stops the plotter", not "came near".
+- **Name the contest and the totals.**
+
+Suggested wording: "So the 0-seat count is a reading too, but a harder one to get wrong than the 1-versus-2 split. Under the presidential vote, a plan that is not a sweep is read as 0 only if the districts the Democrats win cast one of six totals, 1,379,512 to 1,379,517 of 1,656,733. Any other plan whose gap lands in the 0-seat window stops the plotter, and none of the 57,553 committed rows does. A 1-seat plan would be read as 2 anywhere in a band about 68,000 votes wide."
+
+### Allegation 2: UPHELD
+
+- DECISIONS.md:1141 ("only the recount above would verify it") points to :1119-1121 ("A one-time recount of one chain would turn this reading into a verified count").
+- The 395 zero draws by chain are 68, 70, 76, 48, 113 and 20 (chains 0, 1, 2, 5, 6, 10). One chain covers at most 113 of them (29%).
+- "The recount above" could also be read as the whole bullet, "Recount from plans and returns". Under either reading the one-chain sentence overstates for the pooled count, so the ambiguity should go.
+- progress.md:2417 ("a recount") and plotter:56-57 are fine.
+
+**The fix ("recount the draws read as 0; the count can be too high, never too low") needs two qualifications:**
+- **"Never too low" is exact only for plans with no exactly tied district.** A plan the Democrats win none of, with one tied district, has `seat_counts` (0, 3, 1) under the repo's own rule (partisan.py:271-277), but it is not a sweep: a tie wastes both sides' votes (partisan.py:333-334). I tested this on Iowa's totals with the repo's `efficiency_gap` (scratch tie.py):
+  - with the tied district at equal turnout, |EG| is 0.29139 and the plan is refused;
+  - if the tied district casts 12.4% to 20.7% of the vote, the plan is read silently as 3 (|EG| 0.33787, residual +0.0042).
+  
+  No draw is read as 3 under the presidential vote and nothing is refused, so in these data the count is not too low. The only exception would be a tied district casting 46-54% or 62-71% of all votes. Suggested wording: "every plan the Democrats win none of, with no exactly tied district, is read as 0".
+- **"Verify outright" holds in logic, if each regenerated draw reproduces its committed row.** The cost is regeneration:
+  - No plans are committed. The pair-cache holds Experiment 2 pair tests, not plans.
+  - All six chains must be rerun through draws 4,388, 2,335, 3,779, 3,602, 3,484 and 2,533 (0-based). That is 20,127 of the 27,564 rectangle draws.
+  - Recounting the whole rectangle costs about 37% more regeneration and would also verify the 1-versus-2 split.
+  - The figure of 97 distinct metric rows is correct, and it is a lower bound on distinct plans.
+
+### Allegation 3: UPHELD, with two corrections to its supporting argument
+
+Reproduced:
+- `worst` is updated only on the non-sweep branch (plot_seat_distribution.py:192-212).
+- The residual 0.0143 comes from one draw: chain 2, draw 667, |EG| 0.0979699, residual +0.0143047. Read as 1 seat instead, its turnout term would be t1 = 0.06836, inside the silent band.
+- Under the Senate vote the same draw reads as 2, with residual 0.015875.
+- Among 2-seat reads, 195 residuals lie beyond +0.008 and none beyond −0.008 (the minimum is −0.00756).
+- These are 2-seat draws read as 2 under the Senate vote: 161 of the 195 do so, all within 0.00237 of their presidential residuals. The other 34 read as 1 under the Senate.
+- Same-seat residuals correlate at r = 0.952 across the two contests.
+
+A further point on selection that the auditor did not make: the margin rule caps every admitted residual at 0.020667. The 1-to-2 edge, 0.062002, is exactly three times that. So "four times the largest" is at least three times by construction, and the data add only a factor of 1.44.
+
+**Correction (a): the one-sided tail does not by itself point to misreading.**
+- The 1-seat bucket leans the same way: 8 draws beyond 0.008 toward the 2-seat level, and none on the other side.
+- The mean turnout term is positive in both buckets: +0.0011 at 1 seat and +0.0012 at 2. The share of positive terms is 77% and 60%.
+- One physical effect, Democratic-won districts casting slightly more than an equal share of the vote, explains both tails.
+
+**Correction (b): "support that does not assume the readings" overstates.**
+- **It uses the readings.** Residuals are taken from each contest's read level, and the comparison is restricted to draws read the same in both contests. It also assumes that a district's share of the two-party vote is nearly the same in both races.
+- **It is still a real test.** The levels are spaced differently in the two contests, so a 1-seat plan misread as 2 in both would show a Senate residual 0.031346 above its presidential one.
+- **No draw shows that signature.** Observed same-seat differences run from −0.0015 to +0.0080 overall, and from −0.0001 to +0.0026 at 2 seats. None comes near ±0.031.
+- **The 0.95 correlation does not test misreading.** Correlation ignores a constant offset, so it supports the stable-share assumption, not the readings. The per-draw agreement is the evidence that counts.
+- **The 34 tail draws read as 1 under the Senate.** For those to be 1-seat plans in both contests, one district's share of the vote would have to differ by at least 0.064 between the two contests: 0.0719-0.0746 implied by the presidential reading, 0.0058-0.0078 under the Senate.
+- **The evidence rests on fewer plans than draws.** The 195 tail draws are 66 distinct metric rows; the 161 are 56 and the 34 are 10.
+
+**On the fix:** "Residual" is accurate. The sentence's force still depends on the readings, and the "three times by construction" point should go beside it. The same circularity sits in the existing, pre-diff text at progress.md:2420-2425 ("turnout term's standard deviation", "thirty-one standard deviations"). The SD framing also implies a thinner tail than the data show: the largest residual is 4.7 SD at 2 seats and 4.8 SD at 1 seat.
+
+### Allegation 4: UPHELD
+
+- The ratio of the two rooms, 0.082669 / 0.062002, is exactly 4/3. After folding, the 3-to-0 gap and the 1-to-2 gap are both 4V − 7/4, which is twice the half-gap (2h). The silent edge sits at 1.5h because MARGIN = 0.5. So "more room" comes from the level geometry and the margin rule; the draws did not measure it.
+- No draw is read as 3 under the presidential vote, on the rectangle or over all rows. The diff compares the binding 3-seat room with a yardstick taken from 1- and 2-seat draws (progress.md:2414-2415, plotter:52-54). The only 3-seat evidence comes from the Senate vote: t3 = 0.007 on the rectangle, 0.004 to 0.009 over all rows.
+- "Matters more" is a judgment, but the numbers back it: target width versus band width differs by about four orders of magnitude, distance by 1.33 times. Allegation 1's fix covers this one too.
+
+---
+
+### Checked and found sound
+
+- The exact decoding and the identity.
+- 4V − 1 = 0.832669. The turnout terms 0.0827, 0.3327 and 0.5827 round to the diff's 0.083, 0.333 and 0.583. "To within a few votes" is right: the admissible offsets are 1 to 6.
+- Half-gap 0.041335, margin 0.020667, largest residual 0.014305 (0.346 of the half-gap, "about a third"). 25% + 6.2% gives the diff's "31%".
+- Residual SDs of 0.00197 at 1 seat and 0.00303 at 2 match the quoted 0.0020 and 0.0030.
+- The diff's constructed 2-seat plan lands on the 3.5-vote grid point, at offset 3. Five grid and margin tests pass. The plotter runs.
+- The tree is clean. Nothing was written to the repository, and the figure went to scratch.
+- No verdict language appears in the audited lines.
+
+Scripts are in /tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/refute4/: decode.py, analyze.py, allegations.py, more.py, tails.py, tie.py, last.py and grid.py.
+
+AI-assisted review, a partial measure. A redistricting scientist outside the authoring loop should read any claim headed for publication.
+
+---
+
+## Author's response to the fourth audit
+
+The refuter upheld all four allegations, with corrections to the evidence offered
+for the first and third, so each is answered by a change in the commit that
+follows `35feb62`. Numbers the answers quote are pinned by
+`tests/test_seat_distribution.py`, except where they come from the reports above.
+
+| # | Allegation | Refuter | What changed |
+| --- | --- | --- | --- |
+| 1 | "Like the others, with more room" understates the 0-seat reading in kind | Upheld. The admissible totals are 1 to 6 votes above 4D − T, not 0 to 6, and the refusal holds for any plan whose gap lands nearest the 0-seat level, not for every near miss | D-039, `docs/progress.md` and the plotter say a plan that is not a sweep reads as 0 only if the districts the Democrats win cast one of six totals, 1,379,512 to 1,379,517 votes, under the presidential vote. Any other plan whose gap lands nearest the 0-seat level stops the plotter, and none of the 57,553 committed draws does. The count is a reading, but a harder one to get wrong than the 1-versus-2 split, whose silent band is about 68,000 votes wide. The test enumerates the six totals from the wasted-vote identity, and pins the band. |
+| 2 | The one-chain recount D-039 pointed to would not verify the 0-seat count | Upheld. "Never too low" holds only for a plan with no exactly tied district | D-039 says a one-chain recount verifies that chain's readings and tests the method on the rest, and that verifying the 0-seat count takes the draws read as 0 in all six chains. D-039 and `docs/progress.md` say that, short of an exactly tied district, a misreading could only add to the count. That sentence sits in the method text, away from the enacted-plan comparison. |
+| 3 | The 0.0143 yardstick is a residual measured after the readings it defends | Upheld. The one-sided tail does not by itself point to misreading, and the cross-contest comparison uses the readings too | "Imbalance" is now "residual" where it means one. D-039 and `docs/progress.md` say the residuals are measured from the level each draw was read at, so they cannot show on their own that the readings are right, and that the 1-versus-2 edge of 0.062 is three times the margin by construction and four times the largest residual by measurement. "Thirty-one standard deviations" is gone from `docs/progress.md`. The cross-contest evidence the refuter reproduced is not added to the prose: no test pins it, and it stays in the reports above. |
+| 4 | "With more room" measures the smaller of the two differences | Upheld | Answered by 1. The passages no longer rest on the room comparison. |
+
+The routing reviews of `ef1060c` found the rest of what this revision changes:
+`docs/progress.md` gave presidential figures right after a sentence about the
+Senate vote; the plotter's general statement of the collision condition holds only
+while `V` is below ½; the bold lead "Sweeps are exact, to the half vote" and the
+phrase "zero-seat draws" assumed the draws were sweeps; the test did not assert
+its own plan's 2 seats; and D-039's review note misstated its own history.

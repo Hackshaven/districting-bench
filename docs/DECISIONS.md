@@ -1117,8 +1117,9 @@ either fails:
   draws file holds metrics only) and would have to be regenerated from their
   seeds, and the returns cannot be redistributed, so only a reader who has
   fetched VEST could check the result, as for every experiment. A one-time
-  recount of one chain would turn this reading into a verified count, and is
-  worth doing wherever the data are built.
+  recount of one chain would verify that chain's readings and test the method
+  on the rest, and is worth doing wherever the data are built. Verifying the
+  0-seat count takes the draws read as 0 in all six chains.
 - **Keep the 1,820-draw figure.** Rejected: no reader can regenerate it (D-036),
   and its sample is the least converged Iowa ensemble the repository quotes.
 - **Add a seats column to the draws file.** Rejected: that is a new measurement,
@@ -1131,18 +1132,26 @@ either fails:
   read as 2 seats without complaint.
 
 *Why it is a measurement and not a guess:* the identity is exact and its only
-free term is turnout. Sweeps are checked to the half vote: all 395 zero-seat
-draws sit 2.5 or 3.5 votes above their level (216 and 179 of them), the only two
-offsets an odd statewide total allows. That check is necessary, not sufficient.
-A plan that is not a sweep can land on the same grid, but only if the districts
-the Democrats win cast `4V − 1` of the two-party vote, to within a few votes:
-83% under the presidential vote, a turnout imbalance of 0.083 at 3 seats, 0.333
-at 2 and 0.583 at 1. So the 0-seat count rests on the turnout assumption like
-the others, with more room, and only the recount above would verify it. Every
+free term is turnout. Draws read as sweeps are checked to the half vote: all 395
+draws read as 0 seats sit 2.5 or 3.5 votes above their level (216 and 179 of
+them), the only two offsets an odd statewide total allows. That check is
+necessary, not sufficient. Under the presidential vote a plan that is not a
+sweep lands on the same grid only if the districts the Democrats win cast one of
+six totals, 1,379,512 to 1,379,517 votes (`4V − 1` of the two-party vote, 83%): a
+turnout imbalance of 0.083 at 3 seats, 0.333 at 2 and 0.583 at 1. Any other plan
+whose gap lands nearest the 0-seat level stops the plotter, and none of the
+57,553 committed draws does. A plan the Democrats win none of is always read as
+0 unless one of its districts is exactly tied, so short of a tie a misreading
+could only add to the count. The 0-seat count is therefore a reading, but a
+harder one to get wrong than the 1-versus-2 split, and only a recount of the
+draws read as 0, which are spread over all six chains, would verify it. Every
 other draw sits at most 0.0143 from its level, about a third of the 0.0413
-half-gap. Misreading a 1-seat plan as 2 would take a Democratic district
-casting over 31% of the state's two-party vote against 25% at equal turnout,
-four times the largest imbalance in the data. The two enacted
+half-gap, but that residual is measured from the level the draw was read at, so
+it cannot show on its own that the reading is right. Misreading a 1-seat plan as
+2 would take a Democratic district casting over 31% of the state's two-party
+vote against 25% at equal turnout: a turnout imbalance of 0.062, three times the
+margin and four times the largest residual. From there to 0.103, a band about
+68,000 votes wide, the misreading would pass without complaint. The two enacted
 plans in the Phase 2 report, counted directly from the returns, read back
 correctly, but that is weak support: Iowa's is a sweep, exact whatever the
 turnout, and Colorado's sits far from Colorado's closest levels. Under the 2020
@@ -1163,11 +1172,13 @@ the seat count, in the next measurement would remove the need for any of this.
 presidential vote. The shares themselves are superseded by the ones recorded
 here, and the entries are left as written.
 
-*Corrected in review:* the first version of this entry called the 0-seat count
-verified outright, because every sweep sits on the half-vote grid. Copilot's
-review of pull request #7 built a plan the Democrats win 2 of that lands on the
-grid too, and the paragraph above now says what the grid does and does not
-establish.
+*Corrected in review:* an earlier version of this entry called the 0-seat count
+verified outright, because every draw read as a sweep sits on the half-vote
+grid. GitHub Copilot's automated review of pull request #7 constructed district
+vote totals that give the Democrats 2 of 4 seats and land on the grid too;
+`tests/test_seat_distribution.py::test_every_sweep_sits_on_the_half_vote_grid`
+keeps them. The paragraph above now says what the grid does and does not
+establish, after the fourth audit in `docs/first-result/INSTRUMENT-AUDIT.md`.
 
 ## D-040 — PlanScore's published efficiency gaps use a different formula; this repository keeps CRITERIA.md's
 

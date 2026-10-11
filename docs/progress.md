@@ -2386,7 +2386,7 @@ so the start-based estimate also misses a start-state bias of about 13 points.
 Against all that, 43% and 49.5% cannot be told apart. The 0–2 range is the same
 in both.
 
-## How the seats were counted without the returns (D-039)
+## How the seats were read without the returns (D-039)
 
 The draws file records each draw's |efficiency gap|, not its seats, and a recount
 needs the election returns, which the repository cannot redistribute. With wasted
@@ -2402,28 +2402,35 @@ level by its turnout imbalance. Under the presidential vote the levels are 0.416
 folds the sign away and puts the 1- and 2-seat levels only 0.083 apart, so the
 reading depends on two checks rather than on which level is nearest:
 
-- **Sweeps are exact, to the half vote.** A plan the Democrats win none of sits
-  above its level by exactly what the strict-majority threshold allows: one vote
-  for each district with an even total and half a vote for each with an odd one.
-  The statewide total, 1,656,733, is odd, so the offset can only be 2.5 or 3.5
-  votes. The 395 zero-seat draws sit at exactly those two, 216 and 179 of them.
-  Under the Senate vote the total is even and the sweeps sit at 2, 3 and 4
-  votes. The check is necessary, not sufficient: a plan that is not a sweep
-  can land on the same grid, but only if the districts the Democrats win cast
-  83% of the state's two-party vote (`4V − 1`, to within a few votes). That is
-  a turnout term of 0.083 at 3 seats, 0.333 at 2 and 0.583 at 1, where no draw
-  read as 1 or 2 seats sits more than 0.0143 off its level. So the 0-seat count
-  the enacted-plan comparison quotes rests on the turnout assumption like the
-  others, with more room, and only a recount would verify it.
+- **A draw read as a sweep must sit on a half-vote grid.** A plan the Democrats
+  win none of sits above its level by exactly what the strict-majority threshold
+  allows: one vote for each district with an even total and half a vote for each
+  with an odd one. Under the presidential vote the statewide total, 1,656,733, is
+  odd, so the offset can only be 2.5 or 3.5 votes, and the 395 draws read as 0
+  seats sit at exactly those two, 216 and 179 of them. (Under the Senate vote the
+  total is even, and the draws read as sweeps sit at 2, 3 and 4 votes.) The grid
+  is necessary, not sufficient. Under the presidential vote a plan that is not a
+  sweep lands on it only if the districts the Democrats win cast one of six
+  totals, 1,379,512 to 1,379,517 votes, which is 83% of the two-party vote
+  (`4V − 1`): a turnout term of 0.083 at 3 seats, 0.333 at 2 and 0.583 at 1. Any
+  other plan whose gap lands nearest the 0-seat level stops the plotter, and none
+  of the 57,553 committed draws does. A plan the Democrats win none of is always
+  read as 0 unless one of its districts is exactly tied, so short of a tie a
+  misreading could only add to the count. The 0-seat count is therefore a
+  reading too, but a harder one to get wrong than the 1-versus-2 split below,
+  and only a recount of the draws read as 0, which are spread over all six
+  chains, would verify it.
 - **Every other draw keeps a margin.** The plotter refuses the whole sample if
   any draw sits more than half of the half-gap from its level. The largest
-  residual is 0.0143, about a third of the half-gap. The turnout term's standard
-  deviation is 0.0020 among 1-seat draws and 0.0030 among 2-seat draws. A 1-seat
-  plan would be read as 2 only if its one Democratic district cast over 31% of
-  the state's two-party vote, against 25% at equal turnout: a turnout term of
-  0.062, thirty-one standard deviations of the 1-seat term out and four times
-  the largest in these draws. Any imbalance between the margin and that point is
-  refused, not assigned.
+  residual is 0.0143, about a third of the 0.0413 half-gap, and the residuals'
+  standard deviations are 0.0020 among draws read as 1 seat and 0.0030 among
+  those read as 2. They are measured from the level each draw was read at, so
+  they cannot show on their own that the readings are right. A 1-seat plan would
+  be read as 2 only if its one Democratic district cast over 31% of the state's
+  two-party vote, against 25% at equal turnout: a turnout term of 0.062, three
+  times the margin and four times the largest residual. From there to 0.103, a
+  band about 68,000 votes wide, it would be read as 2 without complaint. Any
+  imbalance between the margin and 0.062 is refused, not assigned.
 
 The Phase 2 report's two enacted plans, whose seats were counted directly from
 the returns, read back correctly: Iowa 0 of 4, Colorado 5 of 8. That is weaker
