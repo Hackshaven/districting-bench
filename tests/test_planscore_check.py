@@ -51,9 +51,10 @@ SWEEP = {1: (400, 600), 2: (300, 900), 3: (450, 550), 4: (100, 1400)}
 #: so a sign error in any conversion shows.
 LOPSIDED = {1: (600, 400), 2: (550, 450), 3: (520, 480), 4: (100, 900)}
 
-#: Iowa's district populations as PlanScore's pinned file carries them.
-IOWA_POPULATIONS = {n: p + C.POPULATION_MINUS_DOCUMENTED["IA"][n]
-                    for n, p in C.ENACTED_POPULATIONS["IA"].items()}
+#: Iowa's district populations as PlanScore's pinned file carries them
+#: (docs/cross-checks/planscore.json), written out rather than derived from the
+#: constants the check compares them with, so a typo in either fails here.
+IOWA_POPULATIONS = {1: 797_576, 2: 797_589, 3: 797_551, 4: 797_645}
 
 
 def as_plan(districts):
@@ -272,7 +273,7 @@ def test_a_tie_and_a_vote_outside_the_clamp_are_refused():
         C.equal_turnout_gap(0.0, 0.2)
 
 
-def test_iowa_must_be_the_enacted_plan():
+def test_iowa_must_be_the_enacted_plan(monkeypatch):
     # PlanScore's copy may differ from the documented populations only where it
     # was found to: district 1, 8 persons short.
     known = C.POPULATION_MINUS_DOCUMENTED["IA"]
@@ -282,14 +283,20 @@ def test_iowa_must_be_the_enacted_plan():
     assert failures == []
     assert result["plans"]["IA"]["population_minus_documented"] == known
     assert result["plans"]["IA"]["population_spread"] == 94
-    # Any other difference fails: one that widens the spread, one that keeps it
-    # (5 persons moved from district 2 to district 1), and the documented
-    # populations themselves, since the pinned file does not carry them.
+    # Any other difference fails: one that widens the spread; three that keep
+    # it (5 persons moved from district 2 to district 1, the shortfall moved to
+    # district 2, and the documented populations themselves, which the pinned
+    # file does not carry); and a fifth district inside the spread.
     for changed, difference, spread in [
             ({4: populations[4] + 10}, {1: -8, 2: 0, 3: 0, 4: 10}, 104),
             ({1: populations[1] + 5, 2: populations[2] - 5}, {1: -3, 2: -5, 3: 0, 4: 0}, 94),
-            (C.ENACTED_POPULATIONS["IA"], {1: 0, 2: 0, 3: 0, 4: 0}, 94)]:
-        result, failures = run(state="IA", populations=populations | changed)
+            ({1: populations[1] + 8, 2: populations[2] - 8}, {1: 0, 2: -8, 3: 0, 4: 0}, 94),
+            (C.ENACTED_POPULATIONS["IA"], {1: 0, 2: 0, 3: 0, 4: 0}, 94),
+            ({5: 797_600}, {1: -8, 2: 0, 3: 0, 4: 0, 5: 797_600}, 94)]:
+        mutated = populations | changed
+        votes = UNEQUAL | {5: (450, 550)}
+        result, failures = run(state="IA", districts={n: votes[n] for n in mutated},
+                               populations=mutated)
         assert result["plans"]["IA"]["population_spread"] == spread
         assert failures == [f"IA: PlanScore's district populations less the enacted "
                             f"plan's are {difference}, not {known}"]
@@ -299,6 +306,12 @@ def test_iowa_must_be_the_enacted_plan():
                       populations=missing)
     assert any("less the enacted plan's are {1: -8, 2: 0, 3: 0, 4: -797645}" in f
                for f in failures)
+    # With no difference recorded, the documented populations must match exactly.
+    monkeypatch.setattr(C, "POPULATION_MINUS_DOCUMENTED", {})
+    assert run(state="IA", populations=dict(C.ENACTED_POPULATIONS["IA"]))[1] == []
+    assert run(state="IA", populations=populations)[1] == [
+        "IA: PlanScore's district populations less the enacted plan's are "
+        "{1: -8, 2: 0, 3: 0, 4: 0}, not {1: 0, 2: 0, 3: 0, 4: 0}"]
 
 
 def test_iowa_must_match_the_phase_2_report():
@@ -404,6 +417,8 @@ def test_the_committed_record_says_what_the_write_up_says():
     assert (record["IA"]["population_spread"] == C.ENACTED_SPREAD["IA"]
             == S.ENACTED_SPREAD == 94)
     assert record["IA"]["population_minus_documented"] == {"1": -8, "2": 0, "3": 0, "4": 0}
+    assert record["IA"]["district_populations"] == {
+        str(n): p for n, p in IOWA_POPULATIONS.items()}
     # The turnout term docs/progress.md and evaluate.partisan quote: small under
     # three Colorado races, and the size of the gap itself under one.
     terms = {race: r["efficiency_gap_terms"]["turnout_term"]
@@ -411,6 +426,18 @@ def test_the_committed_record_says_what_the_write_up_says():
     assert terms["US President 2016"] == pytest.approx(0.0266, abs=5e-5)
     assert max(abs(t) for race, t in terms.items()
                if race != "US President 2016") < 0.002
+    # The README: ours differs from PlanScore's published gap on every Colorado
+    # race, by more than PlanScore's rounding, and by a factor of nearly two
+    # under the 2016 presidential vote. Declination is compared with ours there.
+    gaps = {race: (r["ours_in_planscore_convention"]["efficiency_gap_wasted_votes"],
+                   r["planscore_published_efficiency_gap"])
+            for race, r in record["CO"]["races"].items()}
+    assert all(abs(ours - published) > 10 * C.PUBLISHED_ROUNDING
+               for ours, published in gaps.values())
+    assert gaps["US President 2016"][1] / gaps["US President 2016"][0] == pytest.approx(
+        1.98, abs=0.005)
+    assert all(r["declination_compared_with"] == "ours"
+               for r in record["CO"]["races"].values())
     # What D-015's approximation costs where the ensemble is used
     location = result["ensemble_location"]
     assert (location["efficiency_gap"]["committed"],

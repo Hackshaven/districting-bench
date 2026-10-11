@@ -1216,14 +1216,16 @@ to report both forms is left open below, for the owner.
 the commit both pinned files record as having scored them, sign, scale and tie
 rules included; 3f866f9 rewrites the four functions in vectorized form, and they
 compute the same. None of PlanScore's code is copied, and its repository states
-no licence. Every run checks each conversion against the re-implementation, the
-efficiency gap against PlanScore's published values, the identity above with `τ`
-computed from the district totals, and the wasted-vote count against
-GerryChain's own `wasted_votes`, which PlanScore's files cannot check because
-they publish no wasted-vote gap. So a defect in the wasted-vote count fails
-rather than passing as a difference of definition. Nothing in this repository
-runs PlanScore's code. Whether to tell PlanScore that its published values and
-its metric page describe different formulas is the owner's call.
+no licence. Every run checks each conversion against the re-implementation
+(declination only on Colorado: every Iowa race is a sweep, where ours is
+undefined, so there the re-implementation is checked against PlanScore's sweep
+value), the efficiency gap against PlanScore's published values, the identity
+above with `τ` computed from the district totals, and the wasted-vote count
+against GerryChain's own `wasted_votes`, which PlanScore's files cannot check
+because they publish no wasted-vote gap. So a defect in the wasted-vote count
+fails rather than passing as a difference of definition. Nothing in this
+repository runs PlanScore's code. Whether to tell PlanScore that its published
+values and its metric page describe different formulas is the owner's call.
 
 ## D-041 — The enacted-plan comparison is not conditioned on population equality or compactness
 

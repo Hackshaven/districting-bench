@@ -62,12 +62,17 @@ Run::
 
     python tools/check_planscore.py     # fetches PlanScore's files
 
-It writes ``docs/cross-checks/planscore.json`` only when every check passes.
-It exits non-zero and writes nothing if a fetched file no longer matches its
-pin, if the Phase 2 report is not on the 2020 presidential vote, or if a
-published PlanScore number, a re-implemented definition, the identity or
-GerryChain's count cannot be reproduced from this repository's under the
-conversions above. See D-040.
+It writes ``docs/cross-checks/planscore.json`` only when every check passes,
+and otherwise exits non-zero and writes nothing. It refuses outright if a
+fetched file no longer matches its pin, if the Phase 2 report is not on the
+2020 presidential vote, or if a race has a tied district or a statewide share
+outside 1/4 to 3/4. It fails if a file was scored by another PlanScore commit
+or lacks a race's totals; if a published PlanScore number, a re-implemented
+definition, the identity or GerryChain's count cannot be reproduced from this
+repository's under the conversions above; or, on Iowa, if ours on PlanScore's
+totals does not reproduce the Phase 2 report, or the district populations
+differ from the documented ones other than as
+:data:`POPULATION_MINUS_DOCUMENTED` records. See D-040.
 """
 from __future__ import annotations
 
@@ -104,7 +109,7 @@ PLANSCORE_SOURCE = (
 #: state -> (PlanScore upload id, sha256 of its index.json when pinned).
 #: PlanScore's own titles call the Iowa plan a draft. It is identified as the
 #: enacted map by its district populations, which match docs/FEASIBILITY.md
-#: section 4 in three districts and fall 8 persons short in the fourth (see
+#: section 4 in three districts and fall 8 persons short in district 1 (see
 #: :data:`POPULATION_MINUS_DOCUMENTED`), by the Iowa Legislature's Plan 2 files
 #: its ``library_metadata`` links, and by its 2020 presidential metrics, which
 #: match the Phase 2 report's.
@@ -126,7 +131,8 @@ ENACTED_SPREAD = {state: max(p.values()) - min(p.values())
 #: PlanScore's district populations less :data:`ENACTED_POPULATIONS`, as found
 #: when its file was pinned: district 1 is 8 persons short, as is PlanScore's
 #: statewide total, and the other three match. Any other difference fails,
-#: including one that keeps the enacted plan's spread.
+#: including one that keeps the enacted plan's spread. A state with documented
+#: populations and no entry here must match them exactly.
 POPULATION_MINUS_DOCUMENTED = {"IA": {1: -8, 2: 0, 3: 0, 4: 0}}
 
 RACES = ("US President 2020", "US Senate 2020", "US President 2016", "US Senate 2016")
@@ -464,10 +470,11 @@ def check(indexes: dict[str, dict], report: dict) -> tuple[dict, list[str]]:
         if documented is not None:
             difference = {n: populations.get(n, 0) - documented.get(n, 0)
                           for n in sorted(populations.keys() | documented.keys())}
-            if difference != POPULATION_MINUS_DOCUMENTED[state]:
+            accepted = POPULATION_MINUS_DOCUMENTED.get(state, dict.fromkeys(documented, 0))
+            if difference != accepted:
                 failures.append(
                     f"{state}: PlanScore's district populations less the enacted "
-                    f"plan's are {difference}, not {POPULATION_MINUS_DOCUMENTED[state]}")
+                    f"plan's are {difference}, not {accepted}")
         plans[state] = {
             "planscore_id": plan_id,
             "url": URL.format(id=plan_id),

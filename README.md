@@ -13,18 +13,19 @@ map adoption.**
 
 ## First result
 
-![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats; the figure's note says its 0 turns on one district at 49.8% Democratic, that the comparison is not like-for-like because the draws are not held to the plan's 94-person population spread, and that it is not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
+![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats and from 0.4% to 2.5% at 0. Iowa's enacted plan is marked at 0 seats; the figure's note says its 0 turns on one district at 49.8% Democratic, that the comparison is not like-for-like because the draws are not held to the plan's 94-person population spread, and that it is not yet a finding. The footer says each draw's seats are read off its efficiency gap (D-039).](docs/figures/ia-neutral-seat-distribution.png)
 
 Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
 presidential vote, and 2 seats in about half of its draws** (49.5%, with a Monte
 Carlo standard error of 3 to 4 points or more; the six chains, separately seeded
-runs of the sampler, range from 41% to 58%). Under the 2020 Senate vote the same
-draws reach 3 seats, though only in two plans early in one chain, so the top of
-that range depends on the election. It is also the sampler's range, not the limit
-of what is possible: a 3-seat plan meeting the same population and contiguity
-constraints exists under the presidential vote, and `tests/test_adversarial.py`
-builds one when the data are present.
+runs of the sampler, range from 41% to 58%). Each draw's seats are read off its
+committed efficiency gap, not recounted from the election returns (D-039). Under
+the 2020 Senate vote the same draws reach 3 seats, though only in two plans early
+in one chain, so the top of that range depends on the election. It is also the
+sampler's range, not the limit of what is possible: a 3-seat plan meeting the
+same population and contiguity constraints exists under the presidential vote,
+and `tests/test_adversarial.py` builds one when the data are present.
 
 The consequence is a limit, not a score. Detectability is bounded below by the
 width of the neutral distribution, and that width is set by the state, the
@@ -259,23 +260,37 @@ python tools/plot_seat_distribution.py           # -> docs/figures/ia-neutral-se
                                                  #    (no data needed)
 ```
 
-One check reaches outside the repository: it fetches PlanScore's scores for
-both enacted plans (two files pinned by sha256) and recomputes the per-election
-metrics from PlanScore's district totals with `evaluate.partisan`. It exits 0 only
-if every efficiency gap PlanScore publishes is reproduced by PlanScore's own
-formula, (S − ½) − 2(V − ½), from the seats and votes `evaluate.partisan`
-computes; if PlanScore's mean-median, partisan bias and declination, as the
-script re-implements them from PlanScore's source, match ours once converted to
-its sign and scale; and if GerryChain's count of wasted votes matches ours.
-Declination is compared with ours on Colorado only. Every Iowa race is a
-Republican sweep, where ours is undefined, so on Iowa the script checks its
-re-implementation against the value PlanScore gives a sweep, −ln(4)/2, and
-compares nothing of ours. This repository's own efficiency gap counts wasted
-votes, and it differs from PlanScore's published values on every Colorado race,
-by a factor of two under the 2016 presidential vote (D-040). The script rewrites
-its record only when every check passes. PlanScore titles the Iowa plan a draft;
-`docs/progress.md`, "The plans are the ones this repository studies", says why it
-is the enacted one.
+One check reaches outside the repository. It fetches PlanScore's scores for
+both enacted plans (two files pinned by sha256) and recomputes the metrics of
+four past elections, the 2016 and 2020 presidential and U.S. Senate races, from
+PlanScore's district totals with `evaluate.partisan`. It exits 0, and rewrites
+its record, only if every check its docstring lists passes. The checks compare
+three kinds of thing:
+
+- **Numbers PlanScore publishes.** The efficiency gap PlanScore publishes for
+  each race must be reproduced by PlanScore's own formula, (S − ½) − 2(V − ½),
+  from the Democratic seat and vote shares `evaluate.partisan` computes. Iowa's
+  district populations must match the enacted plan's, except in district 1,
+  where PlanScore's file has 8 fewer people.
+- **PlanScore's definitions, re-implemented.** PlanScore publishes mean-median,
+  partisan bias and declination only as averages over elections it simulates,
+  so the script re-implements the three from PlanScore's source, and each must
+  match ours once ours is converted to PlanScore's sign and scale. Declination
+  is compared with ours on Colorado only. Every Iowa race is a Republican sweep,
+  where ours is undefined, so on Iowa the declination check compares the
+  re-implementation with −ln(4)/2 (−0.693), the value PlanScore's source
+  assigns a sweep, rather than with any declination of ours.
+- **This repository's own results, and GerryChain's.** On Iowa, ours on
+  PlanScore's totals must reproduce the Phase 2 report's 2020 presidential
+  values to within 10⁻⁴. The efficiency gap from GerryChain's count of wasted
+  votes must match ours to within one vote per district.
+
+This repository's own efficiency gap counts wasted votes, and it differs from
+PlanScore's published values on every Colorado race, by a factor of nearly two
+under the 2016 presidential vote. The script checks that each difference is the
+turnout term D-040 derives, to within one vote per district. PlanScore titles
+the Iowa plan a draft; `docs/progress.md`, "The plans are the ones this
+repository studies", says why it is the enacted one.
 
 ```bash
 python tools/check_planscore.py   # -> docs/cross-checks/planscore.json

@@ -2732,7 +2732,8 @@ The other three definitions are re-implemented in the script from the formulas
 in PlanScore's `calculate_MMD`, `calculate_PB` and `calculate_D2` at 566cda4, sign,
 scale and tie rules included. None of PlanScore's code is copied, and its
 repository states no licence. Every run checks this repository's conversions
-against them on the same integers: they agree to within 2×10⁻¹⁶. The script
+against them on the same integers, declination on Colorado's races only, since
+ours is undefined on Iowa's sweeps: they agree to within 2×10⁻¹⁶. The script
 never runs PlanScore's code. Only the efficiency gap is checked against a
 published number, because it is the only metric PlanScore computes on actual
 results. PlanScore's headline metrics are averages over elections simulated from
@@ -2807,9 +2808,13 @@ python tools/check_planscore.py     # fetches PlanScore's files; needs the netwo
 ```
 
 The script exits non-zero and writes nothing if a fetched file no longer matches
-its pin; if a published value, a re-implemented definition, the identity or
-GerryChain's count does not reproduce; or if the Phase 2 report is not on the
-2020 presidential vote. `tests/test_planscore_check.py` pins the two-formula
-relation on hand-built plans, feeds the script PlanScore-shaped files built in
-the test so that each of those failures is exercised offline, and pins the
-committed record. No district vote counts are committed (`CRITERIA.md` §9.1).
+its pin, or was scored by another PlanScore commit; if a published value, a
+re-implemented definition, the identity or GerryChain's count does not
+reproduce; if the Phase 2 report is not on the 2020 presidential vote; or, on
+Iowa, if ours on PlanScore's totals does not reproduce that report, or the
+district populations differ from the documented ones other than by district 1's
+8 persons. Its docstring lists every condition. `tests/test_planscore_check.py`
+pins the two-formula relation on hand-built plans, feeds the script
+PlanScore-shaped files built in the test so that each of those failures is
+exercised offline, and pins the committed record. No district vote counts are
+committed (`CRITERIA.md` §9.1).
