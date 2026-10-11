@@ -264,13 +264,18 @@ both enacted plans (two files pinned by sha256) and recomputes the per-election
 metrics from PlanScore's district totals with `evaluate.partisan`. It exits 0 only
 if every efficiency gap PlanScore publishes is reproduced by PlanScore's own
 formula, (S − ½) − 2(V − ½), from the seats and votes `evaluate.partisan`
-computes; if PlanScore's mean-median, partisan bias and declination match ours
-once converted to its sign and scale; and if GerryChain's count of wasted votes
-matches ours. This repository's own efficiency gap counts wasted votes, and it
-differs from PlanScore's published values on every Colorado race, by a factor of
-two under the 2016 presidential vote (D-040). The script rewrites its record only
-when every check passes. PlanScore titles the Iowa plan a draft; `docs/progress.md`,
-"The plans are the ones this repository studies", says why it is the enacted one.
+computes; if PlanScore's mean-median, partisan bias and declination, as the
+script re-implements them from PlanScore's source, match ours once converted to
+its sign and scale; and if GerryChain's count of wasted votes matches ours.
+Declination is compared with ours on Colorado only. Every Iowa race is a
+Republican sweep, where ours is undefined, so on Iowa the script checks its
+re-implementation against the value PlanScore gives a sweep, −ln(4)/2, and
+compares nothing of ours. This repository's own efficiency gap counts wasted
+votes, and it differs from PlanScore's published values on every Colorado race,
+by a factor of two under the 2016 presidential vote (D-040). The script rewrites
+its record only when every check passes. PlanScore titles the Iowa plan a draft;
+`docs/progress.md`, "The plans are the ones this repository studies", says why it
+is the enacted one.
 
 ```bash
 python tools/check_planscore.py   # -> docs/cross-checks/planscore.json

@@ -104,9 +104,10 @@ PLANSCORE_SOURCE = (
 #: state -> (PlanScore upload id, sha256 of its index.json when pinned).
 #: PlanScore's own titles call the Iowa plan a draft. It is identified as the
 #: enacted map by its district populations, which match docs/FEASIBILITY.md
-#: section 4 (see :data:`ENACTED_POPULATIONS`), by the Iowa Legislature's Plan
-#: 2 files its ``library_metadata`` links, and by its 2020 presidential
-#: metrics, which match the Phase 2 report's.
+#: section 4 in three districts and fall 8 persons short in the fourth (see
+#: :data:`POPULATION_MINUS_DOCUMENTED`), by the Iowa Legislature's Plan 2 files
+#: its ``library_metadata`` links, and by its 2020 presidential metrics, which
+#: match the Phase 2 report's.
 PLANS = {
     "IA": ("20251203T023554.470826564Z",
            "3b6e73c849712673330e08df323f258292dcf23cb387fafdf9b8b0dabac2092d"),
@@ -119,9 +120,14 @@ PLANS = {
 #: Colorado has no entry, because this repository represents its plan only
 #: approximately (D-015).
 ENACTED_POPULATIONS = {"IA": {1: 797_584, 2: 797_589, 3: 797_551, 4: 797_645}}
-#: Their max-min spread, which PlanScore's copy of each plan must match.
+#: Their max-min spread, recorded beside the spread of PlanScore's copy.
 ENACTED_SPREAD = {state: max(p.values()) - min(p.values())
                   for state, p in ENACTED_POPULATIONS.items()}
+#: PlanScore's district populations less :data:`ENACTED_POPULATIONS`, as found
+#: when its file was pinned: district 1 is 8 persons short, as is PlanScore's
+#: statewide total, and the other three match. Any other difference fails,
+#: including one that keeps the enacted plan's spread.
+POPULATION_MINUS_DOCUMENTED = {"IA": {1: -8, 2: 0, 3: 0, 4: 0}}
 
 RACES = ("US President 2020", "US Senate 2020", "US President 2016", "US Senate 2016")
 
@@ -453,10 +459,15 @@ def check(indexes: dict[str, dict], report: dict) -> tuple[dict, list[str]]:
         populations = {int(d["number"]): round(d["totals"]["Population 2020"])
                        for d in index["districts"]}
         spread = max(populations.values()) - min(populations.values())
-        if state in ENACTED_SPREAD and spread != ENACTED_SPREAD[state]:
-            failures.append(f"{state}: PlanScore's plan spreads {spread} persons, "
-                            f"the enacted plan {ENACTED_SPREAD[state]}")
         documented = ENACTED_POPULATIONS.get(state)
+        difference = None
+        if documented is not None:
+            difference = {n: populations.get(n, 0) - documented.get(n, 0)
+                          for n in sorted(populations.keys() | documented.keys())}
+            if difference != POPULATION_MINUS_DOCUMENTED[state]:
+                failures.append(
+                    f"{state}: PlanScore's district populations less the enacted "
+                    f"plan's are {difference}, not {POPULATION_MINUS_DOCUMENTED[state]}")
         plans[state] = {
             "planscore_id": plan_id,
             "url": URL.format(id=plan_id),
@@ -467,9 +478,7 @@ def check(indexes: dict[str, dict], report: dict) -> tuple[dict, list[str]]:
             "district_populations": populations,
             "population_spread": spread,
             "enacted_spread_documented": ENACTED_SPREAD.get(state),
-            "population_minus_documented": (
-                None if documented is None
-                else {n: populations[n] - documented[n] for n in sorted(documented)}),
+            "population_minus_documented": difference,
             "races": races,
             "phase_2_report": phase_2,
             "compactness": compactness(index, report[state]["compactness"]),

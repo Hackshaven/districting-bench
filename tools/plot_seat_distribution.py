@@ -46,8 +46,15 @@ nearness, that make the reading a measurement:
   votes, ``j`` the number of odd totals, and ``j`` has the parity of the
   statewide total ``T``. While ``V`` lies between 1/4 and 3/4 the offset puts a
   sweep above its level, never below. Every draw read as a sweep must sit above
-  its level by a value on that grid, so the 0-seat count the enacted-plan
-  comparison rests on is verified, not inferred.
+  its level by a value on that grid. The grid is necessary, not sufficient: a
+  plan that is not a sweep can land on it too, but only if the districts the
+  Democrats win cast ``4V - 1`` of the two-party vote, to within a few votes.
+  Under Iowa's 2020 presidential vote that is 83%: a turnout imbalance of
+  0.083 at 3 seats, 0.333 at 2 and 0.583 at 1, where no draw read as 1 or 2
+  seats sits more than 0.0143 off its level. So the 0-seat count the
+  enacted-plan comparison rests on is a reading under the same turnout
+  assumption as the others, with more room, and only a recount from the plans
+  and the returns would verify it.
 * **Every other draw needs a clear margin.** It must sit within half of the
   half-gap of its level, so the middle of every gap must be empty. A 1-seat plan
   is misread as 2 only if its one Democratic district casts over 31% of the

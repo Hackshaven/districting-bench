@@ -2406,10 +2406,15 @@ reading depends on two checks rather than on which level is nearest:
   above its level by exactly what the strict-majority threshold allows: one vote
   for each district with an even total and half a vote for each with an odd one.
   The statewide total, 1,656,733, is odd, so the offset can only be 2.5 or 3.5
-  votes. The 395 zero-seat draws sit at exactly those two, 216 and 179 of them,
-  so the 0-seat count the enacted-plan comparison quotes is verified, not
-  inferred. Under the Senate vote the total is even and the sweeps sit at 2, 3
-  and 4 votes.
+  votes. The 395 zero-seat draws sit at exactly those two, 216 and 179 of them.
+  Under the Senate vote the total is even and the sweeps sit at 2, 3 and 4
+  votes. The check is necessary, not sufficient: a plan that is not a sweep
+  can land on the same grid, but only if the districts the Democrats win cast
+  83% of the state's two-party vote (`4V − 1`, to within a few votes). That is
+  a turnout term of 0.083 at 3 seats, 0.333 at 2 and 0.583 at 1, where no draw
+  read as 1 or 2 seats sits more than 0.0143 off its level. So the 0-seat count
+  the enacted-plan comparison quotes rests on the turnout assumption like the
+  others, with more room, and only a recount would verify it.
 - **Every other draw keeps a margin.** The plotter refuses the whole sample if
   any draw sits more than half of the half-gap from its level. The largest
   residual is 0.0143, about a third of the half-gap. The turnout term's standard

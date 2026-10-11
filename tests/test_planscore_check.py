@@ -51,6 +51,10 @@ SWEEP = {1: (400, 600), 2: (300, 900), 3: (450, 550), 4: (100, 1400)}
 #: so a sign error in any conversion shows.
 LOPSIDED = {1: (600, 400), 2: (550, 450), 3: (520, 480), 4: (100, 900)}
 
+#: Iowa's district populations as PlanScore's pinned file carries them.
+IOWA_POPULATIONS = {n: p + C.POPULATION_MINUS_DOCUMENTED["IA"][n]
+                    for n, p in C.ENACTED_POPULATIONS["IA"].items()}
+
 
 def as_plan(districts):
     plan = {f"u{d}": d for d in districts}
@@ -269,19 +273,38 @@ def test_a_tie_and_a_vote_outside_the_clamp_are_refused():
 
 
 def test_iowa_must_be_the_enacted_plan():
-    populations = dict(C.ENACTED_POPULATIONS["IA"])
+    # PlanScore's copy may differ from the documented populations only where it
+    # was found to: district 1, 8 persons short.
+    known = C.POPULATION_MINUS_DOCUMENTED["IA"]
+    assert known == {1: -8, 2: 0, 3: 0, 4: 0}
+    populations = dict(IOWA_POPULATIONS)
     result, failures = run(state="IA", populations=populations)
     assert failures == []
-    assert result["plans"]["IA"]["population_minus_documented"] == {1: 0, 2: 0, 3: 0, 4: 0}
-    populations[4] += 10
-    _, failures = run(state="IA", populations=populations)
-    assert failures == ["IA: PlanScore's plan spreads 104 persons, the enacted plan 94"]
+    assert result["plans"]["IA"]["population_minus_documented"] == known
+    assert result["plans"]["IA"]["population_spread"] == 94
+    # Any other difference fails: one that widens the spread, one that keeps it
+    # (5 persons moved from district 2 to district 1), and the documented
+    # populations themselves, since the pinned file does not carry them.
+    for changed, difference, spread in [
+            ({4: populations[4] + 10}, {1: -8, 2: 0, 3: 0, 4: 10}, 104),
+            ({1: populations[1] + 5, 2: populations[2] - 5}, {1: -3, 2: -5, 3: 0, 4: 0}, 94),
+            (C.ENACTED_POPULATIONS["IA"], {1: 0, 2: 0, 3: 0, 4: 0}, 94)]:
+        result, failures = run(state="IA", populations=populations | changed)
+        assert result["plans"]["IA"]["population_spread"] == spread
+        assert failures == [f"IA: PlanScore's district populations less the enacted "
+                            f"plan's are {difference}, not {known}"]
+    # A missing district fails rather than raising.
+    missing = {n: p for n, p in populations.items() if n != 4}
+    _, failures = run(state="IA", districts={n: UNEQUAL[n] for n in missing},
+                      populations=missing)
+    assert any("less the enacted plan's are {1: -8, 2: 0, 3: 0, 4: -797645}" in f
+               for f in failures)
 
 
 def test_iowa_must_match_the_phase_2_report():
     # Iowa's plan is the same on both sides, so ours on PlanScore's totals must
     # reproduce the committed report; a report from other returns must not.
-    index = planscore_index(populations=dict(C.ENACTED_POPULATIONS["IA"]))
+    index = planscore_index(populations=dict(IOWA_POPULATIONS))
     _, failures = C.check({"IA": index}, {"IA": phase_2_report(EQUAL)})
     assert "IA efficiency_gap" in " ".join(failures)
     # and the tolerance is a few votes, not a different election: 2e-4 fails
@@ -318,7 +341,7 @@ def test_the_pin_refuses_any_other_file(monkeypatch):
 
 
 def _main(monkeypatch, tmp_path, published="reproduce", fetch=None):
-    indexes = {"IA": planscore_index(populations=dict(C.ENACTED_POPULATIONS["IA"]),
+    indexes = {"IA": planscore_index(populations=dict(IOWA_POPULATIONS),
                                      published=published),
                "CO": planscore_index(published=published)}
     monkeypatch.setattr(C, "fetch", fetch or (lambda plan_id, sha256: next(

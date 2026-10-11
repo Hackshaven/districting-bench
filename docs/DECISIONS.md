@@ -1133,11 +1133,16 @@ either fails:
 *Why it is a measurement and not a guess:* the identity is exact and its only
 free term is turnout. Sweeps are checked to the half vote: all 395 zero-seat
 draws sit 2.5 or 3.5 votes above their level (216 and 179 of them), the only two
-offsets an odd statewide total allows, so the 0-seat count is verified outright.
-Every other draw sits at most 0.0143 from its level, about a third of the 0.0413
-half-gap. Misreading a 1-seat plan as 2 would take a Democratic district casting
-over 31% of the state's two-party vote against 25% at equal turnout, four times
-the largest imbalance in the data. The two enacted
+offsets an odd statewide total allows. That check is necessary, not sufficient.
+A plan that is not a sweep can land on the same grid, but only if the districts
+the Democrats win cast `4V − 1` of the two-party vote, to within a few votes:
+83% under the presidential vote, a turnout imbalance of 0.083 at 3 seats, 0.333
+at 2 and 0.583 at 1. So the 0-seat count rests on the turnout assumption like
+the others, with more room, and only the recount above would verify it. Every
+other draw sits at most 0.0143 from its level, about a third of the 0.0413
+half-gap. Misreading a 1-seat plan as 2 would take a Democratic district
+casting over 31% of the state's two-party vote against 25% at equal turnout,
+four times the largest imbalance in the data. The two enacted
 plans in the Phase 2 report, counted directly from the returns, read back
 correctly, but that is weak support: Iowa's is a sweep, exact whatever the
 turnout, and Colorado's sits far from Colorado's closest levels. Under the 2020
@@ -1157,6 +1162,12 @@ the seat count, in the next measurement would remove the need for any of this.
 43.0%). Their conclusions rest on the 0–2 span, which stands under the
 presidential vote. The shares themselves are superseded by the ones recorded
 here, and the entries are left as written.
+
+*Corrected in review:* the first version of this entry called the 0-seat count
+verified outright, because every sweep sits on the half-vote grid. Copilot's
+review of pull request #7 built a plan the Democrats win 2 of that lands on the
+grid too, and the paragraph above now says what the grid does and does not
+establish.
 
 ## D-040 — PlanScore's published efficiency gaps use a different formula; this repository keeps CRITERIA.md's
 

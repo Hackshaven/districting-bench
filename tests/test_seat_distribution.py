@@ -31,6 +31,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tools"))
 
 import plot_seat_distribution as S   # noqa: E402
+from evaluate import partisan as P   # noqa: E402
 
 #: Democratic seats -> draws on the D-035 rectangle (6 of 12 chains x 4,594
 #: draws). README "First result", docs/progress.md.
@@ -222,18 +223,34 @@ def test_under_the_senate_vote_two_plans_early_in_one_chain_reach_3(dist):
     assert dist["contests_agree"] == 22_734
 
 
-def test_every_sweep_sits_on_the_half_vote_grid(dist):
+def test_every_sweep_sits_on_the_half_vote_grid(dist, levels):
     # Each district's winner wastes one vote fewer when its total is even and
     # half a vote fewer when it is odd, so a sweep sits above its level by
-    # k - j/2 votes, and j has the parity of the statewide total. This is what
-    # makes the 0-seat count -- the one the enacted-plan comparison quotes -- a
-    # count rather than a reading.
+    # k - j/2 votes, and j has the parity of the statewide total.
     assert S.sweep_grid(K, 1_656_733) == [3.5, 2.5]
     assert S.sweep_grid(K, 1_619_856) == [4.0, 3.0, 2.0]
     assert dist["primary"]["total_votes"] % 2 == 1
     assert dist["primary"]["sweeps_on_grid"] == {2.5: 216, 3.5: 179}
     assert dist["alternate"]["total_votes"] % 2 == 0
     assert dist["alternate"]["sweeps_on_grid"] == {2.0: 23, 3.0: 222, 4.0: 25}
+    # The grid is necessary, not sufficient, so the 0-seat count the
+    # enacted-plan comparison quotes is a reading like the others (D-039). On
+    # Iowa's statewide totals, a plan the Democrats win 2 of lands on it when
+    # the districts they win cast 4V - 1 of the vote, 83%: a turnout term of
+    # 0.333, where no draw read as 1 or 2 seats sits more than 0.0143 off.
+    votes = {"d1": (350_000, 339_756), "d2": (350_000, 339_758),
+             "d3": (29_000, 109_609), "d4": (30_061, 108_549)}
+    dem, rep = S.TWO_PARTY["G20PRE"]
+    assert tuple(map(sum, zip(*votes.values()))) == (dem, rep)
+    gap = P.efficiency_gap({u: int(u[1]) for u in votes},
+                           {u: v[0] for u, v in votes.items()},
+                           {u: v[1] for u, v in votes.items()})
+    seats, diagnostics = S.recover_seats([abs(gap)], levels, IOWA_VOTES)
+    assert (seats, diagnostics["sweeps_on_grid"]) == ([0], {3.5: 1})
+    won = sum(d + r for d, r in votes.values() if d > r)
+    assert abs(won - (4 * dem - IOWA_VOTES)) <= K
+    assert (won / IOWA_VOTES, won / IOWA_VOTES - 2 / K) == pytest.approx(
+        (0.833, 0.333), abs=5e-4)
 
 
 def test_every_other_draw_keeps_a_wide_margin(dist):
