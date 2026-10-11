@@ -2523,7 +2523,8 @@ at or above the plan's 51 cut edges, 100 of whose 151 zero-seat draws sit at
 exactly 51, 84 of those in chain 6's excursion; 2.4% weighted to the
 population-tight draws' cut edges, which carries the whole ensemble's zero-seat
 share at each count over to them, and is 2.32% once each chain's warm-up is
-dropped; 1.0% over the cut-edge counts from 57 to 67 that occur, which rests on
+dropped; 1.0% over the cut-edge counts from 57 to 67 that occur, weighting each
+count equally, which rests on
 the 126 draws at 57, since none of the 221 at 58–66 gives 0 seats and no draw has
 65 or 67; and 0.44% filtering on population, one plan, which the population
 paragraph above sets aside as a filter. The zero-seat share is not
@@ -2549,9 +2550,11 @@ plans made of whole counties the perimeter test, summed over a plan's districts,
 ranks plans by the total length of the county boundaries their district lines
 follow, since the state's outline is the same for every plan: a length-weighted
 form of cut edges, which the unweighted count follows only as closely as Iowa's
-county boundaries are alike in length, unmeasured here. Mean Polsby-Popper tracks
-neither test, and nothing here tracks length-width. The statute does not say how
-to weigh its two tests if they disagree (`docs/first-result/LEGAL-CLAIMS.md`,
+county boundaries are alike in length. Mean Polsby-Popper uses the same district
+perimeters, scaled by each district's area and averaged, so it need not rank plans
+as the perimeter test does. How closely either measure the draws carry follows
+that test is unmeasured here, and neither is built from length and width. The
+statute does not say how to weigh its two tests if they disagree (`docs/first-result/LEGAL-CLAIMS.md`,
 which marks for an election-law attorney how a court would apply them).
 
 The comparison remains **not yet a finding**: 1.43% of draws give 0 seats.

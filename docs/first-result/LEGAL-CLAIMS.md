@@ -7,10 +7,11 @@ reviewers raised: whether Iowa Code §42.4(4) prescribes tests for comparing
 compactness, whether the enacted plan's 94-person spread is a legal requirement,
 and whether plans like the reference draws could be lawful.
 
-The register is verbatim. It is not legal advice, its author is not a lawyer, and
-it has not yet been read by the election-law reader that `CLAUDE.md` ("When a
-person decides") requires for a new or changed legal sentence. Every item it marks
-ATTORNEY is open.
+The register is verbatim, and so are the Analyst's two re-checks of the revised
+sentences, appended after it. None is legal advice, their author is not a lawyer,
+and none has yet been read by the election-law reader that `CLAUDE.md` ("When a
+person decides") requires for a new or changed legal sentence. Every item they
+mark ATTORNEY is open.
 
 The commit after `3199ae7` revised the reviewed sentences with its suggested
 wording W1 to W4, and a re-check by the Analyst then corrected W1's own
@@ -229,3 +230,156 @@ Federal law (U.S. Const. art. I, §2):
 - **The election-law reader (a person):** every ATTORNEY item and this register.
 
 This review describes the law as of 2026-10-11. It is not legal advice, and the reviewer is not a lawyer. Anyone deciding whether or how to act on a map should consult an election-law attorney.
+
+---
+
+# Re-check of `73606c0`
+
+## Election law re-check: commit 73606c0 (W1–W4 applied; docs/first-result/LEGAL-CLAIMS.md)
+
+**Verdict: NEEDS CHANGES (small).**
+- One quotation is misattributed, in two places. It comes from my own suggested wording W1.
+- One README phrase can still read as a legal conclusion. I missed it in the first pass.
+- One README legal sentence has lost its edition date.
+- Everything else in scope is supported. The register's ATTORNEY items are unchanged and still open.
+
+**What I read.** The worktree's HEAD is `claude/round2-fixes` at 73606c0196f547f060de85016771705dea3d62d8 (per `/home/user/districting-bench/.git/refs/heads/claude/round2-fixes`). I took "clean" from your message; I can't run git status here. Read 2026-10-11. I read no commit messages and edited nothing. The primary texts are the ones in the register. I have now also read *Karcher* at 735–737, so I have read the whole opinion of the Court (462 U.S. at 727–744).
+
+**Paths:**
+- [R] `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/wt-fix/README.md`
+- [P] `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/wt-fix/docs/progress.md`
+- [D] `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/wt-fix/docs/DECISIONS.md`
+- [L] `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/wt-fix/docs/first-result/LEGAL-CLAIMS.md`
+- [C] `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/wt-fix/docs/CRITERIA.md` (searched only)
+
+### Findings, most serious first
+
+**1. Misattributed quotation — WRONG as to *Karcher*.** At [D]:1242–1245 and [P]:2496–2499:
+
+> "For congressional districts the statute and *Karcher v. Daggett*, 462 U.S. 725 (1983), set a standard, "as nearly equal as practicable", with the statute's one-percent cap yielding to Iowa Const. art. III, §37, not a person count"
+
+- The quoted words are Iowa Code §42.4(1)(b)'s. The opinion of the Court in *Karcher* (727–744) never uses them.
+- *Karcher*'s own words are "as nearly as is practicable" (at 730) and "as nearly as practicable" (at 730, quoting *Kirkpatrick*, 394 U.S. at 530–531; and at 731, 740).
+- "A standard", in the singular, also implies the Iowa and federal standards are the same. Whether Iowa courts read §42.4(1)(b) as the federal standard is ATTORNEY (register, "For an attorney" item 2, [L]:204).
+- The rest of the sentence is supported. Neither source sets a person count (§42.4(1)(b); *Karcher* at 731, 734). The cap does yield to art. III §37: §42.4(1)(b) applies it "except as necessary to comply with Article III, section 37".
+- **The error is mine.** W1 put the statute's phrase in quotation marks after both sources.
+- Wording that says only what the sources say: "For congressional districts neither sets a person count: Iowa Code §42.4(1)(b) requires populations 'as nearly equal as practicable' to the ideal, with its one-percent cap yielding to Iowa Const. art. III, §37, and *Karcher v. Daggett*, 462 U.S. 725, 730 (1983), requires population equality 'as nearly as is practicable'."
+
+**2. Residual implied legal conclusion (low).** At [R]:66–67: "The cut-edge gap may come from choices made in drawing the plan, from constraints the draws do not meet, or from the sampler's own preference for few cut edges".
+- The README never says what the "constraints" are. The only one its paragraph names is the 94-person spread ([R]:54–55), which is not a legal requirement (LSA Table 1; §42.4(1)(b); *Karcher* at 731, 734).
+- "Do not meet" can read as saying the draws fail requirements the enacted plan satisfied. That is the reading W2 removed from [R]:55. Whether the draws are lawful plans is ATTORNEY (register Q3).
+- The same phrase at [D]:1254–1257 and [P]:2507–2511 needs no change. There it is followed by "plans drawn at the enacted (plan's) tolerance", with W1 just above, so it reads as a sampler tolerance, not a legal requirement.
+- I missed this in the first pass. At 3199ae7 it was at [R]:63–64.
+- Wording that removes it: "from constraints the enacted plan was drawn under that the draws do not share, such as its tighter population spread".
+
+**3. Undated legal sentence (minor).** At [R]:63–66: "Iowa Code §42.4(4) names the tests for comparing the compactness of districts or plans, length-width and perimeter compactness; the draws carry neither, and the statute does not say how to weigh its two tests when they disagree."
+- The substance is supported by §42.4(4), (4)(a) and (4)(b).
+- W3 carried "(Iowa Code 2026)"; the README version has no edition or as-of date.
+- The progress.md and D-041 versions are dated by "Iowa Code §42.4 (Iowa Code 2026)" earlier in the same paragraph ([P]:2495; [D]:1240–1241).
+
+**4. LEGAL-CLAIMS.md: two non-legal provenance points.**
+- The header doesn't say that the register's file:line references are to the 3199ae7 worktree. At 73606c0 they no longer point at the same text: D-041 now begins at [D]:1217, not 1215.
+- The register lists machine-local paths ([L]:38–44 and :55–61) that won't exist for other readers. Its public URLs ([L]:47–54) carry the citations.
+
+### Register for the revised sentences (as of 2026-10-11)
+
+| # | Sentence (quoted) | Where | Primary source checked | Status |
+|---|---|---|---|---|
+| 1 | "the draws are not held to the enacted plan's 94-person population spread" | [R]:54–55 | LSA Plan 2 Report, Table 1 | SUPPORTED |
+| 2 | "Iowa Code §42.4(4) names the tests for comparing the compactness of districts or plans, length-width and perimeter compactness; the draws carry neither, and the statute does not say how to weigh its two tests when they disagree." | [R]:63–66 | §42.4(4), (4)(a)–(b) | SUPPORTED; undated (finding 3) |
+| 3 | "from constraints the draws do not meet" | [R]:66–67 | §42.4(1)(b); LSA Table 1 | Can read as a legal conclusion (finding 2); whether the draws are lawful plans is ATTORNEY |
+| 4 | "Population equality ranks first in Iowa Code §42.4 (Iowa Code 2026) and compactness fourth, "to the extent consistent with the standards established by subsections 1, 2, and 3"" | [P]:2494–2496; [D]:1240–1242 | §42.4(1), (2), (4); the quotation is verbatim | SUPPORTED |
+| 5 | "the statute and *Karcher v. Daggett*, 462 U.S. 725 (1983), set a standard, "as nearly equal as practicable", with the statute's one-percent cap yielding to Iowa Const. art. III, §37, not a person count" | [P]:2496–2499; [D]:1242–1245 | §42.4(1)(b); *Karcher* at 730–731, 734 | WRONG as to *Karcher* (finding 1); the rest SUPPORTED |
+| 6 | "94 persons is the spread the enacted plan reached (Iowa Legislative Services Agency, Plan 2 report, Table 1, 21 October 2021)" | [P]:2499–2501; [D]:1245–1247 | LSA Table 1 (overall range 94; report dated October 21, 2021) | SUPPORTED |
+| 7 | "Matching the reference to it would match on the enacted plan's achieved level of the first-ranked standard, not on a legal threshold" | [P]:2501–2503; [D]:1247–1249 | §42.4(1)(b); *Karcher* at 731, 734 | SUPPORTED |
+| 8 | "If it comes from constraints the draws do not meet, … plans drawn at the enacted (plan's) tolerance" | [P]:2507–2511; [D]:1254–1257 | — | Reads as a sampler tolerance in context; no legal conclusion |
+| 9 | "Whether, and on what, to condition is a value choice for the owner (D-041)." | [P]:2536–2537 | — | Not a legal statement |
+| 10 | "On which measure, Iowa Code §42.4(4) names the tests … the statute does not say how to weigh its two tests when they disagree (`docs/first-result/LEGAL-CLAIMS.md`, which marks for an election-law attorney how a court would apply them)." | [P]:2537–2542 | §42.4(4); [L]:88, :206 | SUPPORTED; dated at [P]:2495 |
+| 11 | "Iowa Code §42.4(4) names length-width and perimeter compactness for comparing plans, and the draws carry neither; the statute does not say how to weigh its two tests when they disagree." | [D]:1261–1264 | §42.4(4) | SUPPORTED. "For comparing plans" is narrower than the statute's "two or more districts, or of two or more alternative districting plans", but not wrong |
+| 12 | "…is a judgment `docs/CRITERIA.md` does not settle. Its §2.1 does not mention §42.4(4)'s tests" | [D]:1285–1288 | [C] at 73606c0 contains no "42.4", "length-width" or "perimeter compactness" | SUPPORTED |
+| 13 | "the `Election Law Analyst`'s claim register … marks for an election-law attorney how a court would apply them, and proposes a corrected §2.1 for the owner" | [D]:1288–1290 | [L]:88, :206, :172 | SUPPORTED as a description. It presents the register as an agent's, not as outside review |
+| 14 | "Earlier versions also called matching on population equality matching "on a constraint", which read the enacted plan's 94-person spread as a legal requirement." | [D]:1297–1299 | 3199ae7 text; [L]:112–116 | SUPPORTED as a description. The register's own words were "reads as if the 94-person level were the constraint" |
+
+### Header check, [L]:1–18
+- **"The register is verbatim."** Accurate. I compared [L]:22–224 section by section with the report I delivered.
+- **Status statements.** The header says the register "is not legal advice", that "its author is not a lawyer", that it "has not yet been read by the election-law reader that `CLAUDE.md` ("When a person decides") requires for a new or changed legal sentence", and that "Every item it marks ATTORNEY is open." All accurate, and consistent with that CLAUDE.md section.
+- **Description of the three questions.** Accurate.
+- **"The commit after `3199ae7` revised the reviewed sentences with its suggested wording W1 to W4."** Accurate in substance, though the wording was adapted:
+  - W1 was restructured, and a sentence about the sampler was added.
+  - W3 appears in the README without its edition date.
+  - W4 has W3's last clause added.
+  - Finding 1 came in with W1 itself, not from the adaptation.
+- **W5 and the out-of-scope items left to the owner.** Accurate.
+
+All ATTORNEY items in the register stand unchanged.
+
+This review describes the law as of 2026-10-11. It is not legal advice, and the reviewer is not a lawyer. Anyone deciding whether or how to act on a map should consult an election-law attorney.
+
+---
+
+# Re-check of `cbd42c8`
+
+## Election law re-check: commit cbd42c8
+
+**Verdict: no legal sentence in scope is wrong, and nothing new needs an attorney.**
+- There are two low findings, both about how the statutory perimeter test relates to the repository's own measures. One of them belongs to the Computational Redistricting Scientist.
+- The register's ATTORNEY items stand as before.
+
+**What I read.** The worktree's HEAD is `claude/round2-fixes` at cbd42c8cdbeb823553c49d1b0dee78a314edc4ae. I took "clean" from your message, since I can't run git status. Read 2026-10-11; I read no commit messages and edited nothing. The primary texts are the register's: Iowa Code §42.4 (Iowa Code 2026), *Karcher v. Daggett*, 462 U.S. 725 (read at 725–744), and the LSA Plan 2 Report of Oct. 21, 2021.
+
+**Paths:**
+- [R] `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/wt-fix/README.md`
+- [T] `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/wt-fix/tools/plot_seat_distribution.py`
+- [P] `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/wt-fix/docs/progress.md`
+- [D] `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/wt-fix/docs/DECISIONS.md`
+- [L] `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/wt-fix/docs/first-result/LEGAL-CLAIMS.md`
+
+### Findings
+
+**1. The README's perimeter sentence overstates by implication (low), and it drops "summed".** [R]:82–86 reads: "The draws were scored on neither, though for plans made of whole counties the perimeter test ranks plans by the total length of the county boundaries their district lines follow, a length-weighted form of cut edges".
+
+The relation itself is supported. It is a derivation from §42.4(4)(b)'s text, not something the statute states:
+- A district's perimeter is "the distance needed to traverse the perimeter boundary of a district".
+- Per-district totals "may be cumulated for all districts in a plan in order to compare the overall compactness of two or more alternative districting plans".
+- In that sum the state's outline counts once and every interior line twice.
+- So on whole-county plans, the summed perimeter ranks plans by the length of county boundary lying along district lines.
+
+Two problems remain in the README's version:
+- (a) The word "though" makes cut edges read as a stand-in for the statutory perimeter test.
+  - [P]:2551–2552 has the qualifier the README drops: the unweighted count "follows only as closely as Iowa's county boundaries are alike in length, unmeasured here".
+  - Without that qualifier, the README implies the draws' cut-edge results approximate a §42.4(4) comparison the work never made.
+- (b) It leaves out "summed over a plan's districts", which [P]:2548 and [D]:1266 keep.
+  - The plan ranking it describes is the cumulated form.
+  - §42.4(4)(b) permits that form ("may be cumulated"); it does not require it.
+
+**2. Unmeasured technical claims sitting inside the legal paragraph (outside my lane).**
+- "Mean Polsby-Popper tracks neither test" appears at [P]:2552–2553 and [D]:1268.
+- "nothing here tracks length-width" appears at [P]:2553.
+- Neither statutory test is computed for the draws. If "tracks" means "is a monotone function of", both claims hold by construction. If it means "correlates with", nothing here measures it.
+- That question belongs to the Computational Redistricting Scientist. These are not legal statements.
+
+### The items you named: checked, no finding
+- **Corrected *Karcher* quotation** ([P]:2497–2502; [D]:1242–1247).
+  - "as nearly equal as practicable" is now attributed to §42.4(1)(b) alone, and is verbatim.
+  - "as nearly as is practicable" is *Karcher*'s own wording, verbatim at 462 U.S. at 730.
+  - "neither … sets a person count" is supported by §42.4(1)(b) and by *Karcher* at 731 and 734.
+- **"constraints the draws are not held to, such as the plan's tighter population spread"** ([R]:74–75; likewise [P]:2510–2514 and [D]:1256–1259). This attributes the spread to the plan, not to the law, and no longer implies the draws fail a legal requirement.
+- **The README's limit sentence** ([R]:76–78). It states what the draws cannot show and implies no legal conclusion. It does not present the comparison as evidence of purpose under §42.4(5); the register leaves the application of §42.4(5) to an attorney.
+- **The figure note** ([T]:698–700, with `ENACTED_SPREAD = 94` at [T]:110). "the draws are not held to its 94-person population spread" is supported by LSA Table 1 (overall range 94), as is "Not yet a finding."
+- **The perimeter-test clause.** See finding 1.
+
+Also checked, with no finding:
+- [R]:59–60, "the gap between its most and least populous districts", matches the LSA's definition of "Overall range".
+- [R]:80–81 now dates §42.4(4) as "Iowa Code 2026".
+- [D]:1294–1295, "Its §2.1 does not mention §42.4(4)'s tests", is still true at cbd42c8: CRITERIA.md contains no "42.4", "length-width" or "perimeter compactness".
+- The LEGAL-CLAIMS.md header ([L]:1–25) is accurate:
+  - its quotation of *Karcher* ([L]:16–17) matches 462 U.S. at 730;
+  - its caveats on line references and local paths ([L]:22–25) are accurate.
+
+This review describes the law as of 2026-10-11. It is not legal advice, and the reviewer is not a lawyer. Anyone deciding whether or how to act on a map should consult an election-law attorney.
+
+After this re-check the README dropped the perimeter-test clause its finding 1
+concerns, keeping the statute's two tests and the draws' lack of them; the
+clause stays in `docs/progress.md` and D-041 with its limit, and its finding 2,
+on how mean Polsby-Popper relates to the tests, is answered there by the
+`Computational Redistricting Scientist`'s wording.

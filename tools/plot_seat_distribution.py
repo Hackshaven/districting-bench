@@ -67,6 +67,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import numbers
 import re
 import statistics
 import sys
@@ -467,7 +468,8 @@ def seat_distribution() -> dict:
     def against(column: str, larger_is_less_compact: bool) -> dict:
         at = report["compactness"][column]
         def finite(value):
-            return isinstance(value, (int, float)) and math.isfinite(value)
+            return (isinstance(value, numbers.Real) and not isinstance(value, bool)
+                    and math.isfinite(value))
 
         if not (finite(at) and all(finite(row[column]) for row in rows)):
             raise ValueError(f"a non-finite {column} in the enacted plan or the draws: "

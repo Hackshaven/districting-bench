@@ -1258,14 +1258,17 @@ the draws are not held to, conditioning could move the reference toward a matche
 one, but only if the draws' relation between compactness and seats carries over
 to plans drawn at the enacted tolerance, which these draws cannot show;
 illustrative reweightings of them, none a matched reference, give zero-seat shares
-from 0.44% to 2.4% (the third audit there). If it comes from the sampler's own
+from 0.44% to 2.4% under the constructions the third audit there tried, and other
+constructions give other values. If it comes from the sampler's own
 preference for few cut edges, conditioning undoes part of the reference's target,
 which is a choice about what the neutral baseline is. Which measure to match on is
 a further question. Iowa Code §42.4(4) names length-width and perimeter
 compactness for comparing plans, and the draws carry neither. For plans made of
-whole counties the perimeter test, summed over a plan's districts, ranks plans by
-the total length of the county boundaries their district lines follow, a
-length-weighted form of cut edges; mean Polsby-Popper tracks neither test. The
+whole counties the perimeter test, summed over a plan's districts as the statute
+allows, ranks plans by the total length of the county boundaries their district
+lines follow, a length-weighted form of cut edges; mean Polsby-Popper uses the
+same district perimeters, scaled by each district's area. How closely either
+measure the draws carry follows the statute's tests is unmeasured here, and the
 statute does not say how to weigh its two tests if they disagree. Of the two
 measures the draws do carry, they are more compact than the plan on cut edges and
 not on Polsby-Popper. Part of the cut-edge gap may follow from the population gap,
