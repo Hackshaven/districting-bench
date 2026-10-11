@@ -2299,8 +2299,9 @@ it cannot tell that apart from a sampler that has not converged.
 **An open defect in the diagnostic, which leaves these numbers unchanged.** The
 rank normalization in `src/generate/convergence.py` maps rank `r` of `S` draws to
 `(r − 3/8)/(S − 1/4)`, where Vehtari et al. (2021) have `S + 1/4` (eq. 4.1 as
-corrected on 22 June 2021, and eq. 14 in arXiv v4–v5; earlier printings had the
-code's `S − 1/4`); it stretches only the top tail. Patching the function in
+corrected on 22 June 2021, and eq. 14 in arXiv v4–v5; arXiv v2–v3 and the 2020
+advance printing had the code's `S − 1/4`, and v1 used `(r − 0.5)/S`); it
+stretches only the top tail. Patching the function in
 memory, once, in scratch, moves none of the diagnostics quoted here at the
 precision quoted: the Senate seat count's ESS goes from 262.94 to 262.92, and
 nothing else moves at the precision the plotter prints. It may move diagnostics
@@ -2442,63 +2443,103 @@ not what drawing at that tolerance produces (Experiment 1 §3).
 
 **How the enacted plan's compactness compares depends on the measure.** The draws
 carry two compactness measures, and they place the plan differently. On cut edges
-the draws are more compact: it has 51, and 87.9% of the draws have fewer (77.1–91.9%
-by chain, and 78.4% of the 454 as equal as it). Both counts come from
-`evaluate.compactness.cut_edges` on the same rook graph,
-`data/processed/ia_adjacency.json`. On mean Polsby-Popper over its four districts,
-computed by `evaluate.compactness.measure_districts` on the same county geometry as
-the draws', its 0.3334 sits mid-ensemble: 48.7% of the draws score higher
-(36.1–60.4% by chain, and 33.7% of the population-tight draws), and the draws'
-median is 0.3325. Over the draws the two measures' rank correlation, both oriented
-so that larger is less compact, is 0.76, below the ~0.9 at which `CRITERIA.md` §3
-lets the choice of measure go unstated, so both are reported and the disagreement
-is shown rather than resolved. Reock, Schwartzberg and convex hull cannot be
-placed: the draws carry only these two, and their plans are not committed (audit
-record).
+the draws are more compact: it has 51, and 87.9% of the draws have fewer (±3.5
+points as two Monte Carlo standard errors; 77.1–91.9% by chain; 78.4% of the 454
+as equal as it). Both counts come from `evaluate.compactness.cut_edges` on the
+same rook graph, `data/processed/ia_adjacency.json`. On mean Polsby-Popper over
+its four districts, computed by `evaluate.compactness.measure_districts` along the
+same code path as the draws' (that both runs read the same geometry file is
+inferred, not verified), its 0.3334 sits mid-ensemble: 48.7% of the draws score
+higher (±5.9 points; 36.1–60.4% by chain; 33.7% of the population-tight draws),
+and the draws' median is 0.3325. Neither measure is itself inside `CRITERIA.md`
+§8's convergence band: its split R-hat is 1.023 for cut edges and 1.030 for
+Polsby-Popper. Counted as distinct plans, a sensitivity check rather than the
+ensemble's distribution, the two diverge further: 68.5% of the 4,020 distinct rows
+have fewer cut edges and 19.4% a higher Polsby-Popper (audit record). Over the
+draws the two measures' rank correlation, both oriented so that larger is less
+compact, is 0.76, below the ~0.9 above which `CRITERIA.md` §3 says the choice of
+measure does not matter, so the disagreement is shown rather than resolved. §3
+asks for all five of its measures; Reock, Schwartzberg and convex hull cannot be
+placed, because the draws carry only these two and their plans are not committed
+(audit record).
 
 Pooled, zero seats are commoner among the draws no more compact than the enacted
 plan, on either measure. On cut edges 4.52% of the 3,341 with 51 or more give 0
-seats, against 1.01% of the 24,223 with fewer; on Polsby-Popper 1.99% of the 14,139
-at or below its score do, against 0.85% of the 13,425 above, and chain 2 reverses
-that. The cut-edge contrast's direction is sound by the record's tests: none of the
-7,850 draws at 40–42 cut edges gives 0 seats, and an autocorrelation-preserving
-test gives p = 0.0003 on the full rectangle. Its magnitude is not: 89 of the 151
-zero-seat draws at 51 or more are one excursion of chain 6, early in its first 500
-draws. Once each chain's first 500 are dropped the shares are 2.16% and 1.02%, with
-a chain-level 95% interval for the difference of +0.3 to +2.3 points; after longer
-warm-ups, of 750 to 2,000 draws, the ratio is about 1.5 to 1.8 rather than 4.5, and
-the interval includes zero, as it does on the full rectangle (−0.7 to +5.7). The
+seats, against 1.01% of the 24,223 with fewer; on Polsby-Popper 1.99% of the
+14,139 at or below its score do, against 0.85% of the 13,425 above, and chain 2
+reverses that. The two splits sit at different points, the least compact eighth
+of the draws on cut edges and the least compact half on Polsby-Popper, so the two
+contrasts say where the plan sits on each measure, not which measure separates
+zero-seat plans better. The cut-edge contrast's direction is supported by the
+record's tests: a circular-shift test that keeps each chain's autocorrelation
+gives p below 0.001 on the full rectangle and about 0.04 once each chain's first
+500 draws are dropped, and at splits of 45 and 47 cut edges the direction holds
+in all six chains at every warm-up (audit record). None of the 7,850 draws at
+40–42 cut edges gives 0 seats, though they are only 78 distinct plans. The
+contrast's size is not robust: 89 of the 151 zero-seat draws at 51 or more are one
+excursion of chain 6, early in its first 500 draws (audit record). Once each
+chain's first 500 are dropped the shares are 2.16% and 1.02%, with a chain-level
+95% interval for the difference of +0.3 to +2.3 points; after longer warm-ups, of
+750 to 2,000 draws, the ratio is about 1.5 to 1.8 rather than 4.5, and the
+interval includes zero, as it does on the full rectangle (−0.7 to +5.7). The
 contrast holds in all six chains up to a 500-draw cut, in five of six at 750 to
-1,500, and in four of six at 2,000. On Polsby-Popper the chain-level interval
-includes zero at every warm-up. Population spread does not confound the pooled
-cut-edge association: stratified by spread, its Mantel–Haenszel ratio is 4.44
-against a crude 4.49, and 2.03 against 2.11 after the warm-up. But among the 454
-draws as equal as the enacted plan too few give 0 seats to show it either way: 0 of
-the 98 with 51 or more cut edges, and 2 of the 356 below, one plan drawn twice
-(audit record).
+1,500, and in four of six at 2,000; on Polsby-Popper the chain-level interval
+includes zero at every warm-up (audit record). Population spread does not
+confound the pooled cut-edge association: stratified by spread, its
+Mantel–Haenszel ratio is 4.44 against a crude 4.49, and 2.03 against 2.11 after
+the warm-up (audit record). But among the 454 draws as equal as the enacted plan
+too few give 0 seats to show it either way: 0 of the 98 with 51 or more cut
+edges, and 2 of the 356 below, one plan drawn twice.
 
-Whether to condition the reference on compactness is open. Population equality is
-the first of Iowa's ordered criteria (`CRITERIA.md` §2.1), and the draws do not
-meet the enacted plan's level of it, so matching the reference to it matches on a
-constraint. Compactness is the fourth, and conditioning on it cuts two ways. If the
-enacted plan's shape follows from how it was drawn, conditioning absorbs part of
-what the comparison tests. If it follows from constraints the draws do not meet,
-conditioning moves the reference toward a matched one, but not by restricting it to
-the plan's own level: weighting the draws to a candidate matched profile gives 2.4%
-(the population-tight draws' cut edges), 1.0% (`docs/FEASIBILITY.md` §5.3's 57–67)
-or 0.44% (filtering on population directly), against 4.5% at 51 or more, and the
-zero-seat share is not monotone in cut edges (audit record). These draws cannot tell
-which case holds, nor fix the size or direction of the second. Part of the cut-edge
-gap may follow from the population gap, by an amount these draws cannot measure:
-the 454 draws as equal as the enacted plan average 48.1 cut edges, 21.6% of them at
-51 or more, against 45.5 and 12.0% for the rest, as `docs/FEASIBILITY.md` §5.3's
-finding that population-tight whole-county plans carry 57–67 cut edges would
-suggest, but across the rectangle population spread and cut edges are barely
-associated (audit record). The matched comparison is a sampler held to the enacted
-plan's tolerance, whose plans would be less compact on their own; these draws
-cannot stand in for it, since their 454 population-tight draws hold one zero-seat
-plan. Whether, and on what, to condition, and on which compactness measure, is a
-value choice for the owner (D-041).
+Whether to condition the reference on compactness is open. Population equality
+ranks first in Iowa Code §42.4 (Iowa Code 2026) and compactness fourth, "to the
+extent consistent with the standards established by subsections 1, 2, and 3". For
+congressional districts the statute and *Karcher v. Daggett*, 462 U.S. 725 (1983),
+set a standard, "as nearly equal as practicable", with the statute's one-percent
+cap yielding to Iowa Const. art. III, §37, not a person count: 94 persons is the
+spread the enacted plan reached (Iowa Legislative Services Agency, Plan 2 report,
+Table 1, 21 October 2021). Matching the reference to it would match on the enacted
+plan's achieved level of the first-ranked standard, not on a legal threshold, and
+in the sampler that level is an input, a tolerance the draws are held to.
+Compactness is an output of where the lines go, and the cut-edge gap between the
+draws and the enacted plan has three possible sources, which conditioning treats
+differently. If it comes from choices made in drawing the plan, conditioning
+absorbs part of the difference the comparison measures. If it comes from
+constraints the draws do not meet, conditioning could move the reference toward a
+matched one, but only if the draws' relation between compactness and seats
+carries over to plans drawn at the enacted plan's tolerance, which these draws
+cannot show. If it comes from the sampler's own preference for few cut edges,
+conditioning undoes part of the reference's target, which is a choice about what
+the neutral baseline is; on Polsby-Popper, which that preference does not act on
+directly, the plan sits mid-ensemble, consistent with this case without showing
+it. These draws cannot tell the three apart, and restricting them to the plan's
+own compactness is a matched reference in none of them. Reweighting the draws
+shows how far such choices move the zero-seat share, though none of the
+reweightings is a matched reference either (audit record): 4.5% among the draws
+at or above the plan's 51 cut edges; 2.4% weighted to the population-tight draws'
+cut edges, which leans on the 999 draws at exactly 51, where 100 give 0 seats and
+84 of those are chain 6's excursion; 1.0% spread evenly over 57–67 cut edges,
+which rests on the 126 draws at 57, since none of the 221 at 58–66 gives 0 seats
+and none has 65 or 67; and 0.44% filtering on population, one plan, which the
+population paragraph above sets aside as a filter. The zero-seat share is not
+monotone in cut edges. The 57–67 is the range of the sub-94-person plans a beam
+search found (`docs/FEASIBILITY.md` §5.3), what one optimizer reached rather than
+what population-tight plans carry in general: the 454 population-tight draws here
+average 48.1 cut edges, 21.6% of them at 51 or more, against 45.5 and 12.0% for
+the rest. Part of the cut-edge gap may follow from the population gap, by an
+amount these draws cannot measure, since across the rectangle population spread
+and cut edges are barely associated (audit record). The matched comparison is a
+sampler held to the enacted plan's tolerance. Its plans may be less compact, and
+it may need another sampler or start: at this ensemble's tolerance 10 of the 12
+chains stopped short of their 12,000 draws, and the enacted plan's 94-person
+spread needs a tolerance under a third as wide. These draws cannot stand in for
+it, since their 454 population-tight draws hold one zero-seat plan. Whether, and
+on what, to condition is a value choice for the owner (D-041). On which measure,
+Iowa Code §42.4(4) names the tests for comparing the compactness of districts or
+plans, length-width and perimeter compactness; the draws carry neither, and the
+statute does not say how to weigh its two tests when they disagree
+(`docs/first-result/LEGAL-CLAIMS.md`, which marks for an election-law attorney
+how a court would apply them).
 
 The comparison remains **not yet a finding**: 1.43% of draws give 0 seats.
 
@@ -2541,17 +2582,26 @@ draws, the rectangle report, and the Phase 2 report. It prints:
 - the half-by-half, chain-by-chain, warm-up and rectangle checks, each chain's
   draws by seats in its first 500, and each chain's fate;
 - the Senate draws that reach 3 seats, and where they sit;
-- the population-equality and cut-edge counts, and the cut edges of the
-  population-tight draws against the rest.
+- the population-equality counts, and where the enacted plan sits on cut edges
+  and on mean Polsby-Popper: the share of draws more compact on each, with its
+  Monte Carlo error and chain range, the measure's own split R-hat, the enacted
+  seat count's share on either side, the two measures' rank correlation, the
+  draws by cut edges, and the cut edges of the population-tight draws against
+  the rest.
 
 `tests/test_seat_distribution.py` pins those numbers, every string the figure
 prints, and what the figure draws. It also holds controls that must make the
 script refuse: a draw past the margin, a sweep off the half-vote grid at either
 end or of the wrong parity, a non-finite gap, Colorado's draws, a stale vote
 total, and a Phase 2 report for another contest, another district count, an
-outcome no draw produced, or without the closest district. The audit record is
-`docs/first-result/INSTRUMENT-AUDIT.md`: two audits, each of one auditor and one
-refuter (CLAUDE.md, D-007), the second on the analysis review added.
+outcome no draw produced, a non-finite compactness value, or without the closest
+district. The audit record is `docs/first-result/INSTRUMENT-AUDIT.md`: three
+audits (CLAUDE.md, D-007), the first two each of one auditor and one refuter,
+the second on the analysis review added, and the third, on the compactness
+comparison, of one auditor and a refuter for each of its two allegations. The
+tests, intervals and reweightings this section credits to the audit record were
+computed by the auditors' and refuters' own scripts, as their reports there
+describe; the plotter does not recompute them.
 
 ---
 
@@ -2616,7 +2666,8 @@ district's two-party votes, where the page says 50% plus one. The wasted-vote fo
 is how `CRITERIA.md` §5.1 defines the metric, without fixing a threshold, and what
 `evaluate.partisan` computes, by default at the page's 50% plus one. Inside the
 25–75% band, where all eight races here lie (statewide shares from 0.37 to 0.57),
-the two differ in PlanScore's orientation by `τ − S`, the share of votes cast in
+and on a plan with no tied or empty district, as none of these has, the two
+differ in PlanScore's orientation by `τ − S`, the share of votes cast in
 districts the Democrats won less the share of seats they won, plus a
 strict-majority term of at most `k/T`, a few millionths here. So there they
 coincide wherever `τ = S`: at equal turnout, and in any one-party sweep, whatever

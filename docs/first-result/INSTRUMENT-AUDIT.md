@@ -1709,3 +1709,32 @@ except where they come from the reports above.
 | — | Two comments say the population gap explains much of the compactness gap | Upheld by both refuters | Both now say that how much of the cut-edge gap follows from the population gap these draws cannot measure (D-041). |
 | — | `docs/progress.md` compresses the second audit's warm-up result | Raised by the first refuter | Corrected to what the record shows. The chain-level interval excludes zero only at the 500-draw cut, and includes it from 750 draws on and on the full rectangle. The contrast holds in all six chains up to 500, in five of six at 750 to 1,500, and in four of six at 2,000. On Polsby-Popper the interval includes zero at every warm-up. |
 | — | D-041 "isn't rewritten; a reversal would be a new entry" | Raised by the second refuter | D-041 is new in this unmerged change, and what it chose is unchanged: the unconditioned share is reported, population is the reason the comparison is not yet a finding, and any conditioning is left to the owner. Its facts and reasoning are corrected in place, and its last line points here. |
+
+**After the routing reviews.** The `Computational Redistricting Scientist`, the
+`Pre-Submission Peer Reviewer` and the `Election Law Analyst`, reading the commit
+that answered this audit, found that the answer itself overreached. The commit
+after it corrects that:
+
+- The cut-edge gap has a third possible source, the sampler's own preference for
+  few cut edges, under which conditioning would undo part of the reference's
+  target. The README, `docs/progress.md` and D-041 give all three cases, and make
+  the second conditional on the draws' relation between compactness and seats
+  carrying over to plans drawn at the enacted plan's tolerance.
+- The second refuter's reweightings are illustrative, not candidate matched
+  references. The 0.44% is a population filter the same documents set aside, the
+  1.0% rests on the 126 draws at 57 cut edges, and the 57–67 range is what a beam
+  search found, not what population-tight plans carry in general.
+- The README again quoted the contrast's magnitudes, which the second audit had
+  removed as not robust. It now gives the direction, and says the size is not
+  robust.
+- `docs/progress.md` read `CRITERIA.md` §3 as letting the choice of measure go
+  unstated above a rank correlation of about 0.9. §3 says the choice does not
+  matter there, and asks for all five of its measures always.
+- Iowa Code §42.4(4) names length-width and perimeter compactness for comparing
+  plans, and the draws carry neither. The enacted plan's 94-person spread is the
+  level it reached, not a legal requirement. The Analyst's register is
+  `docs/first-result/LEGAL-CLAIMS.md`.
+
+The plotter now prints each location's Monte Carlo error, each measure's own split
+R-hat, the draws' median Polsby-Popper, the population-tight draws' split on each
+measure, and the draws by cut edges, so the counts these answers quote are pinned.

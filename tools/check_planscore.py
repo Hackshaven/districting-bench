@@ -21,7 +21,8 @@ by reproducing PlanScore's number from this repository's:
   wasted-vote form. ``evaluate.partisan`` counts wasted votes district by
   district, as CRITERIA.md section 5.1 defines the metric, positive for the
   Republicans. Inside that band, where every race compared lies and outside
-  which :func:`equal_turnout_gap` refuses, the two differ in PlanScore's
+  which :func:`equal_turnout_gap` refuses, and on a plan with no tied or empty
+  district, as :func:`compare_race` requires, the two differ in PlanScore's
   orientation by ``tau - S``, the share of votes cast in districts the
   Democrats won less the share of seats they won, plus a strict-majority
   threshold term of at most ``k/T``. So there they agree whenever ``tau = S``:

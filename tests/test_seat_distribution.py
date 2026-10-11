@@ -147,7 +147,12 @@ def test_the_enacted_plan_caveats_are_pinned(dist):
     # how far that rests on one chain's early excursion is the next pin.
     edges = compact["cut_edges"]
     assert edges["enacted"] == 51
+    assert edges["median"] == 45
     assert edges["more_compact_share"] == pytest.approx(24_223 / 27_564)
+    # the location has its own Monte Carlo error, and the measure itself sits
+    # outside CRITERIA.md section 8's band
+    assert 2 * edges["more_compact_mcse"] == pytest.approx(0.0352, abs=1e-4)
+    assert edges["measure_split_rhat"] == pytest.approx(1.0226, abs=1e-4)
     assert (min(edges["more_compact_by_chain"]), max(edges["more_compact_by_chain"])) == (
         pytest.approx(0.7714, abs=1e-4), pytest.approx(0.9190, abs=1e-4))
     assert edges["more_compact_share_as_equal"] == pytest.approx(0.7841, abs=1e-4)
@@ -156,12 +161,25 @@ def test_the_enacted_plan_caveats_are_pinned(dist):
     assert edges["no_more_compact_after_burn_in"][0] == pytest.approx(0.0216, abs=1e-4)
     assert edges["more_compact_after_burn_in"][0] == pytest.approx(0.0102, abs=1e-4)
     assert all(high > low for _, high, low in edges["by_chain"])
+    # among the draws as equal as the plan, too few give 0 seats to tell
+    assert edges["as_equal_split"] == ((0.0, 98), (pytest.approx(2 / 356), 356))
+    # and the share is not monotone in cut edges: none at 40-42, a tenth at
+    # exactly 51, none past 57
+    profile = compact["by_cut_edges"]
+    assert [sum(profile[e][i] for e in (40, 41, 42)) for i in range(3)] == [7850, 0, 78]
+    assert profile[51][:2] == (999, 100) and profile[57][:2] == (126, 11)
+    assert sum(profile[e][0] for e in range(58, 67) if e in profile) == 221
+    assert sum(profile[e][1] for e in range(58, 67) if e in profile) == 0
+    assert 65 not in profile and max(profile) == 66
     # On mean Polsby-Popper the plan sits mid-ensemble, the 0-seat contrast is
     # weaker, and one chain reverses it: the measures disagree (CRITERIA.md
     # section 3), and the two order the draws well short of its ~0.9.
     pp = compact["polsby_popper_mean"]
     assert pp["enacted"] == pytest.approx(0.33338, abs=1e-5)
+    assert pp["median"] == pytest.approx(0.33252, abs=1e-5)
     assert pp["more_compact_share"] == pytest.approx(13_425 / 27_564)
+    assert 2 * pp["more_compact_mcse"] == pytest.approx(0.0592, abs=1e-4)
+    assert pp["measure_split_rhat"] == pytest.approx(1.0302, abs=1e-4)
     assert (min(pp["more_compact_by_chain"]), max(pp["more_compact_by_chain"])) == (
         pytest.approx(0.3609, abs=1e-4), pytest.approx(0.6038, abs=1e-4))
     assert pp["more_compact_share_as_equal"] == pytest.approx(0.3370, abs=1e-4)
@@ -339,7 +357,7 @@ def test_the_figure_text_is_pinned(dist):
                    "2020 Senate vote, 8 draws reach 3: 2 distinct plans, all in "
                    "one chain's first 500 draws",
                    "2-seat share's standard error at 3.3–3.9 pts",
-                   "R-hat 1.014, outside CRITERIA §8's 1.00–1.01 band"):
+                   "R-hat 1.014, above CRITERIA §8's 1.00–1.01 band"):
         assert phrase in footer
     assert all(len(line) <= S.FOOTER_WIDTH for line in text["footer"])
 
@@ -349,33 +367,39 @@ def footer_of(d: dict) -> str:
 
 
 def test_the_figure_text_follows_the_values(dist):
-    # "Outside" may not be a literal: it is read off the number it describes,
+    # "Above" may not be a literal: it is read off the number it describes,
     # and so is each caution after it.
     low_ess = ("24 effective draws per split chain are below the 50 Vehtari et al. (2021) "
                "ask for before relying on R-hat")
     understate = "these standard errors may understate the uncertainty"
-    assert (f"R-hat 1.014, outside CRITERIA §8's 1.00–1.01 band; {low_ess}, and "
+    assert (f"R-hat 1.014, above CRITERIA §8's 1.00–1.01 band; {low_ess}, and "
             f"{understate}.") in footer_of(dist)
     d = copy.deepcopy(dist)
     # a reading far past anything a stationary chain gives at this size: the
-    # footer reports it and says nothing to discount it
+    # caution about the standard errors stays, beside the effective sample's
     d["primary"]["seat_count_split_rhat"] = 1.08
-    assert f"R-hat 1.080, outside CRITERIA §8's 1.00–1.01 band; {low_ess}, and " \
+    assert f"R-hat 1.080, above CRITERIA §8's 1.00–1.01 band; {low_ess}, and " \
            f"{understate}." in footer_of(d)
     # enough effective draws to rely on R-hat: the caution follows the R-hat alone
     d["primary"]["seat_count_ess"] = 5_000
     assert "Vehtari" not in footer_of(d)
-    assert f"R-hat 1.080, outside CRITERIA §8's 1.00–1.01 band; {understate}." in footer_of(d)
+    assert f"R-hat 1.080, above CRITERIA §8's 1.00–1.01 band; {understate}." in footer_of(d)
     d["primary"]["seat_count_split_rhat"] = 1.004
     assert "R-hat 1.004, inside CRITERIA §8's 1.00–1.01 band. Regenerate" in footer_of(d)
     assert "understate" not in footer_of(d)
+    # below the band is no warning
     d["primary"]["seat_count_split_rhat"] = 0.998
-    assert "understate" not in footer_of(d)
+    assert "R-hat 0.998, below CRITERIA §8's 1.00–1.01 band. Regenerate" in footer_of(d)
 
 
 def test_a_share_above_zero_is_never_printed_as_zero():
     assert (S.share_text(0.0), S.share_text(0.0003), S.share_text(0.0143)) == (
         "0.0%", "<0.1%", "1.4%")
+
+
+#: How far, in pixels at the figure's 200 dpi, two strings' boxes may overlap:
+#: each bar's two labels share about 2 px of padding, without touching.
+PADDING_PX = 3
 
 
 def assert_every_string_is_drawn_whole(d: dict, placed: dict):
@@ -393,11 +417,17 @@ def assert_every_string_is_drawn_whole(d: dict, placed: dict):
         assert x1 - x0 > 1 and y1 - y0 > 1, t
         assert 0 <= x0 and x1 <= width and 0 <= y0 and y1 <= height, t
         assert not clipped, t
-    note = placed["note_box"]
-    for t, box, _ in placed["texts"]:
-        if t != text["note"]:
-            assert not (note[0] < box[2] and box[0] < note[2]
-                        and note[1] < box[3] and box[1] < note[3]), t
+    # no two strings overlap by more than a sliver of their boxes' padding,
+    # which each bar's two labels already share in the tallest font; the
+    # note's white box, which hides what lies under it, may not touch one
+    boxes = [(t, box) for t, box, _ in placed["texts"] if t != text["note"]]
+    boxes.append((text["note"], placed["note_box"]))
+    for i, (a, p) in enumerate(boxes):
+        for b, q in boxes[i + 1:]:
+            overlap = min(min(p[2], q[2]) - max(p[0], q[0]),
+                          min(p[3], q[3]) - max(p[1], q[1]))
+            allowed = 0 if text["note"] in (a, b) else PADDING_PX
+            assert overlap <= allowed, (a, b, overlap)
 
 
 def test_the_figure_draws_what_the_text_says(dist, tmp_path):
@@ -425,24 +455,32 @@ def test_an_outcome_seen_in_one_chain_draws_without_a_whisker(dist, tmp_path):
     assert_every_string_is_drawn_whole(d, placed)
 
 
-def test_an_empty_comparison_group_leaves_its_line_out(tmp_path, monkeypatch):
-    # No draw as equal as the enacted plan, and none as uncompact as it on
-    # either measure: the summary says there is nothing to compare, and the
-    # figure, which carries neither, still draws.
-    monkeypatch.setattr(S, "ENACTED_SPREAD", -1)
+@pytest.mark.parametrize("spread, cut_edges, polsby_popper, empty", [
+    # no draw as equal as the plan, and none as uncompact as it on either measure
+    (-1, 10**6, -1.0, "no_more_compact"),
+    # every draw as equal as it, and none more compact on either measure
+    (10**6, 0, 2.0, "more_compact"),
+])
+def test_an_empty_comparison_group_leaves_its_line_out(
+        tmp_path, monkeypatch, spread, cut_edges, polsby_popper, empty):
+    # The summary says there is nothing to compare, and the figure, which
+    # carries neither comparison, still draws.
+    monkeypatch.setattr(S, "ENACTED_SPREAD", spread)
     _report_with(tmp_path, monkeypatch, lambda r: r["compactness"].update(
-        cut_edges=10**6, polsby_popper_mean=-1.0))
+        cut_edges=cut_edges, polsby_popper_mean=polsby_popper))
     d = S.seat_distribution()
     compact = d["compactness"]
-    assert compact["as_equal_profile"] is None
+    assert compact["as_equal_profile"] is None or compact["rest_profile"] is None
     for column in ("cut_edges", "polsby_popper_mean"):
         c = compact[column]
-        assert c["more_compact_share"] == 1.0
-        assert c["more_compact_share_as_equal"] is None
-        assert c["no_more_compact"] == (None, 0)
+        assert c["more_compact_share"] == (1.0 if empty == "no_more_compact" else 0.0)
+        assert c["more_compact_mcse"] is None
+        assert c[empty] == (None, 0)
     lines = S.summary_lines(d)
     assert any("no profile" in line for line in lines)
-    assert sum("0 D share n/a of 0 draws no more compact" in line for line in lines) == 2
+    said = {"no_more_compact": "n/a of 0 draws no more compact",
+            "more_compact": "n/a of 0 more compact"}[empty]
+    assert sum(said in line for line in lines) == 2
     placed = S.draw(d, tmp_path / "empty.png")
     assert_every_string_is_drawn_whole(d, placed)
 
@@ -491,6 +529,15 @@ def test_a_plan_with_another_district_count_is_refused(tmp_path, monkeypatch):
 def test_an_enacted_outcome_no_draw_produced_is_refused(tmp_path, monkeypatch):
     _report_with(tmp_path, monkeypatch, lambda r: r["partisan"].update(dem_seats=3))
     with pytest.raises(ValueError, match="never produced"):
+        S.seat_distribution()
+
+
+def test_a_non_finite_compactness_value_is_refused(tmp_path, monkeypatch):
+    # Every comparison with a NaN is false, so it would read as "every draw is
+    # more compact" rather than as no value at all.
+    _report_with(tmp_path, monkeypatch,
+                 lambda r: r["compactness"].update(polsby_popper_mean=float("nan")))
+    with pytest.raises(ValueError, match="non-finite polsby_popper_mean"):
         S.seat_distribution()
 
 

@@ -16,10 +16,13 @@ reads ``docs/experiment-2/ia-draws-v2.csv.gz`` (and its chain sidecar) through
 Experiment 2's own loader -- so the sample is the D-035 rectangle, six chains
 truncated to their common 4,594-draw prefix, with every seed checked against the
 one its index derives -- ``docs/phase-2/phase-2-report.json`` for the enacted
-plan's seat count, cut edges and closest district, and two more committed files
-for the checks :func:`summary_lines` prints. All text on the figure is built by
-:func:`figure_text`, from those values, so it can be pinned; every number
-``docs/progress.md`` quotes about this sample is printed by :func:`summary_lines`.
+plan's seat count, cut edges, mean Polsby-Popper and closest district, and two
+more committed files for the checks :func:`summary_lines` prints. All text on the
+figure is built by :func:`figure_text`, from those values, so it can be pinned;
+every count and share ``docs/progress.md`` quotes about this sample is printed by
+:func:`summary_lines`. The tests, intervals and reweightings it credits to the
+audit record were computed by the auditors' and refuters' own scripts, as their
+reports in ``docs/first-result/INSTRUMENT-AUDIT.md`` describe.
 
 **Seats are read off the efficiency gap, not recounted** (D-039). The draws file
 records |efficiency gap| per contest, not seats, and a recount needs the election
@@ -369,6 +372,18 @@ def share_at(seats: list[int], s: int) -> tuple[float | None, int]:
     return (seats.count(s) / len(seats) if seats else None), len(seats)
 
 
+def cut_edge_counts(rows: list[dict], seats: list[int], s: int) -> dict:
+    """At each cut-edge count: how many draws, how many of them at ``s`` seats,
+    and how many distinct rows of committed metrics they hold."""
+    draws, at, distinct = {}, {}, {}
+    for row, x in zip(rows, seats):
+        e = int(row["cut_edges"])
+        draws[e] = draws.get(e, 0) + 1
+        at[e] = at.get(e, 0) + (x == s)
+        distinct.setdefault(e, set()).add(tuple(sorted(row.items())))
+    return {e: (draws[e], at[e], len(distinct[e])) for e in sorted(draws)}
+
+
 def seat_distribution() -> dict:
     """The seat distribution under both contests, every value from committed files."""
     report = json.loads(REPORT.read_text())[STATE]
@@ -440,7 +455,8 @@ def seat_distribution() -> dict:
     # measures, and they place the plan differently: ReCom leans compact on the
     # unit graph, so most draws have fewer cut edges than the plan, while on
     # mean Polsby-Popper it sits mid-ensemble. CRITERIA.md section 3 asks for
-    # both, with the disagreement shown rather than resolved. Each split
+    # all five of its measures, with disagreements shown rather than resolved;
+    # the draws carry these two. Each split
     # compares the enacted seat count's share among the draws no more compact
     # than the plan with its share among the rest.
     late = [(row, s) for chain, chain_seats in zip(chains, primary["seats"])
@@ -449,6 +465,9 @@ def seat_distribution() -> dict:
 
     def against(column: str, larger_is_less_compact: bool) -> dict:
         at = report["compactness"][column]
+        if not (math.isfinite(at) and all(math.isfinite(row[column]) for row in rows)):
+            raise ValueError(f"a non-finite {column} in the enacted plan or the draws: "
+                             "no draw can be placed against it")
 
         def no_more_compact(row):
             return row[column] >= at if larger_is_less_compact else row[column] <= at
@@ -464,11 +483,23 @@ def seat_distribution() -> dict:
 
         (whole_no_more, whole_more), (late_no_more, late_more) = (split(zip(rows, seats)),
                                                                   split(late))
+        # the location's own Monte Carlo error, from the effective sample size of
+        # its indicator, as for the seat shares; a share of 0 or 1 has none
+        share = more_compact(rows)
+        indicator = [[float(not no_more_compact(row)) for row in chain.rows]
+                     for chain in chains]
+        ess = CV.ess(indicator) if 0 < share < 1 else None
+        values = [[float(row[column]) for row in chain.rows] for chain in chains]
         return {
             "enacted": at,
-            "more_compact_share": more_compact(rows),
+            "median": statistics.median(row[column] for row in rows),
+            "measure_split_rhat": CV.split_rhat(values),
+            "more_compact_share": share,
+            "more_compact_mcse": (math.sqrt(share * (1 - share) / ess)
+                                  if ess and math.isfinite(ess) else None),
             "more_compact_by_chain": [more_compact(chain.rows) for chain in chains],
             "more_compact_share_as_equal": more_compact(tight),
+            "as_equal_split": split((row, s) for _, row, s in as_equal),
             "no_more_compact": whole_no_more,
             "more_compact": whole_more,
             "no_more_compact_after_burn_in": late_no_more,
@@ -489,6 +520,9 @@ def seat_distribution() -> dict:
     compactness = {
         "cut_edges": against("cut_edges", larger_is_less_compact=True),
         "polsby_popper_mean": against("polsby_popper_mean", larger_is_less_compact=False),
+        # draws, draws at the enacted seat count, and distinct rows, at each
+        # cut-edge count: the enacted share is not monotone in cut edges
+        "by_cut_edges": cut_edge_counts(rows, seats, enacted),
         # how closely the two measures order the draws, both oriented so that
         # larger is less compact; CRITERIA.md section 3's bar is about 0.9
         "rank_correlation": C.spearman([row["cut_edges"] for row in rows],
@@ -580,7 +614,9 @@ def figure_text(d: dict) -> dict:
     span = [x for x in xs if p["counts"][x]]
     missing = [x for x in xs if not p["counts"][x]]
     rhat = p["seat_count_split_rhat"]
-    where = "inside" if RHAT_BAND[0] <= rhat <= RHAT_BAND[1] else "outside"
+    # below the band is no warning; above it is
+    where = ("inside" if RHAT_BAND[0] <= rhat <= RHAT_BAND[1] else
+             "above" if rhat > RHAT_BAND[1] else "below")
     per_split = p["seat_count_ess"] / (2 * d["n_chains"])
     # an effective sample too small to rely on R-hat, or an R-hat above the
     # band, each leaves the standard errors open to understating
@@ -785,21 +821,29 @@ def compactness_line(name: str, c: dict, enacted: int) -> str:
     """Where the enacted plan sits on one compactness measure, and the enacted
     seat count's share on either side of it."""
     by_chain = [v for v in c["more_compact_by_chain"] if v is not None]
+    error = (f" +/- {200 * c['more_compact_mcse']:.2f} pts (2 MCSE)"
+             if c["more_compact_mcse"] else "")
+    (tight_no_more, n_no_more), (tight_more, n_more) = c["as_equal_split"]
     return (
-        f"{name}: enacted plan {c['enacted']:.6g}; {_pct(c['more_compact_share'])} of draws "
-        f"more compact (chains {_pct(min(by_chain))}-{_pct(max(by_chain))}; "
+        f"{name}: enacted plan {c['enacted']:.6g}, draws' median {c['median']:.6g}, the "
+        f"measure's split R-hat {c['measure_split_rhat']:.4f}; "
+        f"{_pct(c['more_compact_share'])}{error} of draws more compact (chains "
+        f"{_pct(min(by_chain))}-{_pct(max(by_chain))}; "
         f"{_pct(c['more_compact_share_as_equal'])} of those at <= {ENACTED_SPREAD} persons); "
         f"{enacted} D share {_pct(c['no_more_compact'][0])} of {c['no_more_compact'][1]:,} "
         f"draws no more compact, {_pct(c['more_compact'][0])} of "
         f"{c['more_compact'][1]:,} more compact; after dropping {BURN_IN_CHECK} per chain "
         f"{_pct(c['no_more_compact_after_burn_in'][0])} against "
-        f"{_pct(c['more_compact_after_burn_in'][0])}; by chain (no more / more compact) "
+        f"{_pct(c['more_compact_after_burn_in'][0])}; at <= {ENACTED_SPREAD} persons "
+        f"{_pct(tight_no_more)} of {n_no_more} against {_pct(tight_more)} of {n_more}; "
+        "by chain (no more / more compact) "
         + ", ".join(f"{i}: {_pct(a)}/{_pct(b)}" for i, a, b in c["by_chain"])
     )
 
 
 def summary_lines(d: dict) -> list[str]:
-    """Every number docs/progress.md quotes about this sample, in print."""
+    """Every count and share docs/progress.md quotes about this sample, in print;
+    the tests and intervals it credits to the audit record are the audit's."""
     lines = [
         f"{d['n_draws']:,} draws: {d['n_chains']} of {d['n_chains_requested']} chains "
         f"({d['n_chains_never_started']} never started, {d['n_chains_stopped_early']} "
@@ -901,6 +945,9 @@ def summary_lines(d: dict) -> list[str]:
                                ("polsby_popper_mean", "mean Polsby-Popper"))),
         f"    rank correlation of the two over the draws, both oriented so that larger is "
         f"less compact: {compact['rank_correlation']:.4f}",
+        f"    by cut edges (draws/{d['enacted_dem_seats']} D/distinct rows): "
+        + ", ".join(f"{e}: {n}/{at}/{distinct}"
+                    for e, (n, at, distinct) in compact["by_cut_edges"].items()),
         "    cut edges of the draws as equal as the enacted plan: "
         + (f"the {compact['as_equal_profile'][2]} at <= {ENACTED_SPREAD} "
            f"persons average {compact['as_equal_profile'][0]:.1f} cut edges, "

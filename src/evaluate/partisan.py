@@ -353,8 +353,11 @@ def efficiency_gap(
     vote share ``V`` once PlanScore has swung any ``V`` outside [0.25, 0.75] into
     that band, although PlanScore's metric page describes the wasted-vote form
     this function computes.
-    Inside that band, in PlanScore's orientation, this function's value negated,
-    less PlanScore's, is ``tau - S``, where ``tau`` is the share of all two-party
+    Inside that band, and on a plan with no tied or empty district (PlanScore
+    counts a tie as no Democratic seat and drops an empty district from ``S``,
+    where this function wastes a tied district's votes on both sides), in
+    PlanScore's orientation this function's value negated, less PlanScore's, is
+    ``tau - S``, where ``tau`` is the share of all two-party
     votes cast in districts the Democrats won. That is exact with
     ``threshold="half"``; the default ``"majority"`` adds a term of at most
     ``k/T`` (``k`` districts, ``T`` two-party votes), a few millionths on a

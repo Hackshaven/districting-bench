@@ -1171,12 +1171,14 @@ against PlanScore"). PlanScore's own metric page, which `CRITERIA.md` cites,
 describes the wasted-vote form, as `CRITERIA.md` §5.1 does. PlanScore's code
 counted wasted votes until August 2021, when commit 24331854 changed it "to use
 vote share instead of raw counts"; the per-race values compared here arrived after
-that (19927c3e, September 2021), so PlanScore has never published them in the
-wasted-vote form, though its plan page still describes them in wasted-vote words.
-PlanScore first swings any statewide vote share outside 25–75% into that band.
-Inside it, where all eight races compared lie, the two differ in PlanScore's
-orientation by `τ − S`, plus a strict-majority term of at most `k/T`, so they agree
-whenever `τ = S`, which includes equal turnout and any one-party sweep.
+that (19927c3e, September 2021), so PlanScore's code has never computed them in
+the wasted-vote form, though its plan page still describes them in wasted-vote
+words (`planscore/website/static/plan.js` at 3f866f9). PlanScore first swings any
+statewide vote share outside 25–75% into that band. Inside it, where all eight
+races compared lie, and on a plan with no tied or empty district, as none of
+these has, the two differ in PlanScore's orientation by `τ − S`, plus a
+strict-majority term of at most `k/T`, so they agree whenever `τ = S`, which
+includes equal turnout and any one-party sweep.
 
 *Chosen:* keep the wasted-vote form, correct the docstring that called the two
 the same up to sign, and record how far apart they are on a real plan. Whether
@@ -1223,29 +1225,45 @@ not held to the enacted plan's 94-person population spread, and only 454 of the
 27,564 are that equal. How its compactness compares depends on the measure: 88% of
 the draws have fewer cut edges than its 51, but on mean Polsby-Popper, the other
 measure the draws carry, it sits mid-ensemble, with 48.7% of them more compact. The
-two measures order the draws with a rank correlation of 0.76, below the ~0.9 at
-which `CRITERIA.md` §3 lets the choice of measure go unstated. Pooled, 0 seats is
-commoner among the draws no more compact than the plan on either measure, more so
-on cut edges.
+two measures order the draws with a rank correlation of 0.76, below the ~0.9 above
+which `CRITERIA.md` §3 says the choice of measure does not matter. Restricting the
+draws to those no more compact than the plan raises the zero-seat share to 4.5% on
+cut edges, where the plan is in the least compact eighth, and to 2.0% on
+Polsby-Popper, where it is mid-ensemble; neither restriction is a matched
+reference.
 
 *Chosen:* report the unconditioned share, with the population mismatch as the
 reason the comparison is not yet a finding; report compactness on both measures
 beside it, in the README and `docs/progress.md` but not on the figure, which has no
 room for both and their disagreement; and leave any conditioning to the owner.
 
-*Why the two are not treated alike:* population equality is the first of Iowa's
-ordered criteria (`CRITERIA.md` §2.1), and the draws do not meet the enacted
-plan's level of it, so matching the reference to it matches on a constraint.
-Compactness is the fourth, and whether to match on it cannot be settled from these
-draws. If the plan's shape follows from how it was drawn, conditioning the
-reference on it absorbs part of what the comparison tests (the second audit in
-`docs/first-result/INSTRUMENT-AUDIT.md`). If it follows from constraints the draws
-do not meet, conditioning moves the reference toward a matched one, by an amount
-and in a direction these draws cannot fix: candidate matched references give
-zero-seat shares from 0.44% to 2.4%, against 4.5% among the draws at or above the
-plan's own cut-edge count (the third audit there). Which measure to match on is a
-further choice, since the draws are more compact than the plan on cut edges and
-not on Polsby-Popper. Part of the cut-edge gap may follow from the population gap,
+*Why the two are not treated alike:* population equality ranks first in Iowa Code
+§42.4 (Iowa Code 2026) and compactness fourth, "to the extent consistent with the
+standards established by subsections 1, 2, and 3". For congressional districts the
+statute and *Karcher v. Daggett*, 462 U.S. 725 (1983), set a standard, "as nearly
+equal as practicable", with the statute's one-percent cap yielding to Iowa Const.
+art. III, §37, not a person count: 94 persons is the spread the enacted plan
+reached (Iowa Legislative Services Agency, Plan 2 report, Table 1, 21 October
+2021). Matching the reference to it would match on the enacted plan's achieved
+level of the first-ranked standard, not on a legal threshold, and in the sampler
+that level is an input, a tolerance the draws are held to. Compactness is an
+output of where the lines go, and whether to match on it cannot be settled from
+these draws, because the cut-edge gap has three possible sources that
+conditioning treats differently. If it comes from choices made in drawing the plan,
+conditioning absorbs part of the difference the comparison measures (the second
+audit in `docs/first-result/INSTRUMENT-AUDIT.md`). If it comes from constraints
+the draws do not meet, conditioning could move the reference toward a matched
+one, but only if the draws' relation between compactness and seats carries over
+to plans drawn at the enacted tolerance, which these draws cannot show;
+illustrative reweightings of them, none a matched reference, give zero-seat shares
+from 0.44% to 2.4% (the third audit there). If it comes from the sampler's own
+preference for few cut edges, conditioning undoes part of the reference's target,
+which is a choice about what the neutral baseline is. Which measure to match on is
+a further question. Iowa Code §42.4(4) names length-width and perimeter
+compactness for comparing plans, and the draws carry neither; the statute does not
+say how to weigh its two tests when they disagree. Of the two measures the draws
+do carry, they are more compact than the plan on cut edges and not on
+Polsby-Popper. Part of the cut-edge gap may follow from the population gap,
 by an amount these draws cannot measure: the 454 population-tight draws average
 48.1 cut edges against 45.5 for the rest, but across the draws population spread
 and cut edges are barely associated, and too few of the 454 give 0 seats to show
@@ -1260,14 +1278,22 @@ whether compactness matters among them.
   above; on cut edges the zero-seat share among the draws no more compact than the
   plan also halves once each chain's warm-up is dropped.
 - **Re-sample at the enacted plan's tolerance.** The matched comparison, and a new
-  experiment with its own name (D-036). Its plans would be less compact on their
-  own.
+  experiment with its own name (D-036). Its plans may be less compact, and it may
+  need another sampler or start: at this ensemble's tolerance 10 of its 12 chains
+  stopped short of their 12,000 draws.
 
 *Why this is the owner's:* which features of an enacted plan a neutral ensemble
 must match before a comparison with it counts, and on which compactness measure,
-is a judgment `docs/CRITERIA.md` does not settle.
+is a judgment `docs/CRITERIA.md` does not settle. Its §2.1 does not mention
+§42.4(4)'s tests; the `Election Law Analyst`'s claim register on these sentences,
+`docs/first-result/LEGAL-CLAIMS.md`, marks for an election-law attorney how a
+court would apply them, and proposes a corrected §2.1 for the owner.
 
 *Corrected in review:* the first version of this entry gave compactness on cut
 edges alone, said the draws already exceed the enacted plan's level of it, and
-argued only the first of the two cases above. The third audit in
-`docs/first-result/INSTRUMENT-AUDIT.md` records the correction.
+argued only the first of the cases above. The third audit in
+`docs/first-result/INSTRUMENT-AUDIT.md` records that correction; the routing
+reviews after it added the third case, showed that none of the reweightings is a
+matched reference, and brought in §42.4(4). Earlier versions also called matching
+on population equality matching "on a constraint", which read the enacted plan's
+94-person spread as a legal requirement.

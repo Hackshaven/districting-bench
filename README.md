@@ -52,18 +52,23 @@ both.
 Iowa's enacted plan returns 0 D seats, as 1.4% of these draws do (0.4–2.5% across
 the six chains), and its 0 turns on one district at 49.8% Democratic. That
 comparison is **not yet a finding**, because it is not like-for-like: the draws
-are not held to the 94-person population equality the enacted plan meets, and only
-454 of the 27,564 are that equal. How its compactness compares depends on the
-measure, and the draws carry two: 88% of them have fewer cut edges than its 51
-(77–92% across chains), but on mean Polsby-Popper it sits mid-ensemble, with 49% of
-them more compact (36–60%). Pooled, 0 seats is commoner among the draws no more
-compact than it on either measure, more so on cut edges (4.5% against 1.0%) than on
-Polsby-Popper (2.0% against 0.8%). Whether to match the comparison on compactness,
-and on which measure, is open. If the plan's shape follows from how it was drawn,
-matching would absorb part of what the comparison tests; if it follows from
-constraints the draws do not meet, matching would move the reference toward a
-matched one, by an amount and in a direction these draws cannot fix. That choice is
-the owner's (D-041). See `docs/progress.md`.
+are not held to the enacted plan's 94-person population spread, and only 454 of
+the 27,564 are that equal. How its compactness compares depends on the measure,
+and the draws carry two: 88% of them have fewer cut edges than its 51 (77–92%
+across chains), but on mean Polsby-Popper it sits mid-ensemble, with 49% of them
+more compact (36–60%). Pooled, 0 seats is commoner among the draws no more compact
+than it on either measure, but how much commoner is not robust: most of the
+cut-edge excess is one chain's early excursion, and across the six chains the
+Polsby-Popper contrast cannot be told from zero. Whether to match the comparison
+on compactness is open. Iowa Code §42.4(4) names the tests for comparing the
+compactness of districts or plans, length-width and perimeter compactness; the
+draws carry neither, and the statute does not say how to weigh its two tests when
+they disagree. The cut-edge gap may come from choices made in drawing the plan,
+from constraints the draws do not meet, or from the sampler's own preference for
+few cut edges; matching means something different in each case, restricting the
+draws to the plan's own compactness is a matched reference in none of them, and
+these draws cannot tell the cases apart. That choice is the owner's (D-041). See
+`docs/progress.md`.
 
 ---
 
@@ -165,7 +170,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 638 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 640 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -207,12 +212,12 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 784 passed, 5 skipped (derived; see below)
+PYTHONPATH=src pytest tests -q         # 786 passed, 5 skipped (derived; see below)
 python tools/check_firewall.py         # must print: clean
 ```
 
-The 784 is derived, not measured: this file recorded 719 with the data at
-v0.1.0; the 65 tests added since need neither the data nor the network; and no
+The 786 is derived, not measured: this file recorded 719 with the data at
+v0.1.0; the 67 tests added since need neither the data nor the network; and no
 code an earlier test runs has changed except docstrings.
 
 **Without the election returns you can still generate.** The neutral half needs
