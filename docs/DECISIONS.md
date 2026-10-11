@@ -1119,7 +1119,10 @@ either fails:
   fetched VEST could check the result, as for every experiment. A one-time
   recount of one chain would verify that chain's readings and test the method
   on the rest, and is worth doing wherever the data are built. Verifying the
-  0-seat count takes the draws read as 0 in all six chains.
+  0-seat count takes the draws read as 0 in all six chains, which means
+  rerunning each chain to its last such draw: 20,127 of the rectangle's 27,564
+  draws. The whole rectangle, for 37% more, would also verify the 1-versus-2
+  split.
 - **Keep the 1,820-draw figure.** Rejected: no reader can regenerate it (D-036),
   and its sample is the least converged Iowa ensemble the repository quotes.
 - **Add a seats column to the draws file.** Rejected: that is a new measurement,
@@ -1131,32 +1134,33 @@ either fails:
   plan whose Democratic district cast 30% of the state's votes would have been
   read as 2 seats without complaint.
 
-*Why it is a measurement and not a guess:* the identity is exact and its only
-free term is turnout. Draws read as sweeps are checked to the half vote: all 395
-draws read as 0 seats sit 2.5 or 3.5 votes above their level (216 and 179 of
-them), the only two offsets an odd statewide total allows. That check is
-necessary, not sufficient. Under the presidential vote a plan that is not a
-sweep lands on the same grid only if the districts the Democrats win cast one of
-six totals, 1,379,512 to 1,379,517 votes (`4V − 1` of the two-party vote, 83%): a
-turnout imbalance of 0.083 at 3 seats, 0.333 at 2 and 0.583 at 1. Any other plan
-whose gap lands nearest the 0-seat level stops the plotter, and none of the
-57,553 committed draws does. A plan the Democrats win none of is always read as
-0 unless one of its districts is exactly tied, so short of a tie a misreading
-could only add to the count. The 0-seat count is therefore a reading, but a
-harder one to get wrong than the 1-versus-2 split, and only a recount of the
-draws read as 0, which are spread over all six chains, would verify it. Every
-other draw sits at most 0.0143 from its level, about a third of the 0.0413
-half-gap, but that residual is measured from the level the draw was read at, so
-it cannot show on its own that the reading is right. Misreading a 1-seat plan as
-2 would take a Democratic district casting over 31% of the state's two-party
-vote against 25% at equal turnout: a turnout imbalance of 0.062, three times the
-margin and four times the largest residual. From there to 0.103, a band about
-68,000 votes wide, the misreading would pass without complaint. The two enacted
-plans in the Phase 2 report, counted directly from the returns, read back
-correctly, but that is weak support: Iowa's is a sweep, exact whatever the
-turnout, and Colorado's sits far from Colorado's closest levels. Under the 2020
-Senate vote the same checks pass with more room: the largest residual is 0.0159,
-against a half-gap of 0.0570.
+*What the checks establish:* the identity is exact and its only free term is
+turnout. Draws read as sweeps are checked to the half vote: all 395 draws read
+as 0 seats sit 2.5 or 3.5 votes above their level (216 and 179 of them), the
+only two offsets an odd statewide total allows. That check is necessary, not
+sufficient. Under the presidential vote a plan that is not a sweep, and has no
+exactly tied district, lands on the same grid only if the districts the
+Democrats win cast one of six totals, 1,379,512 to 1,379,517 votes (`4V − 1` of
+the two-party vote, 83%): a turnout imbalance of 0.083 at 3 seats, 0.333 at 2
+and 0.583 at 1. Any other tie-free plan whose gap lands nearest the 0-seat level
+stops the plotter, and none of the 57,553 committed draws does. A plan the
+Democrats win none of is always read as 0 unless one of its districts is exactly
+tied, so short of a tie a misreading could only add to the count. The 0-seat
+count is therefore a reading, but a harder one to get wrong than the 1-versus-2
+split, and only a recount of the draws read as 0, which are spread over all six
+chains, would verify it. Every other draw sits at most 0.0143 from its level,
+about a third of the 0.0413 half-gap, but that residual is measured from the
+level the draw was read at, so it cannot show on its own that the reading is
+right. Misreading a 1-seat plan as 2 would take a Democratic district casting
+over 31% of the state's two-party vote against 25% at equal turnout: a turnout
+imbalance of 0.062, three times the margin, by construction, and four times the
+largest residual, by measurement. From there to 0.103, a band about 68,000 votes
+wide, the misreading would pass without complaint, and so would a 2-seat plan
+read as 1 from the same band the other way. The two enacted plans in the Phase 2
+report, counted directly from the returns, read back correctly, but that is weak
+support: Iowa's is a sweep, exact whatever the turnout, and Colorado's sits far
+from Colorado's closest levels. Under the 2020 Senate vote the same checks pass
+with more room: the largest residual is 0.0159, against a half-gap of 0.0570.
 
 *Limits:* the method works only when every draw's turnout imbalance stays inside
 the margin. How close the folded levels sit is a property of the vote share, the

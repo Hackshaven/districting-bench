@@ -237,8 +237,10 @@ def test_every_sweep_sits_on_the_half_vote_grid(dist, levels):
     # The grid is necessary, not sufficient, so the 0-seat count the
     # enacted-plan comparison quotes is a reading, not a count (D-039). On
     # Iowa's statewide totals, district vote totals that give the Democrats 2
-    # seats land on it when the districts they win cast 4V - 1 of the vote, 83%,
-    # to within a few votes: a turnout term of 0.333.
+    # seats, and tie no district, can land on it, but only if the districts they
+    # win cast 4V - 1 of the vote, 83%, to within a few votes: a turnout term of
+    # 0.333. These totals are the ones GitHub Copilot's review constructed,
+    # https://github.com/Hackshaven/districting-bench/pull/7#discussion_r4242234530
     votes = {"d1": (350_000, 339_756), "d2": (350_000, 339_758),
              "d3": (29_000, 109_609), "d4": (30_061, 108_549)}
     dem, rep = S.TWO_PARTY["G20PRE"]
@@ -254,12 +256,14 @@ def test_every_sweep_sits_on_the_half_vote_grid(dist, levels):
     terms = {s: 4 * dem / IOWA_VOTES - 1 - s / K for s in (1, 2, 3)}
     assert terms == pytest.approx({1: 0.583, 2: 0.333, 3: 0.083}, abs=5e-4)
     assert won / IOWA_VOTES - 2 / K == pytest.approx(terms[2], abs=1e-5)
-    # Every way in, from the identity evaluate.partisan.wasted_votes states: a
-    # plan that is not a sweep reads as 0 only if the votes cast where the
-    # Democrats win are 4D - T plus the grid offset plus the threshold term
-    # (each district's winner wastes 1 vote fewer at an even total, 1/2 at an
-    # odd one). Over every seat count and parity pattern that leaves six totals,
-    # the ones D-039 quotes; the plan above casts the third.
+    # Every way in, from the identity in evaluate.partisan.efficiency_gap's
+    # docstring: a plan that is not a sweep, and ties no district, reads as 0
+    # only if the votes cast where the Democrats win are 4D - T plus the grid
+    # offset plus the threshold term (each district's winner wastes 1 vote fewer
+    # at an even total, 1/2 at an odd one). Over every seat count and parity
+    # pattern that leaves six totals, the ones D-039 quotes; the plan above
+    # casts the third. With a tied district it is the votes cast where the
+    # Democrats win plus half the tied district's that must hit them.
     base = 4 * dem - IOWA_VOTES
     totals = set()
     for s in (1, 2, 3):
@@ -274,6 +278,12 @@ def test_every_sweep_sits_on_the_half_vote_grid(dist, levels):
                     totals.add(int(cast))
     assert sorted(totals) == list(range(1_379_512, 1_379_518))
     assert won == 1_379_514
+    # D-039: verifying the 0-seat count means rerunning each chain to its last
+    # draw read as 0, 20,127 of the 27,564; the whole rectangle is 37% more.
+    seats = dist["primary"]["seats"]
+    last = sum(max(i for i, n in enumerate(chain) if n == 0) + 1 for chain in seats)
+    assert (last, sum(map(len, seats)), round(sum(map(len, seats)) / last - 1, 2)) == (
+        20_127, 27_564, 0.37)
 
 
 def test_every_other_draw_keeps_a_wide_margin(dist, levels):
@@ -285,15 +295,29 @@ def test_every_other_draw_keeps_a_wide_margin(dist, levels):
     assert p["half_gap"] == pytest.approx(0.0413, abs=1e-4)
     assert p["residual_sd"] == pytest.approx({1: 0.0020, 2: 0.0030}, abs=1e-4)
     # A 1-seat plan is read as 2 from a turnout term of 0.062 (its district
-    # casting over 31% of the vote) to 0.103, a band about 68,000 votes wide.
-    # The 0.062 is three times the margin by construction, and four times the
-    # largest residual by measurement (D-039).
+    # casting over 31% of the vote) to 0.103, a band about 68,000 votes wide,
+    # and a 2-seat plan as 1 from the same band the other way. That is the
+    # nearer band: the gap is folded, so another sits near a turnout term of
+    # 0.25. The 0.062 is three times the margin by construction, and four times
+    # the largest residual by measurement (D-039).
     margin = S.MARGIN * p["half_gap"]
     edge, top = levels[1] - levels[2] - margin, levels[1] - levels[2] + margin
     assert (edge, 0.25 + edge, top) == pytest.approx((0.062, 0.312, 0.103), abs=5e-4)
     assert round((top - edge) * IOWA_VOTES, -3) == 68_000
     assert edge / margin == pytest.approx(3.0)
     assert int(edge / p["max_residual"]) == 4
+    # and recover_seats reads it so, both ways: a 1-seat plan's gap sits at
+    # levels[1] - t and a 2-seat plan's at levels[2] + t, for turnout term t.
+    # Each is refused just short of the edge, misread from it to the top, and
+    # refused again just past the top.
+    for t, misread in ((edge - 1e-6, False), (edge + 1e-6, True),
+                       (top - 1e-6, True), (top + 1e-6, False)):
+        for other, gap in ((2, levels[1] - t), (1, levels[2] + t)):
+            if misread:
+                assert S.recover_seats([gap], levels, IOWA_VOTES)[0] == [other]
+            else:
+                with pytest.raises(ValueError, match="cannot be read off"):
+                    S.recover_seats([gap], levels, IOWA_VOTES)
 
 
 @pytest.mark.parametrize("state", ["IA", "CO"])

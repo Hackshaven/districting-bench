@@ -40,18 +40,19 @@ Folding the sign away brings the levels closer than ``1/k``: on Iowa the 1- and
 nearness, that make the reading a measurement:
 
 * **A draw read as a sweep must sit on a half-vote grid.** A plan the Democrats
-  win none (or all) of sits off its level only by the strict-majority threshold
-  the committed gap uses: each district's winner wastes one vote fewer when its
-  total is even and half a vote fewer when it is odd. Over ``k`` districts that
+  win none (or all) of, with no exactly tied district, sits off its level only by
+  the strict-majority threshold the committed gap uses: each district's winner
+  wastes one vote fewer when its total is even and half a vote fewer when it is
+  odd. Over ``k`` districts that
   is ``k - j/2`` votes, ``j`` the number of odd totals, and ``j`` has the parity
   of the statewide total ``T``. While ``V`` lies between 1/4 and 3/4 the offset
   puts a sweep above its level, never below. The grid is necessary, not
   sufficient. With ``V`` below 1/2, as under both Iowa contests, a plan that is
-  not a sweep never lands on the ``k``-seat grid, and lands on the 0-seat one
-  only if the districts the Democrats win cast ``4V - 1`` of the two-party vote,
-  to within a few votes: under Iowa's 2020 presidential vote, one of six totals,
-  1,379,512 to 1,379,517 of 1,656,733. Any other plan whose gap lands
-  nearest the 0-seat level is refused. So the 0-seat count the enacted-plan
+  not a sweep and has no exactly tied district never lands on the ``k``-seat
+  grid, and lands on the 0-seat one only if the districts the Democrats win cast
+  ``4V - 1`` of the two-party vote, to within a few votes: under Iowa's 2020
+  presidential vote, one of six totals, 1,379,512 to 1,379,517 of 1,656,733.
+  Any other such plan whose gap lands nearest the 0-seat level is refused. So the 0-seat count the enacted-plan
   comparison rests on is a reading, though a harder one to get wrong than the
   1-versus-2 split, and only a recount from the plans and the returns would
   verify it.
@@ -59,8 +60,11 @@ nearness, that make the reading a measurement:
   half-gap of its level, so the middle of every gap must be empty. A 1-seat plan
   is misread as 2 only if its one Democratic district casts over 31% of the
   state's two-party vote against an equal-turnout 25%, a turnout term of 0.062:
-  three times the margin, and four times the largest residual in these draws.
-  Anything between that and the margin is refused, not assigned.
+  three times the margin, by construction, and four times the largest residual
+  in these draws, by measurement. A 2-seat plan is misread as 1 from the same
+  turnout term the other way. Anything between that and the margin is refused,
+  not assigned. A residual is measured from the level its draw was read at, so
+  it describes the readings rather than proving them.
 
 The chains are drawn, not only the pool: six chains that disagree about the
 2-seat share by 17 points are the uncertainty a pooled bar hides. Whiskers are
@@ -879,10 +883,12 @@ def summary_lines(d: dict) -> list[str]:
             + f"; V = {c['dem_vote_share']:.6f}, T = {c['total_votes']:,}"
         )
         lines.append(
-            f"    half-gap {c['half_gap']:.4f}, largest non-sweep residual "
-            f"{c['max_residual']:.4f}; sweeps on the half-vote grid "
-            f"{c['sweeps_on_grid']} (allowed {c['sweep_grid']}); seat count "
-            f"split R-hat {c['seat_count_split_rhat']:.4f}, ESS {c['seat_count_ess']:.1f}"
+            f"    half-gap {c['half_gap']:.4f}, largest residual among draws not read "
+            f"as sweeps {c['max_residual']:.4f}, residual SD by seats read "
+            + ", ".join(f"{s}: {v:.4f}" for s, v in c["residual_sd"].items())
+            + f"; draws read as sweeps, by grid offset {c['sweeps_on_grid']} "
+            f"(allowed {c['sweep_grid']}); seat count split R-hat "
+            f"{c['seat_count_split_rhat']:.4f}, ESS {c['seat_count_ess']:.1f}"
         )
         for s, n in c["counts"].items():
             chain = [100 * pc[s] for pc in c["per_chain_shares"]]
@@ -929,8 +935,6 @@ def summary_lines(d: dict) -> list[str]:
             f"    dropping the first {BURN_IN_CHECK} draws of each chain: "
             + ", ".join(f"{s} D {100 * v:.2f}%" for s, v in c["after_burn_in"].items()
                         if c["counts"][s])
-            + "; turnout-term SD by seat count "
-            + ", ".join(f"{s}: {v:.4f}" for s, v in c["residual_sd"].items())
         )
     beyond = d["alternate_beyond"]
     compact = d["compactness"]

@@ -62,17 +62,33 @@ Run::
 
     python tools/check_planscore.py     # fetches PlanScore's files
 
-It writes ``docs/cross-checks/planscore.json`` only when every check passes,
-and otherwise exits non-zero and writes nothing. It refuses outright if a
-fetched file no longer matches its pin, if the Phase 2 report is not on the
-2020 presidential vote, or if a race has a tied district or a statewide share
-outside 1/4 to 3/4. It fails if a file was scored by another PlanScore commit
-or lacks a race's totals; if a published PlanScore number, a re-implemented
-definition, the identity or GerryChain's count cannot be reproduced from this
-repository's under the conversions above; or, on Iowa, if ours on PlanScore's
-totals does not reproduce the Phase 2 report, or the district populations
-differ from the documented ones other than as
-:data:`POPULATION_MINUS_DOCUMENTED` records. See D-040.
+It writes its record, ``docs/cross-checks/planscore.json`` or the path given
+with ``--out``, only when every check passes. Otherwise it exits non-zero,
+writes nothing, and leaves the last record that passed in place.
+
+It refuses, printing one ``refused:`` line and no comparison, if:
+
+* a PlanScore file cannot be fetched, no longer matches its pin, or repeats a
+  district number;
+* the Phase 2 report cannot be read, or is not on the 2020 presidential vote;
+* a race has a tied district, or a statewide two-party Democratic share
+  outside 1/4 to 3/4; or
+* Colorado's committed v2 draws, which locate its plan in the ensemble, cannot
+  be read or fail their own seed and row-count checks.
+
+It fails, printing every comparison and then one ``FAIL:`` line for each check
+that did not pass, if:
+
+* a file was scored by another PlanScore commit, or lacks a race's totals;
+* a race's published efficiency gap, a re-implemented definition, the identity
+  or GerryChain's wasted-vote gap cannot be reproduced from this repository's
+  values under the conversions above (on Iowa, declination is compared with
+  PlanScore's sweep value, since ours is undefined there); or
+* on Iowa, this repository's metrics on PlanScore's totals do not reproduce the
+  Phase 2 report, or the district populations differ from the documented ones
+  other than as :data:`POPULATION_MINUS_DOCUMENTED` records.
+
+See D-040.
 """
 from __future__ import annotations
 
@@ -423,8 +439,9 @@ def compactness(index: dict, committed: dict) -> dict:
 def check(indexes: dict[str, dict], report: dict) -> tuple[dict, list[str]]:
     """Every comparison, and every way the result fails to reproduce.
 
-    Raises ValueError if the Phase 2 report describes another election: its
-    values would then be compared with the wrong race.
+    Raises ValueError if the Phase 2 report describes another election, whose
+    values would then be compared with the wrong race, or if a file repeats a
+    district number, whose districts would then be merged without a trace.
     """
     failures: list[str] = []
     plans = {}
@@ -434,6 +451,10 @@ def check(indexes: dict[str, dict], report: dict) -> tuple[dict, list[str]]:
                 f"{REPORT} is computed on {report[state]['contest']} for {state}, "
                 f"not {COMMITTED_CONTEST}; it would be compared with the wrong race")
         plan_id, sha256 = PLANS[state]
+        numbers = [int(d["number"]) for d in index["districts"]]
+        if len(set(numbers)) != len(numbers):
+            raise ValueError(f"{state}: PlanScore's file repeats a district number "
+                             f"({sorted(numbers)}); its districts cannot be told apart")
         if index.get("commit_sha") != PLANSCORE_COMMIT:
             failures.append(f"{state}: scored by PlanScore commit "
                             f"{index.get('commit_sha')}, not the {PLANSCORE_COMMIT} "

@@ -2000,14 +2000,41 @@ follows `35feb62`. Numbers the answers quote are pinned by
 
 | # | Allegation | Refuter | What changed |
 | --- | --- | --- | --- |
-| 1 | "Like the others, with more room" understates the 0-seat reading in kind | Upheld. The admissible totals are 1 to 6 votes above 4D − T, not 0 to 6, and the refusal holds for any plan whose gap lands nearest the 0-seat level, not for every near miss | D-039, `docs/progress.md` and the plotter say a plan that is not a sweep reads as 0 only if the districts the Democrats win cast one of six totals, 1,379,512 to 1,379,517 votes, under the presidential vote. Any other plan whose gap lands nearest the 0-seat level stops the plotter, and none of the 57,553 committed draws does. The count is a reading, but a harder one to get wrong than the 1-versus-2 split, whose silent band is about 68,000 votes wide. The test enumerates the six totals from the wasted-vote identity, and pins the band. |
+| 1 | "Like the others, with more room" understates the 0-seat reading in kind | Upheld. The admissible totals are 1 to 6 votes above 4D − T, not 0 to 6, and the refusal holds for any plan whose gap lands nearest the 0-seat level, not for every near miss | D-039, `docs/progress.md` and the plotter say a plan that is not a sweep, and has no exactly tied district, reads as 0 only if the districts the Democrats win cast one of six totals, 1,379,512 to 1,379,517 votes, under the presidential vote. Any other plan whose gap lands nearest the 0-seat level stops the plotter, and none of the 57,553 committed draws does. The count is a reading, but a harder one to get wrong than the 1-versus-2 split, whose silent band is about 68,000 votes wide. The test enumerates the six totals from the wasted-vote identity, and pins the band. |
 | 2 | The one-chain recount D-039 pointed to would not verify the 0-seat count | Upheld. "Never too low" holds only for a plan with no exactly tied district | D-039 says a one-chain recount verifies that chain's readings and tests the method on the rest, and that verifying the 0-seat count takes the draws read as 0 in all six chains. D-039 and `docs/progress.md` say that, short of an exactly tied district, a misreading could only add to the count. That sentence sits in the method text, away from the enacted-plan comparison. |
 | 3 | The 0.0143 yardstick is a residual measured after the readings it defends | Upheld. The one-sided tail does not by itself point to misreading, and the cross-contest comparison uses the readings too | "Imbalance" is now "residual" where it means one. D-039 and `docs/progress.md` say the residuals are measured from the level each draw was read at, so they cannot show on their own that the readings are right, and that the 1-versus-2 edge of 0.062 is three times the margin by construction and four times the largest residual by measurement. "Thirty-one standard deviations" is gone from `docs/progress.md`. The cross-contest evidence the refuter reproduced is not added to the prose: no test pins it, and it stays in the reports above. |
 | 4 | "With more room" measures the smaller of the two differences | Upheld | Answered by 1. The passages no longer rest on the room comparison. |
 
-The routing reviews of `ef1060c` found the rest of what this revision changes:
-`docs/progress.md` gave presidential figures right after a sentence about the
-Senate vote; the plotter's general statement of the collision condition holds only
-while `V` is below ½; the bold lead "Sweeps are exact, to the half vote" and the
-phrase "zero-seat draws" assumed the draws were sweeps; the test did not assert
-its own plan's 2 seats; and D-039's review note misstated its own history.
+The routing reviews of `ef1060c` also found that `docs/progress.md` gave
+presidential figures right after a sentence about the Senate vote; that the
+plotter's general statement of the collision condition holds only while `V` is
+below ½; that the bold lead "Sweeps are exact, to the half vote" and the phrase
+"zero-seat draws" assumed the draws were sweeps; that the test did not assert its
+own plan's 2 seats; and that D-039's review note misstated its own history.
+
+**After the routing reviews.** The `Code Reviewer`, the `Computational
+Redistricting Scientist`, the `Pre-Submission Peer Reviewer` and the `Technical
+Writer`, reading `5c2a650`, found that its answers needed these corrections, made
+in the commit after it:
+
+- A tied district is another way onto the 0-seat grid: with one, it is the votes
+  cast where the Democrats win plus half the tied district's that must hit the
+  six totals. The six-totals sentence and the bullet's opening now say "with no
+  exactly tied district".
+- The prose now says what row 3 says it does: the 0.062 edge is three times the
+  margin by construction, and four times the largest residual by measurement. It
+  also says that the silent band runs both ways, so that a 2-seat plan in it
+  would be read as 1.
+- The README said the script checks each difference from PlanScore's published
+  values against the turnout term. It checks the difference from PlanScore's
+  formula before rounding: against the published four-place values the identity
+  misses by 32 to 109 votes on Colorado, against a tolerance of 8. The paragraph is
+  now a list of what each check compares, with its tolerance.
+- The script's docstring now lists every refusal, including a file that repeats a
+  district number, which the script now refuses.
+- The plotter's printed summary says "draws read as sweeps" and "residual SD by
+  seats read", where it said "sweeps" and "turnout-term SD". No number moved.
+- D-039 gives the recount's cost: rerunning each chain to its last draw read as 0
+  is 20,127 of the 27,564 draws, and the whole rectangle is 37% more.
+- The test probes `recover_seats` itself at the edges of the 1-versus-2 band,
+  where it had checked only the arithmetic on the margin.

@@ -265,12 +265,19 @@ def test_fractional_totals_are_read_as_whole_votes_on_both_sides():
     assert result["plans"]["CO"]["races"]["US President 2020"]["tau"] == 2504 / 4008
 
 
-def test_a_tie_and_a_vote_outside_the_clamp_are_refused():
+def test_a_tie_a_repeated_district_and_a_vote_outside_the_clamp_are_refused():
     tied = dict(UNEQUAL) | {4: (250, 250)}
     with pytest.raises(ValueError, match="tied"):
         C.compare_race(planscore_index(tied), "US President 2020")
     with pytest.raises(ValueError, match="outside"):
         C.equal_turnout_gap(0.0, 0.2)
+    # A file that numbers two districts alike would have one merged into the
+    # other, votes and population, and every comparison could still pass.
+    for state, populations in (("CO", None), ("IA", dict(IOWA_POPULATIONS))):
+        index = planscore_index(populations=populations)
+        index["districts"][2]["number"] = 4
+        with pytest.raises(ValueError, match="repeats a district number"):
+            C.check({state: index}, {state: phase_2_report()})
 
 
 def test_iowa_must_be_the_enacted_plan(monkeypatch):
@@ -427,17 +434,28 @@ def test_the_committed_record_says_what_the_write_up_says():
     assert max(abs(t) for race, t in terms.items()
                if race != "US President 2016") < 0.002
     # The README: ours differs from PlanScore's published gap on every Colorado
-    # race, by more than PlanScore's rounding, and by a factor of nearly two
-    # under the 2016 presidential vote. Declination is compared with ours there.
+    # race, by more than ten times PlanScore's rounding, and by a factor of
+    # nearly two under the 2016 presidential vote. Declination is compared with
+    # ours there.
     gaps = {race: (r["ours_in_planscore_convention"]["efficiency_gap_wasted_votes"],
                    r["planscore_published_efficiency_gap"])
             for race, r in record["CO"]["races"].items()}
     assert all(abs(ours - published) > 10 * C.PUBLISHED_ROUNDING
                for ours, published in gaps.values())
+    # and agrees with it to four decimal places on Iowa's four, each a sweep
+    assert all(abs(r["ours_in_planscore_convention"]["efficiency_gap_wasted_votes"]
+                   - r["planscore_published_efficiency_gap"]) <= C.PUBLISHED_ROUNDING
+               for r in record["IA"]["races"].values())
     assert gaps["US President 2016"][1] / gaps["US President 2016"][0] == pytest.approx(
         1.98, abs=0.005)
     assert all(r["declination_compared_with"] == "ours"
                for r in record["CO"]["races"].values())
+    # docs/progress.md: wherever ours is defined, the conversions agree with
+    # PlanScore's re-implemented definitions to within 2e-16.
+    assert max(abs(r["planscore_definitions"][m] - r["ours_in_planscore_convention"][m])
+               for plan in record.values() for r in plan["races"].values()
+               for m in r["planscore_definitions"]
+               if r["ours_in_planscore_convention"][m] is not None) < 2e-16
     # What D-015's approximation costs where the ensemble is used
     location = result["ensemble_location"]
     assert (location["efficiency_gap"]["committed"],

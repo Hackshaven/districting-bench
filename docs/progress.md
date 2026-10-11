@@ -2403,23 +2403,24 @@ folds the sign away and puts the 1- and 2-seat levels only 0.083 apart, so the
 reading depends on two checks rather than on which level is nearest:
 
 - **A draw read as a sweep must sit on a half-vote grid.** A plan the Democrats
-  win none of sits above its level by exactly what the strict-majority threshold
-  allows: one vote for each district with an even total and half a vote for each
-  with an odd one. Under the presidential vote the statewide total, 1,656,733, is
-  odd, so the offset can only be 2.5 or 3.5 votes, and the 395 draws read as 0
-  seats sit at exactly those two, 216 and 179 of them. (Under the Senate vote the
-  total is even, and the draws read as sweeps sit at 2, 3 and 4 votes.) The grid
-  is necessary, not sufficient. Under the presidential vote a plan that is not a
-  sweep lands on it only if the districts the Democrats win cast one of six
+  win none of, with no exactly tied district, sits above its level by exactly
+  what the strict-majority threshold allows: one vote for each district with an
+  even total and half a vote for each with an odd one. Under the presidential
+  vote the statewide total, 1,656,733, is odd, so the offset can only be 2.5 or
+  3.5 votes, and the 395 draws read as 0 seats sit at exactly those two, 216 and
+  179 of them. (Under the Senate vote the total is even, and the draws read as
+  sweeps sit at 2, 3 and 4 votes.) The grid is necessary, not sufficient. Under
+  the presidential vote a plan that is not a sweep, and has no exactly tied
+  district, lands on it only if the districts the Democrats win cast one of six
   totals, 1,379,512 to 1,379,517 votes, which is 83% of the two-party vote
   (`4V − 1`): a turnout term of 0.083 at 3 seats, 0.333 at 2 and 0.583 at 1. Any
-  other plan whose gap lands nearest the 0-seat level stops the plotter, and none
-  of the 57,553 committed draws does. A plan the Democrats win none of is always
-  read as 0 unless one of its districts is exactly tied, so short of a tie a
-  misreading could only add to the count. The 0-seat count is therefore a
-  reading too, but a harder one to get wrong than the 1-versus-2 split below,
-  and only a recount of the draws read as 0, which are spread over all six
-  chains, would verify it.
+  other tie-free plan whose gap lands nearest the 0-seat level stops the
+  plotter, and none of the 57,553 committed draws does. A plan the Democrats win
+  none of is always read as 0 unless one of its districts is exactly tied, so
+  short of a tie a misreading could only add to the count. The 0-seat count is
+  therefore a reading too, but a harder one to get wrong than the 1-versus-2
+  split below, and only a recount of the draws read as 0, which are spread over
+  all six chains, would verify it.
 - **Every other draw keeps a margin.** The plotter refuses the whole sample if
   any draw sits more than half of the half-gap from its level. The largest
   residual is 0.0143, about a third of the 0.0413 half-gap, and the residuals'
@@ -2428,9 +2429,11 @@ reading depends on two checks rather than on which level is nearest:
   they cannot show on their own that the readings are right. A 1-seat plan would
   be read as 2 only if its one Democratic district cast over 31% of the state's
   two-party vote, against 25% at equal turnout: a turnout term of 0.062, three
-  times the margin and four times the largest residual. From there to 0.103, a
-  band about 68,000 votes wide, it would be read as 2 without complaint. Any
-  imbalance between the margin and 0.062 is refused, not assigned.
+  times the margin, by construction, and four times the largest residual, by
+  measurement. From there to 0.103, a band about 68,000 votes wide, it would be
+  read as 2 without complaint, and a 2-seat plan whose turnout term falls in the
+  same band the other way would be read as 1. Any imbalance between the margin
+  and 0.062 is refused, not assigned.
 
 The Phase 2 report's two enacted plans, whose seats were counted directly from
 the returns, read back correctly: Iowa 0 of 4, Colorado 5 of 8. That is weaker
@@ -2623,13 +2626,14 @@ script refuse: a draw past the margin, a sweep off the half-vote grid at either
 end or of the wrong parity, a non-finite gap, Colorado's draws, a stale vote
 total, and a Phase 2 report for another contest, another district count, an
 outcome no draw produced, a non-finite compactness value, or without the closest
-district. The audit record is `docs/first-result/INSTRUMENT-AUDIT.md`: three
+district. The audit record is `docs/first-result/INSTRUMENT-AUDIT.md`: four
 audits (CLAUDE.md, D-007), the first two each of one auditor and one refuter,
-the second on the analysis review added, and the third, on the compactness
-comparison, of one auditor and a refuter for each of its two allegations. The
-tests, intervals and reweightings this section credits to the audit record were
-computed by the auditors' and refuters' own scripts, as their reports there
-describe; the plotter does not recompute them.
+the second on the analysis review added; the third, on the compactness
+comparison, of one auditor and a refuter for each of its two allegations; and
+the fourth, on what the half-vote grid establishes, of one auditor and one
+refuter. The tests, intervals and reweightings this section credits to the audit
+record were computed by the auditors' and refuters' own scripts, as their
+reports there describe; the plotter does not recompute them.
 
 ---
 
@@ -2677,7 +2681,7 @@ approximately, in whole VTDs (D-015).
 | --- | --- | --- |
 | partisan bias | identical in all 8 races | same definition and sign, except that a district tied after the swing to 50% is a Republican seat for PlanScore and half a seat here; none of these races has one |
 | mean-median | identical in all 8 races, opposite sign | PlanScore computes median − mean |
-| declination | PlanScore's value is −ours × ln(k)/2, for `k` districts, in Colorado's 4 races | on Iowa's 4, Republicans win every seat: ours is undefined, and PlanScore gives its extreme, −ln(k)/2 |
+| declination | PlanScore's value is −ours × ln(k)/2, for `k` districts, in Colorado's 4 races | on Iowa's 4, Republicans win every seat: ours is undefined, and PlanScore's source assigns a Republican sweep −ln(k)/2 |
 | efficiency gap | **differs on Colorado by 0.0007 to 0.027** | **PlanScore's published values use a different formula** |
 
 The efficiency gap PlanScore's code computes, and its files publish, is `(S − ½)
@@ -2727,9 +2731,9 @@ count would fail the check rather than read as a difference of definition.
 
 **`evaluate.partisan`'s docstring was wrong, and is corrected.** It said the
 magnitude was the same and only the sign differed. Under the 2016 presidential
-vote the two formulas disagree by a factor of two about the same map: both values
-lie on the Republican side of zero in their own orientation, PlanScore's twice as
-far from it. This is `CRITERIA.md` §10's warning that turnout differences between
+vote the two formulas disagree by a factor of nearly two about the same map: both
+values lie on the Republican side of zero in their own orientation, PlanScore's
+nearly twice as far from it. This is `CRITERIA.md` §10's warning that turnout differences between
 districts materially affect the efficiency gap, now measured on a real plan. It
 changes nothing this repository has published, because every efficiency gap here
 is the wasted-vote form. What it changes is which published figures any of them
@@ -2814,14 +2818,15 @@ bounds at 0.3% for one plan drawn two ways (audit record).
 python tools/check_planscore.py     # fetches PlanScore's files; needs the network, not the data
 ```
 
-The script exits non-zero and writes nothing if a fetched file no longer matches
-its pin, or was scored by another PlanScore commit; if a published value, a
-re-implemented definition, the identity or GerryChain's count does not
-reproduce; if the Phase 2 report is not on the 2020 presidential vote; or, on
-Iowa, if ours on PlanScore's totals does not reproduce that report, or the
-district populations differ from the documented ones other than by district 1's
-8 persons. Its docstring lists every condition. `tests/test_planscore_check.py`
-pins the two-formula relation on hand-built plans, feeds the script
-PlanScore-shaped files built in the test so that each of those failures is
-exercised offline, and pins the committed record. No district vote counts are
-committed (`CRITERIA.md` §9.1).
+The script exits non-zero and writes nothing unless every check passes, and its
+docstring lists each condition under which it refuses or fails. Among them: a
+fetched file that no longer matches its pin, or was scored by another PlanScore
+commit; a published value, re-implemented definition, identity or GerryChain
+count that does not reproduce; a Phase 2 report that is not on the 2020
+presidential vote; and, on Iowa, metrics on PlanScore's totals that do not
+reproduce that report, or district populations that differ from the documented
+ones other than by district 1's 8 persons. `tests/test_planscore_check.py` pins
+the two-formula relation on hand-built plans, feeds the script PlanScore-shaped
+files built in the test so that each of those failures is exercised offline,
+and pins the committed record. No district vote counts are committed
+(`CRITERIA.md` §9.1).
