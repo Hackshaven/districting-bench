@@ -2475,7 +2475,8 @@ record's tests: a circular-shift test that keeps each chain's autocorrelation
 gives p below 0.001 on the full rectangle and about 0.04 once each chain's first
 500 draws are dropped, and at splits of 45 and 47 cut edges the direction holds
 in all six chains at every warm-up (audit record). None of the 7,850 draws at
-40–42 cut edges gives 0 seats, though they are only 78 distinct plans. The
+40–42 cut edges gives 0 seats, though they show only 78 distinct rows of committed
+metrics, a lower bound on their distinct plans. The
 contrast's size is not robust: 89 of the 151 zero-seat draws at 51 or more are one
 excursion of chain 6, early in its first 500 draws (audit record). Once each
 chain's first 500 are dropped the shares are 2.16% and 1.02%, with a chain-level
@@ -2494,18 +2495,20 @@ edges, and 2 of the 356 below, one plan drawn twice.
 Whether to condition the reference on compactness is open. Population equality
 ranks first in Iowa Code §42.4 (Iowa Code 2026) and compactness fourth, "to the
 extent consistent with the standards established by subsections 1, 2, and 3". For
-congressional districts the statute and *Karcher v. Daggett*, 462 U.S. 725 (1983),
-set a standard, "as nearly equal as practicable", with the statute's one-percent
-cap yielding to Iowa Const. art. III, §37, not a person count: 94 persons is the
-spread the enacted plan reached (Iowa Legislative Services Agency, Plan 2 report,
-Table 1, 21 October 2021). Matching the reference to it would match on the enacted
-plan's achieved level of the first-ranked standard, not on a legal threshold, and
-in the sampler that level is an input, a tolerance the draws are held to.
-Compactness is an output of where the lines go, and the cut-edge gap between the
+congressional districts neither the statute nor *Karcher v. Daggett* sets a person
+count: Iowa Code §42.4(1)(b) requires populations "as nearly equal as practicable"
+to the ideal, with its one-percent cap yielding to Iowa Const. art. III, §37, and
+*Karcher v. Daggett*, 462 U.S. 725, 730 (1983), requires population equality "as
+nearly as is practicable". 94 persons is the spread the enacted plan reached (Iowa
+Legislative Services Agency, Plan 2 report, Table 1, 21 October 2021). Matching the
+reference to it would match on the enacted plan's achieved level of the
+first-ranked standard, not on a legal threshold. In a sampler a population level
+is an input, the bound its draws are held to, so matching on it means re-sampling
+under that bound. Compactness is an output of where the lines go, and the cut-edge gap between the
 draws and the enacted plan has three possible sources, which conditioning treats
 differently. If it comes from choices made in drawing the plan, conditioning
 absorbs part of the difference the comparison measures. If it comes from
-constraints the draws do not meet, conditioning could move the reference toward a
+constraints the draws are not held to, conditioning could move the reference toward a
 matched one, but only if the draws' relation between compactness and seats
 carries over to plans drawn at the enacted plan's tolerance, which these draws
 cannot show. If it comes from the sampler's own preference for few cut edges,
@@ -2516,30 +2519,40 @@ it. These draws cannot tell the three apart, and restricting them to the plan's
 own compactness is a matched reference in none of them. Reweighting the draws
 shows how far such choices move the zero-seat share, though none of the
 reweightings is a matched reference either (audit record): 4.5% among the draws
-at or above the plan's 51 cut edges; 2.4% weighted to the population-tight draws'
-cut edges, which leans on the 999 draws at exactly 51, where 100 give 0 seats and
-84 of those are chain 6's excursion; 1.0% spread evenly over 57–67 cut edges,
-which rests on the 126 draws at 57, since none of the 221 at 58–66 gives 0 seats
-and none has 65 or 67; and 0.44% filtering on population, one plan, which the
-population paragraph above sets aside as a filter. The zero-seat share is not
+at or above the plan's 51 cut edges, 100 of whose 151 zero-seat draws sit at
+exactly 51, 84 of those in chain 6's excursion; 2.4% weighted to the
+population-tight draws' cut edges, which carries the whole ensemble's zero-seat
+share at each count over to them, and is 2.32% once each chain's warm-up is
+dropped; 1.0% over the cut-edge counts from 57 to 67 that occur, which rests on
+the 126 draws at 57, since none of the 221 at 58–66 gives 0 seats and no draw has
+65 or 67; and 0.44% filtering on population, one plan, which the population
+paragraph above sets aside as a filter. The zero-seat share is not
 monotone in cut edges. The 57–67 is the range of the sub-94-person plans a beam
 search found (`docs/FEASIBILITY.md` §5.3), what one optimizer reached rather than
 what population-tight plans carry in general: the 454 population-tight draws here
 average 48.1 cut edges, 21.6% of them at 51 or more, against 45.5 and 12.0% for
 the rest. Part of the cut-edge gap may follow from the population gap, by an
-amount these draws cannot measure, since across the rectangle population spread
-and cut edges are barely associated (audit record). The matched comparison is a
+amount these draws cannot measure, and across the rectangle population spread and
+cut edges are barely associated (audit record). The matched comparison is a
 sampler held to the enacted plan's tolerance. Its plans may be less compact, and
 it may need another sampler or start: at this ensemble's tolerance 10 of the 12
-chains stopped short of their 12,000 draws, and the enacted plan's 94-person
-spread needs a tolerance under a third as wide. These draws cannot stand in for
+chains stopped short of their 12,000 draws. And the sampler bounds each district's
+deviation, not the spread: a bound that admits the enacted plan, ±52.75 persons,
+about a third of this ensemble's ±159.5, admits spreads up to 105.5, and one that
+caps the spread at 94 excludes the plan itself, so a matched run must constrain
+the spread directly. These draws cannot stand in for
 it, since their 454 population-tight draws hold one zero-seat plan. Whether, and
 on what, to condition is a value choice for the owner (D-041). On which measure,
 Iowa Code §42.4(4) names the tests for comparing the compactness of districts or
-plans, length-width and perimeter compactness; the draws carry neither, and the
-statute does not say how to weigh its two tests when they disagree
-(`docs/first-result/LEGAL-CLAIMS.md`, which marks for an election-law attorney
-how a court would apply them).
+plans, length-width and perimeter compactness, and the draws carry neither. For
+plans made of whole counties the perimeter test, summed over a plan's districts,
+ranks plans by the total length of the county boundaries their district lines
+follow, since the state's outline is the same for every plan: a length-weighted
+form of cut edges, which the unweighted count follows only as closely as Iowa's
+county boundaries are alike in length, unmeasured here. Mean Polsby-Popper tracks
+neither test, and nothing here tracks length-width. The statute does not say how
+to weigh its two tests if they disagree (`docs/first-result/LEGAL-CLAIMS.md`,
+which marks for an election-law attorney how a court would apply them).
 
 The comparison remains **not yet a finding**: 1.43% of draws give 0 seats.
 

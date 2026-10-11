@@ -13,17 +13,18 @@ map adoption.**
 
 ## First result
 
-![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats; the figure's note gives the reason that comparison is not like-for-like and calls it not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
+![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats; the figure's note says its 0 turns on one district at 49.8% Democratic, that the comparison is not like-for-like because the draws are not held to the plan's 94-person population spread, and that it is not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
 
 Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
 presidential vote, and 2 seats in about half of its draws** (49.5%, with a Monte
-Carlo standard error of 3 to 4 points or more; the six chains range from 41% to
-58%). Under the 2020 Senate vote the same draws reach 3 seats, though only in two
-plans early in one chain, so the top of that range depends on the election. It is
-also the sampler's range, not the limit of what is possible: a 3-seat plan meeting
-the same population and contiguity constraints exists under the presidential vote,
-and `tests/test_adversarial.py` builds one when the data are present.
+Carlo standard error of 3 to 4 points or more; the six chains, independent runs of
+the sampler, range from 41% to 58%). Under the 2020 Senate vote the same draws
+reach 3 seats, though only in two plans early in one chain, so the top of that
+range depends on the election. It is also the sampler's range, not the limit of
+what is possible: a 3-seat plan meeting the same population and contiguity
+constraints exists under the presidential vote, and `tests/test_adversarial.py`
+builds one when the data are present.
 
 The consequence is a limit, not a score. Detectability is bounded below by the
 width of the neutral distribution, and that width is set by the state, the
@@ -33,7 +34,7 @@ a 2-seat shift" — asks a detector to separate an outcome from its own null, an
 is unreachable on a four-district state whose null already spans two seats.
 
 Two cautions travel with these numbers. The seat count's split R-hat is 1.014,
-just outside `docs/CRITERIA.md` §8's 1.00–1.01 band, but with about 286 effective
+just above `docs/CRITERIA.md` §8's 1.00–1.01 band, but with about 286 effective
 draws the diagnostic cannot resolve that band: a simulated chain that is
 stationary at the same effective size usually reads above it, and the two halves
 of the rectangle (46.1% and 53.0% at 2 seats) differ by no more than such a
@@ -49,26 +50,41 @@ error of 9 to 12 points, and started cold, as those chains were, v2's own chains
 give 30–42%; the two numbers cannot be told apart. The 0–2 range is the same in
 both.
 
-Iowa's enacted plan returns 0 D seats, as 1.4% of these draws do (0.4–2.5% across
-the six chains), and its 0 turns on one district at 49.8% Democratic. That
-comparison is **not yet a finding**, because it is not like-for-like: the draws
-are not held to the enacted plan's 94-person population spread, and only 454 of
-the 27,564 are that equal. How its compactness compares depends on the measure,
-and the draws carry two: 88% of them have fewer cut edges than its 51 (77–92%
-across chains), but on mean Polsby-Popper it sits mid-ensemble, with 49% of them
-more compact (36–60%). Pooled, 0 seats is commoner among the draws no more compact
-than it on either measure, but how much commoner is not robust: most of the
-cut-edge excess is one chain's early excursion, and across the six chains the
-Polsby-Popper contrast cannot be told from zero. Whether to match the comparison
-on compactness is open. Iowa Code §42.4(4) names the tests for comparing the
-compactness of districts or plans, length-width and perimeter compactness; the
-draws carry neither, and the statute does not say how to weigh its two tests when
-they disagree. The cut-edge gap may come from choices made in drawing the plan,
-from constraints the draws do not meet, or from the sampler's own preference for
-few cut edges; matching means something different in each case, restricting the
-draws to the plan's own compactness is a matched reference in none of them, and
-these draws cannot tell the cases apart. That choice is the owner's (D-041). See
-`docs/progress.md`.
+Under the 2020 presidential vote, Iowa's enacted plan gives Democrats 0 of 4 seats,
+as 1.4% of these draws do (0.4–2.5% across the six chains): a share of the draws,
+not a probability about the enacted plan. Its 0 turns on one district at 49.8%
+Democratic, of the two-party vote: a shift of 0.18 points toward Democrats in every
+district would move it into the 1-seat bar. That comparison is **not yet a
+finding** either way, because it is not like-for-like: the draws are not held to
+the enacted plan's 94-person population spread, the gap between its most and least
+populous districts, and only 454 of the 27,564 are that equal.
+
+How its compactness compares depends on the measure, and the draws were scored on
+two. On cut edges, the number of pairs of bordering counties that district lines
+separate (fewer is more compact), 88% of the draws have fewer than its 51 (77–92%
+across chains). On mean Polsby-Popper, a score of how close each district's shape
+is to a circle, averaged over the four (higher is more compact), it sits
+mid-ensemble, with 48.7% of the draws more compact (36–60% across chains). Taking
+all the draws together, 0 seats is more common among those no more compact than it
+on either measure, but how much more common is not robust, and changes with which
+draws are counted: most of the cut-edge excess comes from one stretch early in one
+chain's run, and on Polsby-Popper, judged across the six chains, the difference
+cannot be told from zero. Whether to match the comparison on compactness,
+adjusting it so the draws resemble the plan in compactness, is open. The cut-edge
+gap may come from choices made in drawing the plan, from constraints the draws are
+not held to, such as the plan's tighter population spread, or from the sampler's
+own preference for few cut edges. These draws cannot tell the cases apart, so they
+cannot show whether the gap reflects any choice made in drawing the plan, let alone
+why one was made. Matching means something different in each case (D-041 sets out
+how), and restricting the draws to those no more compact than the plan would be a
+properly matched comparison in none of them. On the measure, Iowa Code §42.4(4)
+(Iowa Code 2026) names the tests for comparing the compactness of districts or
+plans, length-width and perimeter compactness. The draws were scored on neither,
+though for plans made of whole counties the perimeter test ranks plans by the
+total length of the county boundaries their district lines follow, a
+length-weighted form of cut edges; and the statute does not say how to weigh its
+two tests if they disagree. Whether to match is the repository owner's choice
+(D-041 in `docs/DECISIONS.md`). See `docs/progress.md`.
 
 ---
 

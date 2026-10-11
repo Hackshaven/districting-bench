@@ -348,7 +348,8 @@ def test_the_figure_text_is_pinned(dist):
     assert " ".join(text["note"].split()) == (
         "▲ Iowa's enacted plan returns 0 D seats, as 1.4% of these draws do (0.4–2.5% "
         "across chains); its 0 turns on one district at 49.8% D. Not like-for-like: the "
-        "draws are not held to its population equality (D-041). Not yet a finding.")
+        "draws are not held to its 94-person population spread (D-041). Not yet a "
+        "finding.")
     # the last line stands on its own, and no line outruns the wrap width
     assert text["note"].splitlines()[-1] == "Not yet a finding."
     assert all(len(line) <= S.NOTE_WIDTH for line in text["note"].splitlines())
@@ -403,9 +404,10 @@ PADDING_PX = 3
 
 
 def assert_every_string_is_drawn_whole(d: dict, placed: dict):
-    """Every string the figure prints is drawn, unclipped, on the canvas, and
-    the note's white box covers none of the others, whatever the wrap widths
-    and in whatever font the machine renders."""
+    """Every string the figure prints is drawn, unclipped, on the canvas; no
+    two overlap beyond a sliver of line padding, and the note's white box
+    touches none of the others, whatever the wrap widths and in whatever font
+    the machine renders."""
     text = S.figure_text(d)
     drawn = [t for t, _, _ in placed["texts"]]
     for line in (text["title"], *text["subtitle"], text["note"], *text["footer"],
@@ -417,17 +419,18 @@ def assert_every_string_is_drawn_whole(d: dict, placed: dict):
         assert x1 - x0 > 1 and y1 - y0 > 1, t
         assert 0 <= x0 and x1 <= width and 0 <= y0 and y1 <= height, t
         assert not clipped, t
-    # no two strings overlap by more than a sliver of their boxes' padding,
-    # which each bar's two labels already share in the tallest font; the
-    # note's white box, which hides what lies under it, may not touch one
+    # two strings may share a sliver of line padding, top to bottom, as each
+    # bar's two labels do in the tallest font; side by side, a box hugs its
+    # ink, so any overlap is touching glyphs; and the note's white box, which
+    # hides what lies under it, may touch nothing
     boxes = [(t, box) for t, box, _ in placed["texts"] if t != text["note"]]
     boxes.append((text["note"], placed["note_box"]))
     for i, (a, p) in enumerate(boxes):
         for b, q in boxes[i + 1:]:
-            overlap = min(min(p[2], q[2]) - max(p[0], q[0]),
-                          min(p[3], q[3]) - max(p[1], q[1]))
-            allowed = 0 if text["note"] in (a, b) else PADDING_PX
-            assert overlap <= allowed, (a, b, overlap)
+            across = min(p[2], q[2]) - max(p[0], q[0])
+            down = min(p[3], q[3]) - max(p[1], q[1])
+            if across > 0 and down > 0:
+                assert text["note"] not in (a, b) and down <= PADDING_PX, (a, b, down)
 
 
 def test_the_figure_draws_what_the_text_says(dist, tmp_path):
@@ -470,7 +473,7 @@ def test_an_empty_comparison_group_leaves_its_line_out(
         cut_edges=cut_edges, polsby_popper_mean=polsby_popper))
     d = S.seat_distribution()
     compact = d["compactness"]
-    assert compact["as_equal_profile"] is None or compact["rest_profile"] is None
+    assert compact["as_equal_profile" if spread < 0 else "rest_profile"] is None
     for column in ("cut_edges", "polsby_popper_mean"):
         c = compact[column]
         assert c["more_compact_share"] == (1.0 if empty == "no_more_compact" else 0.0)
@@ -538,6 +541,11 @@ def test_a_non_finite_compactness_value_is_refused(tmp_path, monkeypatch):
     _report_with(tmp_path, monkeypatch,
                  lambda r: r["compactness"].update(polsby_popper_mean=float("nan")))
     with pytest.raises(ValueError, match="non-finite polsby_popper_mean"):
+        S.seat_distribution()
+    # and a missing one, which JSON writes as null
+    _report_with(tmp_path, monkeypatch,
+                 lambda r: r["compactness"].update(cut_edges=None))
+    with pytest.raises(ValueError, match="non-finite cut_edges"):
         S.seat_distribution()
 
 

@@ -13,9 +13,16 @@ person decides") requires for a new or changed legal sentence. Every item it mar
 ATTORNEY is open.
 
 The commit after `3199ae7` revised the reviewed sentences with its suggested
-wording W1 to W4. W5 concerns `docs/CRITERIA.md` §2.1, which only the owner
-amends, and the items it lists under "Related text outside the named scope" are
-not changed here; both are left to the owner.
+wording W1 to W4, and a re-check by the Analyst then corrected W1's own
+quotation of *Karcher v. Daggett*, whose words are "as nearly as is practicable".
+W5 concerns `docs/CRITERIA.md` §2.1, which only the owner amends, and the items it
+lists under "Related text outside the named scope" are not changed here; both are
+left to the owner.
+
+Its file:line references are to the working tree as it stood while the register
+was written, between commits `3199ae7` and `73606c0`, and no longer match every
+line. The local file paths it lists exist only on the machine that ran it; its
+public URLs carry the citations.
 
 ---
 

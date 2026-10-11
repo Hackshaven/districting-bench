@@ -1722,8 +1722,10 @@ after it corrects that:
   carrying over to plans drawn at the enacted plan's tolerance.
 - The second refuter's reweightings are illustrative, not candidate matched
   references. The 0.44% is a population filter the same documents set aside, the
-  1.0% rests on the 126 draws at 57 cut edges, and the 57–67 range is what a beam
-  search found, not what population-tight plans carry in general.
+  2.4% carries the whole ensemble's zero-seat share at each cut-edge count over to
+  the population-tight draws, and is 2.32% after the warm-up, the 1.0% rests on the
+  126 draws at 57 cut edges, and the 57–67 range is what a beam search found, not
+  what population-tight plans carry in general.
 - The README again quoted the contrast's magnitudes, which the second audit had
   removed as not robust. It now gives the direction, and says the size is not
   robust.
@@ -1738,3 +1740,9 @@ after it corrects that:
 The plotter now prints each location's Monte Carlo error, each measure's own split
 R-hat, the draws' median Polsby-Popper, the population-tight draws' split on each
 measure, and the draws by cut edges, so the counts these answers quote are pinned.
+
+The reviews of that commit corrected four details in it, in the commit after: the
+support it first gave the 2.4%, its quotation of *Karcher v. Daggett*, its account
+of how the sampler's per-district tolerance relates to the spread, and a README
+sentence that left a lay reader to infer the enacted plan's purpose. The README
+paragraph was also rewritten for readers outside the field.

@@ -1226,11 +1226,11 @@ not held to the enacted plan's 94-person population spread, and only 454 of the
 the draws have fewer cut edges than its 51, but on mean Polsby-Popper, the other
 measure the draws carry, it sits mid-ensemble, with 48.7% of them more compact. The
 two measures order the draws with a rank correlation of 0.76, below the ~0.9 above
-which `CRITERIA.md` §3 says the choice of measure does not matter. Restricting the
-draws to those no more compact than the plan raises the zero-seat share to 4.5% on
-cut edges, where the plan is in the least compact eighth, and to 2.0% on
-Polsby-Popper, where it is mid-ensemble; neither restriction is a matched
-reference.
+which `CRITERIA.md` §3 says the choice of measure does not matter. Pooled,
+restricting the draws to those no more compact than the plan raises the zero-seat
+share to 4.5% on cut edges, where the plan is in the least compact eighth, and to
+2.0% on Polsby-Popper, where it is mid-ensemble; neither restriction is a matched
+reference, and the size of either contrast is not robust (`docs/progress.md`).
 
 *Chosen:* report the unconditioned share, with the population mismatch as the
 reason the comparison is not yet a finding; report compactness on both measures
@@ -1239,20 +1239,22 @@ room for both and their disagreement; and leave any conditioning to the owner.
 
 *Why the two are not treated alike:* population equality ranks first in Iowa Code
 §42.4 (Iowa Code 2026) and compactness fourth, "to the extent consistent with the
-standards established by subsections 1, 2, and 3". For congressional districts the
-statute and *Karcher v. Daggett*, 462 U.S. 725 (1983), set a standard, "as nearly
-equal as practicable", with the statute's one-percent cap yielding to Iowa Const.
-art. III, §37, not a person count: 94 persons is the spread the enacted plan
-reached (Iowa Legislative Services Agency, Plan 2 report, Table 1, 21 October
-2021). Matching the reference to it would match on the enacted plan's achieved
-level of the first-ranked standard, not on a legal threshold, and in the sampler
-that level is an input, a tolerance the draws are held to. Compactness is an
-output of where the lines go, and whether to match on it cannot be settled from
+standards established by subsections 1, 2, and 3". For congressional districts
+neither the statute nor *Karcher v. Daggett* sets a person count: Iowa Code
+§42.4(1)(b) requires populations "as nearly equal as practicable" to the ideal,
+with its one-percent cap yielding to Iowa Const. art. III, §37, and *Karcher v.
+Daggett*, 462 U.S. 725, 730 (1983), requires population equality "as nearly as is
+practicable". 94 persons is the spread the enacted plan reached (Iowa Legislative
+Services Agency, Plan 2 report, Table 1, 21 October 2021). Matching the reference
+to it would match on the enacted plan's achieved level of the first-ranked
+standard, not on a legal threshold. In a sampler a population level is an input,
+the bound its draws are held to, so matching on it means re-sampling under that
+bound. Compactness is an output of where the lines go, and whether to match on it cannot be settled from
 these draws, because the cut-edge gap has three possible sources that
 conditioning treats differently. If it comes from choices made in drawing the plan,
 conditioning absorbs part of the difference the comparison measures (the second
 audit in `docs/first-result/INSTRUMENT-AUDIT.md`). If it comes from constraints
-the draws do not meet, conditioning could move the reference toward a matched
+the draws are not held to, conditioning could move the reference toward a matched
 one, but only if the draws' relation between compactness and seats carries over
 to plans drawn at the enacted tolerance, which these draws cannot show;
 illustrative reweightings of them, none a matched reference, give zero-seat shares
@@ -1260,10 +1262,13 @@ from 0.44% to 2.4% (the third audit there). If it comes from the sampler's own
 preference for few cut edges, conditioning undoes part of the reference's target,
 which is a choice about what the neutral baseline is. Which measure to match on is
 a further question. Iowa Code §42.4(4) names length-width and perimeter
-compactness for comparing plans, and the draws carry neither; the statute does not
-say how to weigh its two tests when they disagree. Of the two measures the draws
-do carry, they are more compact than the plan on cut edges and not on
-Polsby-Popper. Part of the cut-edge gap may follow from the population gap,
+compactness for comparing plans, and the draws carry neither. For plans made of
+whole counties the perimeter test, summed over a plan's districts, ranks plans by
+the total length of the county boundaries their district lines follow, a
+length-weighted form of cut edges; mean Polsby-Popper tracks neither test. The
+statute does not say how to weigh its two tests if they disagree. Of the two
+measures the draws do carry, they are more compact than the plan on cut edges and
+not on Polsby-Popper. Part of the cut-edge gap may follow from the population gap,
 by an amount these draws cannot measure: the 454 population-tight draws average
 48.1 cut edges against 45.5 for the rest, but across the draws population spread
 and cut edges are barely associated, and too few of the 454 give 0 seats to show
@@ -1280,7 +1285,9 @@ whether compactness matters among them.
 - **Re-sample at the enacted plan's tolerance.** The matched comparison, and a new
   experiment with its own name (D-036). Its plans may be less compact, and it may
   need another sampler or start: at this ensemble's tolerance 10 of its 12 chains
-  stopped short of their 12,000 draws.
+  stopped short of their 12,000 draws. It must also bound the spread itself, since
+  a per-district tolerance that admits the enacted plan admits spreads up to 105.5
+  persons.
 
 *Why this is the owner's:* which features of an enacted plan a neutral ensemble
 must match before a comparison with it counts, and on which compactness measure,

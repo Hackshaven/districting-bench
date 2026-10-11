@@ -20,9 +20,10 @@ plan's seat count, cut edges, mean Polsby-Popper and closest district, and two
 more committed files for the checks :func:`summary_lines` prints. All text on the
 figure is built by :func:`figure_text`, from those values, so it can be pinned;
 every count and share ``docs/progress.md`` quotes about this sample is printed by
-:func:`summary_lines`. The tests, intervals and reweightings it credits to the
-audit record were computed by the auditors' and refuters' own scripts, as their
-reports in ``docs/first-result/INSTRUMENT-AUDIT.md`` describe.
+:func:`summary_lines`, except those it credits to the audit record: those, and the
+tests, intervals and reweightings, were computed by the auditors' and refuters'
+own scripts, as their reports in ``docs/first-result/INSTRUMENT-AUDIT.md``
+describe.
 
 **Seats are read off the efficiency gap, not recounted** (D-039). The draws file
 records |efficiency gap| per contest, not seats, and a recount needs the election
@@ -465,7 +466,10 @@ def seat_distribution() -> dict:
 
     def against(column: str, larger_is_less_compact: bool) -> dict:
         at = report["compactness"][column]
-        if not (math.isfinite(at) and all(math.isfinite(row[column]) for row in rows)):
+        def finite(value):
+            return isinstance(value, (int, float)) and math.isfinite(value)
+
+        if not (finite(at) and all(finite(row[column]) for row in rows)):
             raise ValueError(f"a non-finite {column} in the enacted plan or the draws: "
                              "no draw can be placed against it")
 
@@ -691,7 +695,8 @@ def figure_text(d: dict) -> dict:
             f"{share_text(p['shares'][enacted])} of these draws do "
             f"({min(chain_range):.1f}–{max(chain_range):.1f}% across chains); its "
             f"{enacted} turns on one district at {100 * d['enacted_closest_share']:.1f}% D. "
-            "Not like-for-like: the draws are not held to its population equality (D-041).",
+            f"Not like-for-like: the draws are not held to its {ENACTED_SPREAD}-person "
+            "population spread (D-041).",
             NOTE_WIDTH) + ["Not yet a finding."]),
         "footer": footer,
     }
@@ -842,8 +847,8 @@ def compactness_line(name: str, c: dict, enacted: int) -> str:
 
 
 def summary_lines(d: dict) -> list[str]:
-    """Every count and share docs/progress.md quotes about this sample, in print;
-    the tests and intervals it credits to the audit record are the audit's."""
+    """Every count and share docs/progress.md quotes about this sample, in print,
+    except those it credits to the audit record, which are the audit's."""
     lines = [
         f"{d['n_draws']:,} draws: {d['n_chains']} of {d['n_chains_requested']} chains "
         f"({d['n_chains_never_started']} never started, {d['n_chains_stopped_early']} "
