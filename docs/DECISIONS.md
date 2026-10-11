@@ -1085,3 +1085,46 @@ to a stranger.
 What share of this work an agent performed is visible in the commit history and
 is left for the author to describe. It is deliberately not encoded in citation
 metadata by the agent itself.
+
+## D-039 — Iowa's seat counts are read off the committed efficiency gap, not recounted
+
+**Date:** 2026-10-11 · **Phase:** post-release
+
+The README's figure and its two numbers came from a 1,820-draw ensemble and a
+gitignored results file (`docs/progress.md`, "The README's first result,
+re-derived on the v2 ensemble"). Re-deriving them on the v2 ensemble needs each
+draw's Democratic seat count, and `docs/experiment-2/ia-draws-v2.csv.gz` does not
+record one. It records |efficiency gap|, |mean-median| and competitive districts
+per contest.
+
+*Chosen:* read the seat count off the efficiency gap. On a fixed election the gap
+is pinned by the outcome. With wasted votes counted against half of each
+district's votes, `EG = 2V − ½ − τ` exactly, where `τ` is the share of two-party
+votes cast in districts the Democrats win, and `τ = s/k` when turnout is equal.
+Each seat count therefore has a level, `|2V − ½ − s/k|`, and a draw sits off its
+own level only by its turnout imbalance. `tools/plot_seat_distribution.py`
+assigns each draw to its nearest level, and refuses the whole sample unless every
+draw is nearer its own level than half the smallest gap between levels.
+
+*Alternatives:*
+- **Recount from plans and returns.** Rejected: the plans are not committed (the
+  draws file holds metrics only) and would have to be regenerated from their
+  seeds, and the returns cannot be redistributed, so no reader could check the
+  result.
+- **Keep the 1,820-draw figure.** Rejected: it is the one figure in the
+  repository nobody can regenerate (D-036), and its sample is the least converged
+  Iowa ensemble still quoted anywhere.
+- **Add a seats column to the draws file.** Rejected: that is a new measurement,
+  and the committed file is the record of the one that was made (D-027).
+
+*Why it is a measurement and not a guess:* the identity is exact and its only
+free term is turnout. On Iowa's v2 rectangle the largest residual is 0.0143
+against a half-gap of 0.0413, a margin of nearly three. And the two plans whose
+seats were counted directly from the returns, the Phase 2 report's enacted
+plans, read back to the same counts: Iowa 0 of 4, Colorado 5 of 8.
+
+*Limits:* the method needs every draw's turnout imbalance to stay under half the
+gap between seat levels. That is a property of the state and the election, not of
+the method. It holds by a factor of nearly three on Iowa's four county-built
+districts. It is not established for Colorado, whose nine levels sit closer
+together (smallest gap 0.028) on VTD-built districts, and nothing uses it there.

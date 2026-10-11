@@ -15,8 +15,11 @@ map adoption.**
 
 ![Iowa's neutral seat distribution](docs/figures/ia-neutral-seat-distribution.png)
 
-Over 1,820 plans drawn with no access to election data, **Iowa's neutral process
-spans 0–2 Democratic seats of 4, and a 2-seat outcome is 43% of the distribution.**
+Over 27,564 ReCom draws made with no access to election data, **Iowa's neutral
+process spans 0–2 Democratic seats of 4, and a 2-seat outcome is about half of
+the distribution** — 49.5% under the 2020 presidential vote, with the six chains
+that drew it ranging from 41% to 58%. The 1,820-draw ensemble archived in v0.1.0
+put it at 43%: a less precise estimate of the same spread.
 
 The consequence is a limit, not a score. Detectability is bounded below by the
 width of the neutral distribution, and that width is a property of the state rather
@@ -25,10 +28,10 @@ than of the method. A detection target stated in absolute seats — such as
 detector to separate an outcome from its own null, and is unreachable on a
 four-district state whose null already spans two seats.
 
-Iowa's enacted plan returns 0 D seats, which occurs in 1.0% of this ensemble. That
+Iowa's enacted plan returns 0 D seats, which occurs in 1.4% of this ensemble. That
 comparison is **not yet a finding**: the reference is not held to the 94-person
-population equality the enacted plan meets, so it is not like-for-like. See
-`docs/progress.md`.
+population equality the enacted plan meets — only 454 of its 27,564 draws are that
+equal — so it is not like-for-like. See `docs/progress.md`.
 
 ---
 
@@ -130,7 +133,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 573 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 578 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -172,7 +175,7 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 719 passed, 5 skipped
+PYTHONPATH=src pytest tests -q         # 724 passed, 5 skipped
 python tools/check_firewall.py         # must print: clean
 ```
 
@@ -207,7 +210,7 @@ python tools/plot_experiment_3.py                # -> docs/figures/exp3-gameabil
 3. `tools/check_firewall.py` — the boundary enforcement.
 4. `docs/progress.md` — the full write-up: what was run, what it found, and
    every result that was later retracted and why.
-5. `docs/DECISIONS.md` — D-001…D-037, each non-obvious choice logged when it was
+5. `docs/DECISIONS.md` — D-001…D-039, each non-obvious choice logged when it was
    made rather than reconstructed afterwards.
 
 ---
