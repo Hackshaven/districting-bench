@@ -14,7 +14,8 @@
       "partisan_bias": "positive favours D; same definition as ours",
       "declination": "positive favours D; -(Warrington's angle) * ln(k) / 2, -ln(k)/2 when the Republicans win every seat and +ln(k)/2 when the Democrats do"
     },
-    "efficiency_gap_terms": "in PlanScore's orientation: -ours - equal_turnout = turnout_term (tau - S) + threshold_term (at most k/T)"
+    "efficiency_gap_terms": "in PlanScore's orientation: -ours - equal_turnout = turnout_term (tau - S) + threshold_term (at most k/T)",
+    "gerrychain_wasted_vote_gap": "positive favours D; GerryChain's wasted_votes, which wastes a winner's votes above half the district's total; within k/T of ours"
   },
   "note": "metric values, statewide shares and district populations only; no district vote counts are stored (CRITERIA.md section 9.1)",
   "plans": {
@@ -62,13 +63,15 @@
             "efficiency_gap_equal_turnout": -0.4163362966039085,
             "mean_median": 0.024256595815449644,
             "partisan_bias": 0.25,
-            "declination": -0.6931471805599453
+            "declination": null
           },
           "planscore_definitions": {
             "mean_median": 0.024256595815449644,
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
           },
+          "declination_compared_with": "PlanScore's sweep convention: ours is undefined",
+          "gerrychain_wasted_vote_gap": -0.4163362966039084,
           "planscore_published_efficiency_gap": -0.4163,
           "efficiency_gap_terms": {
             "wasted_minus_equal_turnout": -1.8107981514803306e-06,
@@ -78,6 +81,7 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
             "definition_mean_median": true,
             "definition_partisan_bias": true,
             "definition_declination": true
@@ -105,13 +109,15 @@
             "efficiency_gap_equal_turnout": -0.43200860325511214,
             "mean_median": 0.02554219994751561,
             "partisan_bias": 0.25,
-            "declination": -0.6931471805599453
+            "declination": null
           },
           "planscore_definitions": {
             "mean_median": 0.02554219994751561,
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
           },
+          "declination_compared_with": "PlanScore's sweep convention: ours is undefined",
+          "gerrychain_wasted_vote_gap": -0.4320086032551122,
           "planscore_published_efficiency_gap": -0.432,
           "efficiency_gap_terms": {
             "wasted_minus_equal_turnout": -1.852021048909247e-06,
@@ -121,6 +127,7 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
             "definition_mean_median": true,
             "definition_partisan_bias": true,
             "definition_declination": true
@@ -148,13 +155,15 @@
             "efficiency_gap_equal_turnout": -0.39873013952516345,
             "mean_median": 0.029956672943516227,
             "partisan_bias": 0.25,
-            "declination": -0.6931471805599453
+            "declination": null
           },
           "planscore_definitions": {
             "mean_median": 0.029956672943516227,
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
           },
+          "declination_compared_with": "PlanScore's sweep convention: ours is undefined",
+          "gerrychain_wasted_vote_gap": -0.39873013952516345,
           "planscore_published_efficiency_gap": -0.3987,
           "efficiency_gap_terms": {
             "wasted_minus_equal_turnout": -1.374903069339961e-06,
@@ -164,6 +173,7 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
             "definition_mean_median": true,
             "definition_partisan_bias": true,
             "definition_declination": true
@@ -191,13 +201,15 @@
             "efficiency_gap_equal_turnout": -0.24479536254043643,
             "mean_median": 0.019408927103962137,
             "partisan_bias": 0.25,
-            "declination": -0.6931471805599453
+            "declination": null
           },
           "planscore_definitions": {
             "mean_median": 0.019408927103962137,
             "partisan_bias": 0.25,
             "declination": -0.6931471805599453
           },
+          "declination_compared_with": "PlanScore's sweep convention: ours is undefined",
+          "gerrychain_wasted_vote_gap": -0.24479536254043646,
           "planscore_published_efficiency_gap": -0.2448,
           "efficiency_gap_terms": {
             "wasted_minus_equal_turnout": -1.6943833901772454e-06,
@@ -207,6 +219,7 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
             "definition_mean_median": true,
             "definition_partisan_bias": true,
             "definition_declination": true
@@ -314,6 +327,8 @@
             "partisan_bias": 0.0,
             "declination": -0.07616788620615457
           },
+          "declination_compared_with": "ours",
+          "gerrychain_wasted_vote_gap": -0.015249329511678756,
           "planscore_published_efficiency_gap": -0.0138,
           "efficiency_gap_terms": {
             "wasted_minus_equal_turnout": -0.0014821507630740065,
@@ -323,6 +338,7 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
             "definition_mean_median": true,
             "definition_partisan_bias": true,
             "definition_declination": true
@@ -357,6 +373,8 @@
             "partisan_bias": 0.0,
             "declination": 0.026898049861136315
           },
+          "declination_compared_with": "ours",
+          "gerrychain_wasted_vote_gap": 0.0288632848057351,
           "planscore_published_efficiency_gap": 0.0296,
           "efficiency_gap_terms": {
             "wasted_minus_equal_turnout": -0.0007048883331588172,
@@ -366,6 +384,7 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
             "definition_mean_median": true,
             "definition_partisan_bias": true,
             "definition_declination": true
@@ -400,6 +419,8 @@
             "partisan_bias": -0.125,
             "declination": -0.10626284366555377
           },
+          "declination_compared_with": "ours",
+          "gerrychain_wasted_vote_gap": -0.027089703791641696,
           "planscore_published_efficiency_gap": -0.0537,
           "efficiency_gap_terms": {
             "wasted_minus_equal_turnout": 0.026576788033775795,
@@ -409,6 +430,7 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
             "definition_mean_median": true,
             "definition_partisan_bias": true,
             "definition_declination": true
@@ -443,6 +465,8 @@
             "partisan_bias": -0.125,
             "declination": 0.09991006689483212
           },
+          "declination_compared_with": "ours",
+          "gerrychain_wasted_vote_gap": 0.06374387139510036,
           "planscore_published_efficiency_gap": 0.0649,
           "efficiency_gap_terms": {
             "wasted_minus_equal_turnout": -0.0011665085735697994,
@@ -452,6 +476,7 @@
           "checks": {
             "published_efficiency_gap": true,
             "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
             "definition_mean_median": true,
             "definition_partisan_bias": true,
             "definition_declination": true

@@ -13,16 +13,16 @@ map adoption.**
 
 ## First result
 
-![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws, 1 seat in 49.0% and 2 seats in 49.5%, each of those two give or take about 6 points (2 Monte Carlo standard errors), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats; the figure's note gives the reasons that comparison is not like-for-like and not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
+![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws, 1 seat in 49.0% and 2 seats in 49.5%, each with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats; the figure's note gives the reasons that comparison is not like-for-like and not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
 
 Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
 presidential vote, and 2 seats in about half of its draws** (49.5%, with a Monte
-Carlo standard error of 3 to 4 points; the six chains range from 41% to 58%).
-Under the 2020 Senate vote the same draws reach 3 seats, though only in two plans
-early in one chain, so the top of that range depends on the election. It is also
-the sampler's range, not the limit of what is possible: a 3-seat plan meeting the
-same population and contiguity constraints exists under the presidential vote,
+Carlo standard error of 3 to 4 points or more; the six chains range from 41% to
+58%). Under the 2020 Senate vote the same draws reach 3 seats, though only in two
+plans early in one chain, so the top of that range depends on the election. It is
+also the sampler's range, not the limit of what is possible: a 3-seat plan meeting
+the same population and contiguity constraints exists under the presidential vote,
 and `tests/test_adversarial.py` builds one when the data are present.
 
 The consequence is a limit, not a score. Detectability is bounded below by the
@@ -33,27 +33,32 @@ a 2-seat shift" — asks a detector to separate an outcome from its own null, an
 is unreachable on a four-district state whose null already spans two seats.
 
 Two cautions travel with these numbers. The seat count's split R-hat is 1.014,
-just outside `docs/CRITERIA.md` §8's 1.00–1.01 band, and with about 286 effective
+just outside `docs/CRITERIA.md` §8's 1.00–1.01 band, but with about 286 effective
 draws the diagnostic cannot resolve that band: a simulated chain that is
-stationary at the same effective size usually reads above it
-(`docs/first-result/INSTRUMENT-AUDIT.md`). What the chains do show is drift: the
-2-seat share is 46.1% over the first half of the rectangle and 53.0% over the
-second, and 45.3–50.5% on the other prefix rectangles the convergence report
-offers. And v0.1.0 reported the 2-seat share as 43%, from a 1,820-draw ensemble
-that was never committed: seven chains of 260 draws with no convergence
-diagnostic. Estimated three ways from the committed chains, an estimate that size
-carries a standard error of 9 to 12 points, so the two numbers do not disagree.
-The 0–2 range is the same in both.
+stationary at the same effective size usually reads above it, and the two halves
+of the rectangle (46.1% and 53.0% at 2 seats) differ by no more than such a
+chain's often do. What does point to slow mixing is chain by chain: the two chains
+that ran to 12,000 draws put 33.2% and 51.6% of them at 2 seats, and the two that
+started at 1-seat plans put about a third of their first halves there, both
+unlikely for a stationary sampler (`docs/first-result/INSTRUMENT-AUDIT.md`, as is
+every estimate below). So 3 to 4 points may understate the standard error. And
+v0.1.0 reported the 2-seat share as 43%, from a 1,820-draw ensemble that was never
+committed: seven chains of 260 draws with no convergence diagnostic. Estimated
+three ways from the committed chains, an estimate that size carries a standard
+error of 9 to 12 points, and started cold, as those chains were, v2's own chains
+give 30–42%; the two numbers cannot be told apart. The 0–2 range is the same in
+both.
 
 Iowa's enacted plan returns 0 D seats, as 1.4% of these draws do (0.4–2.5% across
 the six chains), and its 0 turns on one district at 49.8% Democratic. That
-comparison is **not yet a finding**, because it is not like-for-like. The draws
-are not held to the 94-person population equality the enacted plan meets: only
-454 of the 27,564 are that equal. Nor are they as uncompact: 88% have fewer cut
-edges than its 51, and in each of the six chains 0 seats is commoner among the
-draws with 51 or more. Pooled, 4.5% of those give 0 seats, or 2.2% once each
-chain's first 500 draws are dropped, against 1.0% of the rest. See
-`docs/progress.md` and D-041.
+comparison is **not yet a finding**, because it is not like-for-like: the draws
+are not held to the 94-person population equality the enacted plan meets, and only
+454 of the 27,564 are that equal. The enacted plan is also less compact than 88%
+of the draws, and 0 seats is commoner among less compact ones. But compactness is
+an outcome of where the lines go, and the draws already exceed the enacted plan's
+level of it, where they fall short on population; adjusting for it would raise the
+reference's 0-seat share however the plan was drawn. So it is context for the
+comparison, not a second adjustment to make (D-041). See `docs/progress.md`.
 
 ---
 
@@ -155,7 +160,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 634 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 636 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -197,12 +202,12 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 780 passed, 5 skipped (derived; see below)
+PYTHONPATH=src pytest tests -q         # 782 passed, 5 skipped (derived; see below)
 python tools/check_firewall.py         # must print: clean
 ```
 
-The 780 is derived, not measured: this file recorded 719 with the data at
-v0.1.0; the 61 tests added since need neither the data nor the network; and no
+The 782 is derived, not measured: this file recorded 719 with the data at
+v0.1.0; the 63 tests added since need neither the data nor the network; and no
 code an earlier test runs has changed except docstrings.
 
 **Without the election returns you can still generate.** The neutral half needs
@@ -232,12 +237,16 @@ python tools/plot_seat_distribution.py           # -> docs/figures/ia-neutral-se
 
 One check reaches outside the repository: it fetches PlanScore's scores for
 both enacted plans (two files pinned by sha256) and recomputes the per-election
-metrics from PlanScore's district totals with `evaluate.partisan`. It exits 0
-only if every efficiency gap PlanScore publishes is reproduced, and its
-definitions of mean-median, partisan bias and declination match ours once
-converted to its sign and scale; it rewrites its record only then. PlanScore
-titles the Iowa plan a draft; `docs/progress.md`, "The plans are the ones this
-repository studies", says why it is the enacted one.
+metrics from PlanScore's district totals with `evaluate.partisan`. It exits 0 only
+if every efficiency gap PlanScore publishes is reproduced by PlanScore's own
+formula, (S − ½) − 2(V − ½), from the seats and votes `evaluate.partisan`
+computes; if PlanScore's mean-median, partisan bias and declination match ours
+once converted to its sign and scale; and if GerryChain's count of wasted votes
+matches ours. This repository's own efficiency gap counts wasted votes, and it
+differs from PlanScore's published values on every Colorado race, by a factor of
+two under the 2016 presidential vote (D-040). The script rewrites its record only
+when every check passes. PlanScore titles the Iowa plan a draft; `docs/progress.md`,
+"The plans are the ones this repository studies", says why it is the enacted one.
 
 ```bash
 python tools/check_planscore.py   # -> docs/cross-checks/planscore.json

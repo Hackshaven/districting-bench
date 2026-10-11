@@ -1158,18 +1158,21 @@ the seat count, in the next measurement would remove the need for any of this.
 presidential vote. The shares themselves are superseded by the ones recorded
 here, and the entries are left as written.
 
-## D-040 — PlanScore's efficiency gap is a different formula; this repository keeps CRITERIA.md's
+## D-040 — PlanScore's published efficiency gaps use a different formula; this repository keeps CRITERIA.md's
 
 **Date:** 2026-10-11 · **Phase:** post-release · **VALUE** (whether to report both forms)
 
 `prompt.md` asks for the metric implementations to be cross-checked against
 PlanScore. On the same district totals, rounded to whole votes, three metrics
-agree up to sign and scale, and the efficiency gap does not. PlanScore computes
-the equal-turnout form `(S − ½) − 2(V − ½)`, while `evaluate.partisan` counts
-wasted votes (`docs/progress.md`, "Cross-check against PlanScore"). In
-PlanScore's orientation the two differ by `τ − S`, plus a strict-majority term
-of at most `k/T`, so they agree whenever `τ = S`, which includes equal turnout
-and any one-party sweep.
+agree up to sign and scale, and the efficiency gap does not. PlanScore's code
+computes, and its files publish, the equal-turnout form `(S − ½) − 2(V − ½)`,
+while `evaluate.partisan` counts wasted votes (`docs/progress.md`, "Cross-check
+against PlanScore"). PlanScore's own metric page, which `CRITERIA.md` cites,
+describes the wasted-vote form, as `CRITERIA.md` §5.1 does; PlanScore's code
+counted wasted votes until August 2021 (the audit in
+`docs/cross-checks/INSTRUMENT-AUDIT.md`). In PlanScore's orientation the two
+differ by `τ − S`, plus a strict-majority term of at most `k/T`, so they agree
+whenever `τ = S`, which includes equal turnout and any one-party sweep.
 
 *Chosen:* keep the wasted-vote form, correct the docstring that called the two
 the same up to sign, and record how far apart they are on a real plan. Whether
@@ -1197,38 +1200,55 @@ the commit both pinned files record as having scored them, sign, scale and tie
 rules included; 3f866f9 rewrites the four functions in vectorized form, and they
 compute the same. None of PlanScore's code is copied, and its repository states
 no licence. Every run checks each conversion against the re-implementation, the
-efficiency gap against PlanScore's published values, and the identity above with
-`τ` computed from the district totals, so a defect in the wasted-vote count fails
+efficiency gap against PlanScore's published values, the identity above with `τ`
+computed from the district totals, and the wasted-vote count against
+GerryChain's own `wasted_votes`, which PlanScore's files cannot check because
+they publish no wasted-vote gap. So a defect in the wasted-vote count fails
 rather than passing as a difference of definition. Nothing in this repository
-runs PlanScore's code.
+runs PlanScore's code. Whether to tell PlanScore that its published values and
+its metric page describe different formulas is the owner's call.
 
 ## D-041 — The enacted-plan comparison is not conditioned on population equality or compactness
 
 **Date:** 2026-10-11 · **Phase:** post-release · **VALUE**
 
 The README locates Iowa's enacted plan in the v2 ensemble's seat distribution: it
-returns 0 seats, as 1.43% of the draws do. The comparison is not like-for-like on
-two counts (`docs/progress.md`, "The enacted plan's caveats, now with numbers").
-The draws are not held to the enacted plan's 94-person population spread, and
-only 454 of the 27,564 are that equal. And they are more compact: 88% have fewer
-cut edges than its 51, and in every chain 0 seats is commoner among those with 51
-or more.
+returns 0 seats, as 1.43% of the draws do (`docs/progress.md`, "The enacted plan's
+caveats, now with numbers"). The comparison is not like-for-like: the draws are
+not held to the enacted plan's 94-person population spread, and only 454 of the
+27,564 are that equal. The draws are also more compact than the enacted plan, 88%
+of them with fewer cut edges than its 51, and 0 seats is commoner among the less
+compact draws.
 
-*Chosen:* report the unconditioned share with both caveats beside it, and call
-the comparison not yet a finding.
+*Chosen:* report the unconditioned share, with the population mismatch as the
+reason the comparison is not yet a finding and compactness as context, and leave
+any conditioning to the owner.
+
+*Why the two are not treated alike:* population equality is the first of Iowa's
+ordered criteria (`CRITERIA.md` §2.1), and the draws do not meet the enacted
+plan's level of it, so matching the reference to it matches on a constraint.
+Compactness is the fourth, and the draws already exceed the enacted plan's level
+of it: how uncompact the plan is was a choice, another outcome of where its lines
+go. In this ensemble less compact plans are where zero-seat outcomes lie, so
+conditioning the reference on the enacted plan's compactness would raise the
+reference's zero-seat share whether or not the plan was drawn for that outcome
+(the second audit in `docs/first-result/INSTRUMENT-AUDIT.md`). Part of the
+compactness gap may follow from the population gap, by an amount these draws
+cannot measure: the 454 population-tight draws average 48.1 cut edges against
+45.5 for the rest, but across the draws population spread and cut edges are barely
+associated.
 
 *Alternatives:*
-- **Filter the ensemble to draws as equal, or as uncompact, as the enacted
-  plan.** Not done. A filter shows what goes with more equality or less
-  compactness inside this ensemble, not what a sampler drawing at that tolerance
-  or that compactness produces (Experiment 1 §3), and the filtered samples are
-  small: the 454 population-tight draws hold one zero-seat plan, and among the
-  3,341 draws at 51 or more cut edges the zero-seat share halves once each
+- **Filter the ensemble to draws as equal as the enacted plan.** Not done. A
+  filter shows what goes with more equality inside this ensemble, not what a
+  sampler drawing at that tolerance produces (Experiment 1 §3), and the 454
+  population-tight draws hold one zero-seat plan.
+- **Filter or constrain the ensemble on compactness.** Not done, for the reason
+  above; the zero-seat share among the less compact draws also halves once each
   chain's warm-up is dropped.
-- **Re-sample at the enacted plan's tolerance, or under a compactness
-  constraint.** That is a new experiment with its own name (D-036), and which
-  compactness measure to constrain, and at what level, is itself a normative
-  choice.
+- **Re-sample at the enacted plan's tolerance.** The matched comparison, and a new
+  experiment with its own name (D-036). Its plans would be less compact on their
+  own.
 
 *Why this is the owner's:* which features of an enacted plan a neutral ensemble
 must match before a comparison with it counts is a judgment `docs/CRITERIA.md`

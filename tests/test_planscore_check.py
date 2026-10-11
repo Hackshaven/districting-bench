@@ -13,9 +13,11 @@ is not the pinned one, a plan that is not the enacted one. Each must fail, and
 `main` must then exit non-zero without writing. A check that cannot fail is not
 a check (docs/RESEARCH-LOOP-PLAYBOOK.md section 4.2).
 
-The last test pins what `docs/cross-checks/planscore.json` records, so a change
-to either formula, or a hand edit to the record, fails here rather than quietly
-changing what `docs/progress.md` says the cross-check found.
+The last test pins what `docs/cross-checks/planscore.json` records: a hand edit
+to a pinned field fails there rather than quietly changing what
+`docs/progress.md` says the cross-check found. It reads the record and
+recomputes nothing, so a change to `evaluate.partisan` shows up in the tests
+above, and in the record only once the script is run again.
 
 No network and no data: the script fetches PlanScore's files, the tests do not.
 """
@@ -179,7 +181,10 @@ def test_a_defect_in_the_wasted_vote_count_fails(monkeypatch, extra):
 
     monkeypatch.setattr(P, "wasted_votes", overcounted)
     result, failures = run()
-    assert failures and all("efficiency_gap_identity" in f for f in failures)
+    # the identity and GerryChain's independent count both catch it, race by race
+    assert sorted({f.split(": ")[1].split(" ")[0] for f in failures}) == [
+        "efficiency_gap_identity", "external_wasted_vote_gap"]
+    assert len(failures) == 2 * len(C.RACES)
     # the published values still reproduce: only the identity caught it
     assert all(r["checks"]["published_efficiency_gap"]
                for r in result["plans"]["CO"]["races"].values())
@@ -202,6 +207,12 @@ def test_a_conversion_a_millionth_off_fails(monkeypatch, metric):
     monkeypatch.setattr(P, metric, lambda *a, **k: honest(*a, **k) + 1e-6)
     _, failures = run(districts=LOPSIDED)
     assert failures and all(f"definition_{metric}" in f for f in failures)
+
+
+def test_gerrychain_counts_the_wasted_votes_on_paper():
+    # half-vote threshold: D wastes 100 + 300 + 150 + 200, R 400 + 200 + 600 + 50
+    dem, rep = [d for d, _ in UNEQUAL.values()], [r for _, r in UNEQUAL.values()]
+    assert C.gerrychain_gap(dem, rep) == pytest.approx((1250 - 750) / 4000)
 
 
 def test_planscore_counts_a_tie_after_the_swing_as_republican():
@@ -232,6 +243,9 @@ def test_a_sweep_passes_with_ours_undefined():
     assert failures == []
     race = result["plans"]["CO"]["races"]["US President 2020"]
     assert race["ours"]["declination"] is None
+    # ours stays undefined in the record; only PlanScore's rule is checked
+    assert race["ours_in_planscore_convention"]["declination"] is None
+    assert race["declination_compared_with"].startswith("PlanScore's sweep convention")
     assert race["planscore_definitions"]["declination"] == pytest.approx(
         -math.log(4) / 2)
 
@@ -356,6 +370,10 @@ def test_the_committed_record_says_what_the_write_up_says():
         races = record[state]["races"]
         assert set(races) == set(C.RACES)
         assert all(all(r["checks"].values()) for r in races.values()), state
+        assert all("external_wasted_vote_gap" in r["checks"] for r in races.values())
+    # Iowa's declination is undefined on every race (a sweep) and is recorded so
+    assert all(r["ours_in_planscore_convention"]["declination"] is None
+               for r in record["IA"]["races"].values())
     # Iowa is one plan on both sides: the Phase 2 report is reproduced, and it
     # is the enacted plan, as the figure's caveat takes it to be.
     for key, diff in record["IA"]["phase_2_report"]["differences"].items():

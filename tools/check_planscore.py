@@ -13,17 +13,20 @@ from ours or it is not.
 Every difference found is a definition, not an error, and each one is checked
 by reproducing PlanScore's number from this repository's:
 
-* **Efficiency gap: two formulas, not two signs.** PlanScore computes
-  ``(S - 1/2) - 2(V - 1/2)`` -- seat share and statewide vote share only, the
-  equal-turnout form -- positive for the Democrats (``calculate_EG``).
+* **Efficiency gap: two formulas, not two signs.** PlanScore's code computes,
+  and its files publish, ``(S - 1/2) - 2(V - 1/2)`` -- seat share and statewide
+  vote share only, the equal-turnout form -- positive for the Democrats
+  (``calculate_EG``), although its metric page describes the wasted-vote form.
   ``evaluate.partisan`` counts wasted votes district by district, as
   CRITERIA.md section 5.1 defines the metric, positive for the Republicans. In
   PlanScore's orientation the two differ by ``tau - S``, the share of votes
   cast in districts the Democrats won less the share of seats they won, plus a
   strict-majority threshold term of at most ``k/T``. So they agree whenever
   ``tau = S``: at equal turnout, and in any one-party sweep, whatever the
-  turnout. :func:`compare_race` computes ``tau`` from the district totals and
-  fails if that identity does not hold, so a defect in the wasted-vote count
+  turnout. PlanScore publishes no wasted-vote gap, so :func:`compare_race`
+  checks that count two other ways: against the identity, with ``tau``
+  computed from the district totals, and against GerryChain's own
+  ``wasted_votes`` (:func:`gerrychain_gap`). A defect in the wasted-vote count
   cannot pass as a difference of definition.
 * **Mean-median**: the same quantity, opposite sign (PlanScore: median - mean).
 * **Partisan bias**: the same quantity, same sign.
@@ -58,8 +61,9 @@ Run::
 It writes ``docs/cross-checks/planscore.json`` only when every check passes.
 It exits non-zero and writes nothing if a fetched file no longer matches its
 pin, if the Phase 2 report is not on the 2020 presidential vote, or if a
-published PlanScore number or a re-implemented definition cannot be reproduced
-from this repository's under the conversions above. See D-040.
+published PlanScore number, a re-implemented definition, the identity or
+GerryChain's count cannot be reproduced from this repository's under the
+conversions above. See D-040.
 """
 from __future__ import annotations
 
@@ -77,7 +81,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tools"))
 
-from evaluate import partisan as P   # noqa: E402
+from evaluate import partisan as P                       # noqa: E402
+from gerrychain.metrics import partisan as GERRYCHAIN    # noqa: E402
 
 OUT = ROOT / "docs" / "cross-checks" / "planscore.json"
 REPORT = ROOT / "docs" / "phase-2" / "phase-2-report.json"
@@ -155,6 +160,9 @@ CONVENTIONS = {
     },
     "efficiency_gap_terms": "in PlanScore's orientation: -ours - equal_turnout = "
                             "turnout_term (tau - S) + threshold_term (at most k/T)",
+    "gerrychain_wasted_vote_gap": "positive favours D; GerryChain's wasted_votes, "
+                                  "which wastes a winner's votes above half the "
+                                  "district's total; within k/T of ours",
 }
 
 
@@ -259,8 +267,14 @@ def planscore_declination(dem: list[float], rep: list[float]) -> float:
 
 def declination_in_planscore_convention(ours: float | None, dem_seats: int,
                                         k: int) -> float | None:
-    """Ours converted to PlanScore's, sweeps included; None where ours is undefined
-    for any other reason (a tied district), which PlanScore resolves differently."""
+    """What PlanScore's declination should be, given ours, for ``k`` districts.
+
+    Where ours is defined, ours converted. Where ours is undefined because one
+    party wins every seat, PlanScore's convention for that sweep: that is a
+    check of PlanScore's rule, not a measurement of ours, and the record keeps
+    the two apart. None where ours is undefined for any other reason (a tied
+    district), which PlanScore resolves differently.
+    """
     if ours is not None:
         return -ours * math.log(k) / 2
     if dem_seats == 0:
@@ -268,6 +282,19 @@ def declination_in_planscore_convention(ours: float | None, dem_seats: int,
     if dem_seats == k:
         return math.log(k) / 2
     return None
+
+
+def gerrychain_gap(dem: list[int], rep: list[int]) -> float:
+    """The wasted-vote efficiency gap by GerryChain's own ``wasted_votes``,
+    positive for the Democrats.
+
+    An external reference for the wasted-vote count, which PlanScore does not
+    publish: GerryChain (pinned in requirements.txt) wastes a winner's votes
+    above half the district's total, where ``evaluate.partisan``'s default
+    wastes those above a strict majority, so the two differ by at most ``k/T``.
+    """
+    wasted = [GERRYCHAIN.wasted_votes(d, r) for d, r in zip(dem, rep)]
+    return math.fsum(w_r - w_d for w_d, w_r in wasted) / (sum(dem) + sum(rep))
 
 
 def _close(a: float | None, b: float | None, tolerance: float) -> bool:
@@ -304,9 +331,12 @@ def compare_race(index: dict, race: str) -> dict:
         "efficiency_gap_equal_turnout": predicted,
         "mean_median": -ours["mean_median"],
         "partisan_bias": ours["partisan_bias"],
-        "declination": declination_in_planscore_convention(
-            ours["declination"], dem_seats, k),
+        "declination": (None if ours["declination"] is None
+                        else -ours["declination"] * math.log(k) / 2),
     }
+    expected = dict(converted, declination=declination_in_planscore_convention(
+        ours["declination"], dem_seats, k))
+    external = gerrychain_gap(dem_list, rep_list)
     definitions = {
         "mean_median": planscore_mean_median(dem_list, rep_list),
         "partisan_bias": planscore_partisan_bias(dem_list, rep_list),
@@ -315,7 +345,9 @@ def compare_race(index: dict, race: str) -> dict:
     checks = {
         "published_efficiency_gap": _close(predicted, published, PUBLISHED_ROUNDING),
         "efficiency_gap_identity": abs(difference - turnout_term) <= k / total + 1e-12,
-    } | {f"definition_{m}": _close(converted[m], value, DEFINITION_TOLERANCE)
+        "external_wasted_vote_gap": abs(external + ours["efficiency_gap"])
+                                    <= k / total + 1e-12,
+    } | {f"definition_{m}": _close(expected[m], value, DEFINITION_TOLERANCE)
          for m, value in definitions.items()}
     return {
         "n_districts": k,
@@ -325,6 +357,10 @@ def compare_race(index: dict, race: str) -> dict:
         "ours": ours,
         "ours_in_planscore_convention": converted,
         "planscore_definitions": definitions,
+        "declination_compared_with": (
+            "ours" if ours["declination"] is not None
+            else "PlanScore's sweep convention: ours is undefined"),
+        "gerrychain_wasted_vote_gap": external,
         "planscore_published_efficiency_gap": published,
         "efficiency_gap_terms": {
             "wasted_minus_equal_turnout": difference,
@@ -497,6 +533,8 @@ def summary_lines(result: dict) -> list[str]:
                 f"equal-turnout + tau - S {_signed(terms['turnout_term'])} + threshold "
                 f"{_signed(terms['threshold_term'], 7)} "
                 f"{'ok' if r['checks']['efficiency_gap_identity'] else 'NOT AN IDENTITY'}"
+                f" | GerryChain {_signed(r['gerrychain_wasted_vote_gap'])} "
+                f"{'ok' if r['checks']['external_wasted_vote_gap'] else 'DIFFERS'}"
                 f" | MM, PB, D2 against PlanScore's definitions: "
                 + ("ok" if not differ else "DIFFER: " + ", ".join(differ))
             )

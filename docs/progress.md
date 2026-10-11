@@ -2278,14 +2278,15 @@ counts under both 2020 contests:
 Each standard error comes from that share's own effective sample size on the
 rectangle: 987 for 0 seats, 278 for 1 and 268 for 2. The draws are
 autocorrelated, so 27,564 is not the sample size. Block means over all 57,553
-committed rows, which see dependence longer than the rectangle can, give 3.3, 3.7
-and 3.9 points for the 2-seat share at blocks of 500, 1,000 and 3,000 draws; the
-spread of the six chain means gives 2.6 (audit record). The README therefore
-says 3 to 4 points. An ESS of 268 is about 45 per chain, or 22 per split chain,
-short of both thresholds Vehtari et al. (2021) give for trusting an estimate: a
-total above 400, and 50 per split chain (audit record). At least 4,020 of the
-draws are distinct plans, counting distinct rows of the committed metrics, since
-the file carries no plan hash; 18,303 (66.4%) repeat the draw before them.
+committed rows, which see dependence longer than the rectangle can, give 3.3,
+3.7 and 3.9 points for the 2-seat share at blocks of 500, 1,000 and 3,000 draws;
+the spread of the six chain means gives 2.6 (audit record). The README therefore
+says 3 to 4 points or more, for the reason below. An ESS of 268 is about 45 per
+chain, or 22 per split chain, short of both thresholds Vehtari et al. (2021)
+recommend for reliable R-hat and ESS estimates: a total above 400, and 50 per
+split chain (audit record). At least 4,020 of the draws are distinct plans,
+counting distinct rows of the committed metrics, since the file carries no plan
+hash; 18,303 (66.4%) repeat the draw before them.
 
 The seat count has split R-hat **1.014** and ESS 286, near `CRITERIA.md` §8's
 1.00–1.01 band but not inside it. Of the three per-outcome indicators only the
@@ -2294,6 +2295,16 @@ size R-hat cannot resolve the band: a simulated chain that is stationary, with
 the same autocorrelation, gives a median split R-hat of 1.022 and reads 1.01 or
 below in 4.5% of replicates (audit record). The number says the sample is small;
 it cannot tell that apart from a sampler that has not converged.
+
+**An open defect in the diagnostic, which leaves these numbers unchanged.** The
+rank normalization in `src/generate/convergence.py` maps rank `r` of `S` draws to
+`(r − 3/8)/(S − 1/4)`, where Vehtari et al. (2021, Eq. 14) have `S + 1/4`; it
+stretches only the top tail. Patching the function in memory, once, in scratch,
+moves none of the diagnostics quoted here at the precision quoted: the Senate seat
+count's ESS goes from 262.94 to 262.92, and nothing else moves at the precision
+the plotter prints. It may move diagnostics on continuous quantities elsewhere.
+Fixing it is a change to `src/generate/` with its own review, and is not made
+here.
 
 **At its top, the span depends on the election, and on the sampler.** Under the
 presidential vote no draw gives Democrats 3 or more seats, in the rectangle or
@@ -2319,22 +2330,41 @@ four 2.
 
 **The shares are less settled than one decimal suggests.** The v2 chains extend
 v1's with the same seeds, so the first 1,500 draws of every chain in the
-rectangle are v1's draws, row for row, and the rectangle starts at draw 0. Two of
-the six chains, 0 and 6, started at 1-seat plans, and over their first halves
-they put about a third of their draws at 2 seats (33.7% and 33.1%), against
-48.7–59.9% in every other chain-half. The 2-seat share is 46.1% over the first
-half of the rectangle and 53.0% over the second. Dropping the first 500 draws of
-each chain moves the 2-seat share to 50.2%. It moves the 0-seat share from 1.43%
-to 1.15%, because zero-seat plans come early.
+rectangle are v1's draws, row for row, and the rectangle starts at draw 0. The
+2-seat share is 46.1% over the first half of the rectangle and 53.0% over the
+second, and dropping the first 500 draws of each chain moves it to 50.2%.
+Neither is evidence of drift on its own: for a stationary chain with this
+autocorrelation a gap between halves at least that large is common, about one
+replicate in four (audit record).
 
-The choice of rectangle moves the share too. On the other rectangles
-`tools/convergence_rectangle.py` offers, the 2-seat share is 45.3% (4 chains of
-8,133 draws), 48.0% (5 × 6,495), 50.5% (7 × 4,282) and 50.3% (8 × 1,863). The
-chains the rectangle drops for dying early lean toward 2 seats: chains 3 and 8
-have the highest 2-seat shares of any chain, 58.3% and 70.0%, and 5 of the 7
-chains that died after their first draw died at a 2-seat plan, against about
-half of all draws. On seven deaths that is not significant (binomial p = 0.22,
-audit record), but it is the direction a selection effect would push. The
+What does point to slow mixing is chain by chain (audit record). Chains 0 and 6,
+the two that started at 1-seat plans, put about a third of their first halves at
+2 seats (33.7% and 33.1%), against 48.7–59.9% in every other chain-half; a
+stationary sampler does that in both chains with probability 0.006 to 0.02,
+though the comparison was chosen after looking. The same two chains are the only
+ones that ran to 12,000 draws, and over all of them they put 33.2% and 51.6% at
+2 seats; a Welch test on batch means gives p = 0.004 to 0.024 for that
+difference. Every standard error above assumes the chains mix within their
+batches; if they do not, each understates the error, which is why the README
+says "3 to 4 points or more".
+
+Dropping the first 500 draws also moves the 0-seat share from 1.43% to 1.15%.
+That is one chain's early excursion, not a property of zero-seat plans: of the
+112 zero-seat draws in the six chains' first 500, 89 are chain 6's, between its
+draws 234 and 437, and 21 are chain 2's. Without chain 6, dropping them moves
+the share from 1.23% to 1.27%, up rather than down (audit record).
+
+The choice of rectangle moves the share less than its own error. On the other
+rectangles `tools/convergence_rectangle.py` offers, the 2-seat share is 45.3% (4
+chains of 8,133 draws), 48.0% (5 × 6,495), 50.5% (7 × 4,282) and 50.3% (8 ×
+1,863), each within 1.3 Monte Carlo standard errors of 49.5% (audit record), and
+the rectangles share their chains. The chains the rectangle drops for dying
+early lean toward 2 seats: chains 3 and 8 have the highest 2-seat shares of any
+chain, 58.3% and 70.0%, and 5 of the 7 chains that died after more than one draw
+died at a 2-seat plan, against about half of all draws. That test cannot tell
+either way: on seven deaths its one-sided p is 0.22 for a direction chosen after
+looking, and the exact 95% interval on the hazard ratio runs from 0.43 to 28
+(audit record). It is still the direction a selection effect would push. The
 ensemble supports "about half"; the decimal is for the standard error to
 qualify.
 
@@ -2347,9 +2377,12 @@ The plotter estimates, from these same chains, the standard error a seven-chain,
 260-draw estimate of this share carries, three ways: 10.8 points from the spread
 of all 218 non-overlapping 260-draw windows of every committed chain, 8.9 from
 the first 260 draws of each of the 8 chains that reached 260, as v0.1.0's chains
-ran, and 11.9 from this share's autocorrelation time on the rectangle. Against
-that, 43% and 49.5% do not disagree, and the gap between them cannot be split
-between imprecision and start-state bias. The 0–2 range is the same in both.
+ran, and 11.9 from this share's autocorrelation time on the rectangle. Run the
+way v0.1.0 ran, v2's own chains reproduce a number like 43%: every seven of the
+eight first-260-draw windows give 30.4–41.6%, 36.4% on average (audit record),
+so the start-based estimate also misses a start-state bias of about 13 points.
+Against all that, 43% and 49.5% cannot be told apart. The 0–2 range is the same
+in both.
 
 ## How the seats were counted without the returns (D-039)
 
@@ -2406,19 +2439,40 @@ Restricting the ensemble to those 454 draws would not be the matched comparison
 anyway. Filtering a tight ensemble measures what more equality costs within it,
 not what drawing at that tolerance produces (Experiment 1 §3).
 
-**The comparison is not like-for-like on compactness either.** The draws are
-more compact than the enacted plan: it has 51 cut edges, and 88% of the draws
-have fewer. Both counts come from `evaluate.compactness.cut_edges` on the
-same rook graph, `data/processed/ia_adjacency.json`. Among the 3,341 draws with 51 or more, 4.52% give 0 seats,
-against 1.01% of the 24,223 more compact ones, and the same holds in each of the
-six chains. Part of that is warm-up: once each chain's first 500 draws are dropped
-the shares are 2.16% and 1.02%. Either way the enacted plan's outcome is
-commoner among plans as uncompact as it. Whether to condition on compactness, or
-on population equality, is a value choice for the owner (D-041).
-`docs/FEASIBILITY.md` §5.3 records that population-tight whole-county plans carry
-57–67 cut edges, so a sampler held to the enacted plan's tolerance would draw
-less compact plans too, and the two caveats would point the same way. These
-draws cannot show it: their 454 population-tight draws hold one zero-seat plan.
+**Compactness is context for the comparison, not a second mismatch.** The draws
+are more compact than the enacted plan: it has 51 cut edges, and 88% of the
+draws have fewer. Both counts come from `evaluate.compactness.cut_edges` on the
+same rook graph, `data/processed/ia_adjacency.json`. Zero seats are commoner
+among the less compact draws: 4.52% of the 3,341 with 51 or more cut edges give
+0 seats, against 1.01% of the 24,223 with fewer. The direction is robust; the
+magnitude is not (audit record). None of the 7,850 draws at 40–42 cut edges
+gives 0 seats, and the contrast survives stratifying by chain, but 89 of those
+151 zero-seat draws are one excursion of chain 6, early in its first 500 draws.
+Once each chain's first 500 are dropped the shares are 2.16% and 1.02%, and
+after any warm-up of 500 to 2,000 draws the ratio is about 1.5 to 2.2 rather
+than 4.5, with a chain-level 95% interval for the difference of +0.3 to +2.3
+points; on the full rectangle that interval, −0.7 to +5.7, includes zero. The
+contrast holds in all six chains at that 500-draw cut, and in five of six after
+dropping more.
+
+Population equality is the first of Iowa's ordered criteria (`CRITERIA.md`
+§2.1), and the draws do not meet the enacted plan's level of it, so matching the
+reference to it matches on a constraint. Compactness is the fourth, and the
+draws already exceed the enacted plan's level of it: how uncompact the plan is
+was a choice, another outcome of where its lines go, and in this ensemble less
+compact plans are where zero-seat outcomes lie. Conditioning the reference on
+the enacted plan's compactness would therefore raise the reference's zero-seat
+share whether or not the plan was drawn for that outcome (audit record). Part of
+the compactness gap may follow from the population gap, by an amount these draws
+cannot measure: the 454 draws as equal as the enacted plan average 48.1 cut
+edges, 21.6% of them at 51 or more, against 45.5 and 12.0% for the rest, as
+`docs/FEASIBILITY.md` §5.3's finding that population-tight whole-county plans
+carry 57–67 cut edges would suggest, but across the rectangle population spread
+and cut edges are barely associated (audit record). The matched comparison is a
+sampler held to the enacted plan's tolerance, whose plans would be less compact
+on their own; these draws cannot stand in for it, since their 454
+population-tight draws hold one zero-seat plan. Whether, and on what, to
+condition is a value choice for the owner (D-041).
 
 The comparison remains **not yet a finding**: 1.43% of draws give 0 seats.
 
@@ -2430,17 +2484,21 @@ the enacted plan also returns 0 seats, by PlanScore's district totals
 changes the comparison's status.
 
 **A defect of the flag rule on zero-seat plans** (audit record). When one party
-wins every seat the efficiency gap is fixed by the statewide vote, up to one vote
-of parity, so a rule's call on a zero-seat plan only restates where the 0-seat
-bar sits: 1.43% of the draws. Under the rule of record — two-sided, threshold
-0.99, on the signed efficiency gap — the rectangle's 395 zero-seat draws take two
-values one vote apart. The 179 at the higher value sit at mid-rank 0.9968 and
-would be flagged; the 216 at the lower sit at 0.9896 and would not; treated as
-one tied value, all 395 sit at (27,169 + 395/2)/27,564 = 0.9928 and would be.
-Which zero-seat plans are flagged therefore turns on how many of their districts
-cast an odd number of votes. That is a defect of the rule on a discrete metric,
-left for the Statistician and the owner. It is not a finding about the enacted
-plan, whose comparison stays not yet a finding.
+wins every seat the efficiency gap is fixed by the statewide vote, up to one
+vote of parity, so a rule's call on a zero-seat plan only restates where the
+0-seat bar sits: 1.43% of the draws. Under the rule of record — two-sided,
+threshold 0.99, on the signed efficiency gap — the rectangle's 395 zero-seat
+draws take two values one vote apart. Given plan identities, as the bench
+supplies them, the rule would flag the 179 at the higher value (mid-rank 0.9968)
+and not the 216 at the lower (0.9896), and would flag all 395 if they were
+treated as one tied value (mid-rank (27,169 + 395/2)/27,564 = 0.9928). A reader
+working from the committed draws, which carry no plan identities, gets no
+decision: the rule's effective sample over distinct values is then 39, under the
+50 it requires at this threshold. Which zero-seat plans are flagged therefore
+turns on how many of their districts cast an odd number of votes. That is a
+defect of the rule on a discrete metric, left for the Statistician and the
+owner. It is not a finding about the enacted plan, whose comparison stays not
+yet a finding.
 
 ## Reproducing
 
@@ -2454,19 +2512,20 @@ draws, the rectangle report, and the Phase 2 report. It prints:
   R-hat, the counts over every committed row, and the levels and recovery
   diagnostics;
 - the three estimates of a seven-chain, 260-draw estimate's standard error;
-- the half-by-half, chain-by-chain, warm-up and rectangle checks, and each
-  chain's fate;
+- the half-by-half, chain-by-chain, warm-up and rectangle checks, each chain's
+  draws by seats in its first 500, and each chain's fate;
 - the Senate draws that reach 3 seats, and where they sit;
-- the population-equality and cut-edge counts.
+- the population-equality and cut-edge counts, and the cut edges of the
+  population-tight draws against the rest.
 
 `tests/test_seat_distribution.py` pins those numbers, every string the figure
 prints, and what the figure draws. It also holds controls that must make the
 script refuse: a draw past the margin, a sweep off the half-vote grid at either
 end or of the wrong parity, a non-finite gap, Colorado's draws, a stale vote
 total, and a Phase 2 report for another contest, another district count, an
-outcome no draw produced, or without the closest district. The audit record,
-one auditor and one refuter (CLAUDE.md, D-007), is
-`docs/first-result/INSTRUMENT-AUDIT.md`.
+outcome no draw produced, or without the closest district. The audit record is
+`docs/first-result/INSTRUMENT-AUDIT.md`: two audits, each of one auditor and one
+refuter (CLAUDE.md, D-007), the second on the analysis review added.
 
 ---
 
@@ -2477,17 +2536,19 @@ plans it has already scored."* Until now that had not been done. PlanScore
 scores both enacted plans this repository studies, and for each one it
 publishes the district two-party totals of the 2016 and 2020 presidential and
 U.S. Senate races, together with the efficiency gap it computes from each. Its
-files also carry 2024 presidential totals with no published gap, because its
-code computes per-election gaps for the 2016 and 2020 races only; those are left
-out. The same totals, rounded to whole votes, were run through
-`evaluate.partisan`. `tools/check_planscore.py` fetches PlanScore's files,
-pinned by sha256, and writes `docs/cross-checks/planscore.json` only when every
-check passes.
+files also carry 2024 presidential totals with no published gap: its code at
+566cda4 computes per-election gaps for a fixed list of races, the 2016 and 2020
+presidential and the 2016, 2018 and 2020 Senate races, and neither state held a
+2018 Senate race. The 2024 totals are left out. The same totals, rounded to whole
+votes, were run through `evaluate.partisan`. `tools/check_planscore.py` fetches
+PlanScore's files, pinned by sha256, and writes `docs/cross-checks/planscore.json`
+only when every check passes. Its audit, one auditor and one refuter, is
+`docs/cross-checks/INSTRUMENT-AUDIT.md`.
 
 ## The plans are the ones this repository studies
 
 PlanScore titles the Iowa plan a draft ("Iowa Second Draft - US House"). It is
-the enacted map:
+the same plan as this repository's enacted Iowa plan:
 
 - its `library_metadata` links the Iowa Legislature's Plan 2 files
   (`IA_ProposedPlan2_Oct2021.zip`);
@@ -2497,29 +2558,40 @@ the enacted map:
   total (the record keeps all four);
 - its 2020 presidential metrics reproduce the Phase 2 report's to within
   2×10⁻⁶. Its statewide totals for both 2020 races sit within 4 votes of the
-  certified ones the repository asserts.
+  certified ones the repository asserts;
+- its own outlines, reprojected, reproduce this repository's Reock figures to
+  within 8×10⁻⁶ (audit record).
 
-The Colorado plan is the commission's final approved plan. This repository
-represents that plan only approximately, in whole VTDs (D-015).
+The Colorado plan is the commission's final approved plan by PlanScore's title.
+Its file links no source geometry, so that identification rests on the title and
+on metrics consistent with it. This repository represents the plan only
+approximately, in whole VTDs (D-015).
 
 ## What agrees, and the one formula that does not
 
-| metric | on the same totals, 4 elections × 2 plans | why |
+| metric | on the same totals | why |
 | --- | --- | --- |
-| partisan bias | identical | same definition, same sign |
-| mean-median | identical, opposite sign | PlanScore computes median − mean |
-| declination | PlanScore's value is −ours × ln(k)/2 wherever ours is defined | PlanScore publishes a seat-scaled variant, and gives a Republican sweep −ln(k)/2 (a Democratic one +ln(k)/2) where ours returns None |
-| efficiency gap | **differs on Colorado by 0.0007 to 0.027** | **it is a different formula** |
+| partisan bias | identical in all 8 races | same definition and sign, except that a district tied after the swing to 50% is a Republican seat for PlanScore and half a seat here; none of these races has one |
+| mean-median | identical in all 8 races, opposite sign | PlanScore computes median − mean |
+| declination | PlanScore's value is −ours × ln(k)/2, for `k` districts, in Colorado's 4 races | on Iowa's 4, Republicans win every seat: ours is undefined, and PlanScore gives its extreme, −ln(k)/2 |
+| efficiency gap | **differs on Colorado by 0.0007 to 0.027** | **PlanScore's published values use a different formula** |
 
-PlanScore's efficiency gap is `(S − ½) − 2(V − ½)`, computed from the seat share
-and the statewide vote share (`calculate_EG` in PlanScore's `planscore/score.py`
-at 566cda4, the commit both files record as having scored them; 3f866f9
-rewrites it in vectorized form and computes the same). This repository's counts wasted votes district by
-district, which is how `CRITERIA.md` §5.1 defines the metric. In PlanScore's
-orientation the two differ by `τ − S`, the share of votes cast in districts the
-Democrats won less the share of seats they won, plus a strict-majority term of
-at most `k/T`, a few millionths here. So they coincide wherever `τ = S`: at
-equal turnout, and in any one-party sweep, whatever the turnout.
+The efficiency gap PlanScore's code computes, and its files publish, is `(S − ½)
+− 2(V − ½)`, from the seat share and the statewide vote share (`calculate_EG` in
+PlanScore's `planscore/score.py` at 566cda4, the commit both files record as
+having scored them; 3f866f9 rewrites it in vectorized form and computes the
+same). PlanScore's own metric page, which `CRITERIA.md` cites, describes the
+wasted-vote form instead: votes for a loser, and votes for a winner above the
+50%-plus-one threshold, one party's less the other's, over all votes cast.
+PlanScore's own code counted wasted votes, at a half-vote threshold, until
+August 2021, when a commit changed it "to use vote share instead of raw counts"
+(audit record); the page describes that earlier definition. That is how
+`CRITERIA.md` §5.1 defines the metric, and what `evaluate.partisan` computes. In
+PlanScore's orientation the two differ by `τ − S`, the share of votes cast in
+districts the Democrats won less the share of seats they won, plus a
+strict-majority term of at most `k/T`, a few millionths here. So they coincide
+wherever `τ = S`: at equal turnout, and in any one-party sweep, whatever the
+turnout.
 
 Applying the equal-turnout form to this repository's seat counts and vote
 shares reproduces all eight of PlanScore's published values to their four
@@ -2534,58 +2606,84 @@ Democratic wins `τ = S = 0`.
 | President 2016 | −0.0537 | −0.0271 | **+0.0266** |
 | Senate 2016 | +0.0649 | +0.0637 | −0.0012 |
 
-Both columns are in PlanScore's convention: positive favours the Democrats. The
-script computes `τ` from the district totals and checks the identity on every
-race, so a defect in the wasted-vote count would fail the check rather than read
-as a difference of definition.
+Both columns are in PlanScore's convention: positive favours the Democrats.
+PlanScore publishes no wasted-vote gap, and its published values check the
+wasted-vote count only where the two formulas coincide, on Iowa's sweeps; the
+term that separates them, `τ − S`, is non-zero only in Colorado. So the
+wasted-vote count is checked two other ways on every race: against the identity,
+with `τ` computed from the district totals, and against GerryChain's own
+`wasted_votes` (pinned in `requirements.txt`), which wastes a winner's votes
+above half the district's total rather than above a strict majority. The two
+counts agree within `k/T` on all eight races, so a defect in the wasted-vote
+count would fail the check rather than read as a difference of definition.
 
 **`evaluate.partisan`'s docstring was wrong, and is corrected.** It said the
 magnitude was the same and only the sign differed. Under the 2016 presidential
-vote the two formulas disagree by a factor of two about the same map, though
-both favour the Republicans. This is `CRITERIA.md` §10's warning that turnout
-differences between districts materially affect the efficiency gap, now
-measured on a real plan. It changes nothing this repository has published,
-because every efficiency gap here is the wasted-vote form. What it changes is
-which published figures any of them can be compared with.
+vote the two formulas disagree by a factor of two about the same map: both values
+lie on the Republican side of zero in their own orientation, PlanScore's twice as
+far from it. This is `CRITERIA.md` §10's warning that turnout differences between
+districts materially affect the efficiency gap, now measured on a real plan. It
+changes nothing this repository has published, because every efficiency gap here
+is the wasted-vote form. What it changes is which published figures any of them
+can be compared with.
 
 The other three definitions are re-implemented in the script from the formulas
 in PlanScore's `calculate_MMD`, `calculate_PB` and `calculate_D2` at 566cda4, sign,
 scale and tie rules included. None of PlanScore's code is copied, and its
 repository states no licence. Every run checks this repository's conversions
 against them on the same integers: they agree to within 2×10⁻¹⁶. The script
-never runs PlanScore's code. Only the
-efficiency gap is checked against a published number, because it is the only
-metric PlanScore computes on actual results. PlanScore's headline metrics are
-averages over elections simulated from its own vote model, and no input here
-could reproduce them.
+never runs PlanScore's code. Only the efficiency gap is checked against a
+published number, because it is the only metric PlanScore computes on actual
+results. PlanScore's headline metrics are averages over elections simulated from
+its own vote model, and no input here could reproduce them.
 
-## What D-015's approximation costs
+## What the approximation and PlanScore's allocation cost together
 
 Colorado's committed metrics describe a whole-VTD approximation of the enacted
-plan, with a 9,995-person spread and district 4 in two pieces. PlanScore's
+plan, with a 9,995-person spread and district 4 in two pieces (D-015). PlanScore's
 describe the enacted plan itself, at a 1-person spread. Under the 2020
 presidential vote the approximation and PlanScore's own allocation of precinct
 votes to the enacted districts together move the efficiency gap by 0.0005,
 mean-median by 0.0002 and declination by 0.0006, and leave partisan bias at 0.0
-and the seat count at 5; this check cannot separate the two sources. Where the
-ensemble is used, that moves the enacted plan's |efficiency gap| from 41.8% of
-the way up Colorado's v2 ensemble to 43.2%, and its |mean-median| from 66.3% to
-66.7%. That is one election. D-015's caveats on population, contiguity and
-compactness stand as written.
+and the seat count at 5. This check cannot separate the two sources; the
+statewide shares agree to every digit, so the difference lies in which districts
+the split precincts' votes reach.
+
+Where the ensemble is used, the enacted plan's |efficiency gap| moves from 41.8%
+of the way up Colorado's v2 ensemble to 43.2%. That is a paired shift on the
+same draws, 1.35 ± 0.23 points and positive in all eight chains; the location
+itself carries a Monte Carlo error of about 3 points, from an ensemble at split
+R-hat 1.026 and an effective sample of 269 on the efficiency gap (audit record).
+Its |mean-median| moves from 66.3% to 66.7%, but the Phase 2 report marks
+mean-median untrusted on this plan and election, so that location is recorded,
+not read. The largest difference is in compactness: mean Polsby-Popper is 0.287
+on the whole-VTD outline and 0.266 on PlanScore's, measured in the same
+projection, which puts the plan above all 20,000 draws on one and above 99.98%
+of them on the other (audit record). For a perimeter measure in a VTD-based
+ensemble the VTD outline is arguably the like-for-like one. That is one
+election. D-015's caveats on population and contiguity, and Experiment 2 §7's on
+the plan's compactness (a score on a two-piece district is not a well-defined
+measurement), stand as written.
 
 ## Compactness, where the comparison is clean
 
 On Iowa both sides describe the same whole-county plan. Mean Polsby-Popper is
 0.33325 at PlanScore and 0.33338 here, and its minimum and maximum agree to
 within 0.0015. The Reock figures agree to within 0.0051, the largest difference
-being the minimum (0.3529 at PlanScore, 0.3580 here). Both are computed by the
-same formulas, 4πA/P² and area over the smallest enclosing circle. The residual
-is the size of the projection artifact `src/evaluate/compactness.py` measures for
-EPSG:5070 on Iowa, about 0.43% on Polsby-Popper and 1.15% on Reock; PlanScore
-measures in EPSG:3857, and the two sides' outlines also differ. Which accounts
-for it is not separated here. On Colorado, mean Polsby-Popper differs by 0.022
-(0.265 at PlanScore, 0.287 here). That comparison mixes the approximation, the
-two-piece district 4 and the geometry, so it is recorded and not interpreted.
+being the minimum (0.3529 at PlanScore, 0.3580 here). Both sides use the same
+formulas, 4πA/P² and area over the smallest enclosing circle; PlanScore measures
+in EPSG:3857 and this repository in EPSG:5070. The audit separated the residual
+by reprojecting PlanScore's own outlines (audit record): in EPSG:3857 they
+reproduce PlanScore's published Reock, and in EPSG:5070 this repository's to
+within 8×10⁻⁶, so the Iowa Reock difference is projection alone. Up to 0.3% of
+Polsby-Popper remains after reprojection, from the outlines or their vertex
+density. Against a local equal-area projection, EPSG:3857 distorts Iowa's Reock
+less than EPSG:5070 does, though `src/evaluate/compactness.py` rejects EPSG:3857
+for Iowa; that is a question for D-005. On Colorado, mean Polsby-Popper differs
+by 0.022 (0.265 at PlanScore, 0.287 here); reprojection moves PlanScore's only to
+0.266. Most of the rest is plausibly D-015's whole-VTD outline, but it also holds
+the differences between the commission's lines and the VTD lines, which Iowa
+bounds at 0.3% for one plan drawn two ways (audit record).
 
 ## What this does not check
 
@@ -2593,9 +2691,13 @@ two-piece district 4 and the geometry, so it is recorded and not interpreted.
 - Any plan other than the two enacted ones. Iowa's partisan comparison is also
   weak by construction: with every district Republican, the efficiency gap
   depends on the statewide share alone.
-- Ties. Neither plan has a tied district in any of the eight elections, and the
-  two implementations break ties differently (PlanScore counts a tie as a
-  Republican seat); the script refuses a tied district.
+- The wasted-vote count against a published value: PlanScore publishes none,
+  and GerryChain's count stands in for one.
+- Ties. Neither plan has a tied district in any of the eight elections, or after
+  the swing to 50% that partisan bias applies. The script refuses a district tied
+  in the observed election; a tie after the swing would fail the partisan-bias
+  comparison, since PlanScore and this repository count it differently.
+- The Colorado plan's identity beyond PlanScore's title and its metrics.
 
 ## Reproducing
 
@@ -2604,9 +2706,9 @@ python tools/check_planscore.py     # fetches PlanScore's files; needs the netwo
 ```
 
 The script exits non-zero and writes nothing if a fetched file no longer matches
-its pin, if a published value, a re-implemented definition or the identity does
-not reproduce, or if the Phase 2 report is not on the 2020 presidential vote.
-`tests/test_planscore_check.py` pins the two-formula relation on hand-built
-plans, feeds the script PlanScore-shaped files built in the test so that each of
-those failures is exercised offline, and pins the committed record. No district
-vote counts are committed (`CRITERIA.md` §9.1).
+its pin; if a published value, a re-implemented definition, the identity or
+GerryChain's count does not reproduce; or if the Phase 2 report is not on the
+2020 presidential vote. `tests/test_planscore_check.py` pins the two-formula
+relation on hand-built plans, feeds the script PlanScore-shaped files built in
+the test so that each of those failures is exercised offline, and pins the
+committed record. No district vote counts are committed (`CRITERIA.md` §9.1).

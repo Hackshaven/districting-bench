@@ -104,6 +104,9 @@ ENACTED_SPREAD = 94
 
 #: ``CRITERIA.md`` section 8's convergence band for split R-hat.
 RHAT_BAND = (1.00, 1.01)
+#: Vehtari et al. (2021, section 3.2) recommend relying on R-hat only when each
+#: split chain averages at least this many effective draws.
+RHAT_MIN_ESS_PER_SPLIT = 50
 
 #: A non-sweep draw must sit within this fraction of the half-gap of its level.
 MARGIN = 0.5
@@ -323,6 +326,8 @@ def contest_distribution(chains, contest: str, k: int, all_rows=None) -> dict:
         "half_shares": [shares_of(halves[0]), shares_of(halves[1])],
         "after_burn_in": shares_of([s for seats in per_chain
                                     for s in seats[BURN_IN_CHECK:]]),
+        "warm_up_counts": [{s: seats[:BURN_IN_CHECK].count(s) for s in outcomes}
+                           for seats in per_chain],
         "residual_sd": spread,
     }
 
@@ -441,8 +446,19 @@ def seat_distribution() -> dict:
             for row, s in list(zip(chain.rows, chain_seats))[BURN_IN_CHECK:]]
     at_or_above, below = by_cut(zip(rows, seats))
     late_above, late_below = by_cut(late)
+    def cut_edge_profile(selected):
+        edges = [row["cut_edges"] for row in selected]
+        return (statistics.fmean(edges), sum(1 for e in edges if e >= cut) / len(edges),
+                len(edges))
+
     compactness = {
         "enacted_cut_edges": cut,
+        "more_compact_share": sum(1 for row in rows if row["cut_edges"] < cut) / len(rows),
+        # population-tight draws against the rest: how much of the compactness
+        # gap follows from the population gap
+        "as_equal_profile": cut_edge_profile([row for _, row, _ in as_equal]),
+        "rest_profile": cut_edge_profile([row for row in rows
+                                          if row["population_spread"] > ENACTED_SPREAD]),
         "at_or_above": at_or_above,
         "below": below,
         "at_or_above_after_burn_in": late_above,
@@ -531,15 +547,11 @@ def figure_text(d: dict) -> dict:
     missing = [x for x in xs if not p["counts"][x]]
     rhat = p["seat_count_split_rhat"]
     where = "inside" if RHAT_BAND[0] <= rhat <= RHAT_BAND[1] else "outside"
+    per_split = p["seat_count_ess"] / (2 * d["n_chains"])
     compact = d["compactness"]
     high, _ = compact["at_or_above"]
     low, _ = compact["below"]
-    high_late, _ = compact["at_or_above_after_burn_in"]
-    low_late, _ = compact["below_after_burn_in"]
     commoner = "commoner" if high > low else "rarer"
-    agree = sum(1 for _, a, b in compact["per_chain"] if (a > b) == (high > low))
-    where_chains = ("in every chain" if agree == len(compact["per_chain"])
-                    else f"in {agree} of {len(compact['per_chain'])} chains")
     blocks = [100 * v for b in p["batch_means_mcse"].values() for v in b.values()]
     two = p["batch_means_mcse"].get(2, {})
 
@@ -580,8 +592,11 @@ def figure_text(d: dict) -> dict:
         + " Seats are read off each draw's |efficiency gap| (D-039). Dots: each chain's "
         "share. Whiskers and ±: 2 Monte Carlo standard errors of the pooled share, from "
         f"its effective sample size{block}. Seat count split R-hat {rhat:.3f}, {where} "
-        f"CRITERIA §8's {RHAT_BAND[0]:.2f}–{RHAT_BAND[1]:.2f} band. Regenerate: "
-        "tools/plot_seat_distribution.py, from committed files only.",
+        f"CRITERIA §8's {RHAT_BAND[0]:.2f}–{RHAT_BAND[1]:.2f} band"
+        + (f", on {per_split:.0f} effective draws per split chain, below the "
+           f"{RHAT_MIN_ESS_PER_SPLIT} Vehtari et al. (2021) ask for before relying on it"
+           if per_split < RHAT_MIN_ESS_PER_SPLIT else "")
+        + ". Regenerate: tools/plot_seat_distribution.py, from committed files only.",
         FOOTER_WIDTH)
     return {
         "title": f"Seats in a neutral ReCom ensemble for {state}",
@@ -602,12 +617,10 @@ def figure_text(d: dict) -> dict:
             f"{share_text(p['shares'][enacted])} of these draws do "
             f"({min(chain_range):.1f}–{max(chain_range):.1f}% across chains); its "
             f"{enacted} turns on one district at {100 * d['enacted_closest_share']:.1f}% D. "
-            "Not like-for-like: the draws are not held to its population equality, "
-            f"and {where_chains} {enacted} seats is {commoner} among draws as uncompact "
-            f"as it (≥{compact['enacted_cut_edges']} cut edges) than among the rest: "
-            f"{100 * high:.1f}% against {100 * low:.1f}%, or {100 * high_late:.1f}% "
-            f"against {100 * low_late:.1f}% without each chain's first {BURN_IN_CHECK} "
-            "draws. Not yet a finding.", NOTE_WIDTH)),
+            "Not like-for-like: the draws are not held to its population equality. "
+            f"The plan is also less compact than {100 * compact['more_compact_share']:.0f}% of "
+            f"them, and {enacted} seats is {commoner} among less compact draws. "
+            "Not yet a finding.", NOTE_WIDTH)),
         "footer": footer,
     }
 
@@ -774,6 +787,11 @@ def summary_lines(d: dict) -> list[str]:
                                             c["per_chain_half_shares"]))
         )
         lines.append(
+            f"    draws by seats in each chain's first {BURN_IN_CHECK}: "
+            + "; ".join(f"{i}: " + ", ".join(f"{s} D {n}" for s, n in w.items() if n)
+                        for i, w in zip(d["chain_index"], c["warm_up_counts"]))
+        )
+        lines.append(
             f"    dropping the first {BURN_IN_CHECK} draws of each chain: "
             + ", ".join(f"{s} D {100 * v:.2f}%" for s, v in c["after_burn_in"].items()
                         if c["counts"][s])
@@ -809,6 +827,12 @@ def summary_lines(d: dict) -> list[str]:
         f"{_pct(compact['at_or_above_after_burn_in'][0])} against "
         f"{_pct(compact['below_after_burn_in'][0])}; by chain (at or above / below) "
         + ", ".join(f"{i}: {_pct(a)}/{_pct(b)}" for i, a, b in compact["per_chain"]),
+        f"    {_pct(compact['more_compact_share'])} of draws have fewer cut edges than "
+        f"the enacted plan; the {compact['as_equal_profile'][2]} at <= {ENACTED_SPREAD} "
+        f"persons average {compact['as_equal_profile'][0]:.1f} cut edges, "
+        f"{_pct(compact['as_equal_profile'][1])} at >= {compact['enacted_cut_edges']}, "
+        f"against {compact['rest_profile'][0]:.1f} and "
+        f"{_pct(compact['rest_profile'][1])} for the other {compact['rest_profile'][2]:,}",
         f"enacted plan: {d['enacted_dem_seats']} D seats ({CONTEST}); closest "
         f"district {d['enacted_closest_district']} at {d['enacted_closest_share']:.6f}",
     ]

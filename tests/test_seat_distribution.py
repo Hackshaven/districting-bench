@@ -147,8 +147,21 @@ def test_the_enacted_plan_caveats_are_pinned(dist):
     assert compact["below"] == (pytest.approx(244 / 24_223), 24_223)
     assert compact["at_or_above_after_burn_in"][0] == pytest.approx(0.0216, abs=1e-4)
     assert compact["below_after_burn_in"][0] == pytest.approx(0.0102, abs=1e-4)
-    # in every chain, not only pooled
+    # in every chain at this split, not only pooled; how far that rests on one
+    # chain's early excursion is the next pin
     assert all(high > low for _, high, low in compact["per_chain"])
+    assert compact["more_compact_share"] == pytest.approx(24_223 / 27_564)
+    # the population-tight draws are less compact: much of the compactness gap
+    # follows from the population gap
+    assert compact["as_equal_profile"] == (pytest.approx(48.1, abs=0.05),
+                                           pytest.approx(0.2159, abs=1e-4), 454)
+    assert compact["rest_profile"] == (pytest.approx(45.5, abs=0.05),
+                                       pytest.approx(0.1196, abs=1e-4), 27_110)
+
+
+def test_zero_seat_plans_in_the_warm_up_are_one_chain_s_excursion(dist):
+    early = [w[0] for w in dist["primary"]["warm_up_counts"]]
+    assert dict(zip(dist["chain_index"], early)) == {0: 2, 1: 0, 2: 21, 5: 0, 6: 89, 10: 0}
 
 
 def test_under_the_senate_vote_two_plans_early_in_one_chain_reach_3(dist):
@@ -288,9 +301,8 @@ def test_the_figure_text_is_pinned(dist):
     for phrase in ("returns 0 D seats", "as 1.4% of these draws do (0.4–2.5% across "
                    "chains)", "on one district at 49.8% D",
                    "not held to its population equality",
-                   "in every chain 0 seats is commoner among draws as uncompact as it "
-                   "(≥51 cut edges) than among the rest: 4.5% against 1.0%, or 2.2% "
-                   "against 1.0% without each chain's first 500 draws",
+                   "The plan is also less compact than 88% of them, and 0 seats is commoner "
+                   "among less compact draws",
                    "Not yet a finding"):
         assert phrase in note
     footer = " ".join(text["footer"])
@@ -309,15 +321,16 @@ def test_the_figure_text_follows_the_values(dist):
     d = copy.deepcopy(dist)
     d["primary"]["seat_count_split_rhat"] = 1.004
     assert "R-hat 1.004, inside" in " ".join(S.figure_text(d)["footer"])
+    # the caution about relying on R-hat is read off the effective sample size
+    assert "on 24 effective draws per split chain, below the 50 Vehtari et al. " \
+           "(2021) ask for" in " ".join(" ".join(S.figure_text(dist)["footer"]).split())
+    d["primary"]["seat_count_ess"] = 5_000
+    assert "Vehtari" not in " ".join(S.figure_text(d)["footer"])
     compact = d["compactness"]
     compact["at_or_above"], compact["below"] = compact["below"], compact["at_or_above"]
-    compact["per_chain"] = [(i, b, a) for i, a, b in compact["per_chain"]]
-    assert "in every chain 0 seats is rarer" in " ".join(S.figure_text(d)["note"].split())
-    # and a chain that disagrees is counted, not hidden in "every"
-    i, a, b = compact["per_chain"][0]
-    compact["per_chain"][0] = (i, b, a)
-    assert "in 5 of 6 chains 0 seats is rarer" in " ".join(
-        S.figure_text(d)["note"].split())
+    compact["more_compact_share"] = 0.25
+    note = " ".join(S.figure_text(d)["note"].split())
+    assert "less compact than 25% of them, and 0 seats is rarer among less compact" in note
 
 
 def test_a_share_above_zero_is_never_printed_as_zero():

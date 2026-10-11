@@ -451,3 +451,869 @@ places that still read the gitignored file.
 
 The routing reviewers' second round on the revised change is answered in the same
 commit as this response, and, like their first, is not reproduced here.
+
+---
+
+# Second audit — the analysis added in review
+
+Three rounds of review by the routing reviewers added analysis the first audit,
+on `8d5d4fa`, never saw: the compactness caveat, the block-means and short-run
+standard errors, the rectangle and chain-death checks, the reading of R-hat at
+this effective sample size, and the flag-rule paragraph. They went through the
+same audit, at commit `afab97e`.
+
+- **Auditor:** the `Statistician` agent, a fresh instance, attacking the
+  inference lens.
+- **Refuter:** a general-purpose agent, told to default to "refuted" and to
+  reproduce every number before agreeing.
+
+Both reports are verbatim. The last section is the author's response, and is not
+part of either report.
+
+---
+
+## Second auditor — Statistician
+
+## Auditor (second audit): Statistician, inference lens
+
+**Scope.** This audit covers commit `afab97e` on `claude/first-result-and-planscore`, against the first audit's commit `8d5d4fa`. I read:
+- `git diff 8d5d4fa..afab97e` for `README.md`, `docs/progress.md`, `docs/DECISIONS.md`, `tools/plot_seat_distribution.py` and `tests/test_seat_distribution.py`;
+- `docs/figures/ia-neutral-seat-distribution.png`;
+- the committed evidence: `docs/experiment-2/ia-draws-v2.csv.gz` and its chain sidecar, `ia-draws.csv.gz`, `ia-convergence-rectangles.json`, and `docs/phase-2/phase-2-report.json`.
+
+I was not given the author's reasoning, and I edited no repository file. `git status` is clean. Line numbers refer to `afab97e`.
+
+**Summary.**
+- Every number the section quotes reproduces exactly. I checked them with the plotter and with my own loader, which reads the CSV directly through `csv` and `gzip`.
+- A fresh render (`tools/plot_seat_distribution.py --out <scratch>`) is byte-identical to the committed figure (sha256 `811cad73…`).
+- `tests/test_seat_distribution.py` gives 30 passed, and `tools/check_firewall.py` prints clean.
+- The headline survives: 0–2 seats, and 2 seats in about half the draws.
+- The allegations concern what the numbers are taken to show: three material, four minor.
+
+### Allegations
+
+**1. The compactness contrast is quoted as robust ("in every chain", 4.5%), but it rests on one warm-up excursion and on the 500-draw warm-up choice, and it carries no interval.** Severity: material.
+- **Location:**
+  - `README.md:52-56`;
+  - `docs/progress.md:2409-2416`;
+  - `docs/DECISIONS.md:1213-1215` and `1225-1227`;
+  - the figure note (`tools/plot_seat_distribution.py:534-542`, `600-610`);
+  - pinned at `tests/test_seat_distribution.py:150-151` and `288-293`.
+- **Claim:**
+  - README: "in each of the six chains 0 seats is commoner among the draws with 51 or more. Pooled, 4.5% of those give 0 seats, or 2.2% once each chain's first 500 draws are dropped, against 1.0% of the rest".
+  - progress.md: "Part of that is warm-up … Either way the enacted plan's outcome is commoner among plans as uncompact as it."
+- **Reproduced.** The numbers themselves are exact. What they are taken to show is the problem:
+  - **One excursion.** 89 of the 151 zero-seat draws at 51 or more cut edges come from a single excursion of chain 6, at draws 234–437 of its first 500. That excursion holds 8 distinct metric rows (plans), and 84 of its draws sit at exactly 51 cut edges. Dropping 500 draws removes about two-thirds of the excess (2.4 of 3.5 points), not "part" of it. A strict ">51" split on the full rectangle gives 2.18% against 1.36%.
+  - **"In every chain" depends on the warm-up length.**
+
+    | Draws dropped per chain | Chains higher at ≥51 |
+    | --- | --- |
+    | 0, 250, 500 | 6 of 6 |
+    | 750, 1,000, 1,500 | 5 of 6 (chain 6 reverses, by −0.4 pts) |
+    | 2,000 | 4 of 6 |
+
+    After 500 dropped, chain 6's ≥51 cell holds 6 zero-seat draws from 2 visits. The whole after-warm-up contrast rests on 30 zero-seat visits at ≥51 and 45 below.
+  - **No uncertainty is given.** The chain-level t(5) 95% interval for the per-chain difference:
+
+    | Draws dropped | 95% interval (pts) |
+    | --- | --- |
+    | 0 (full rectangle) | −0.7 to +5.7 (includes zero) |
+    | 500 | +0.3 to +2.3 |
+    | 750 | −0.1 to +1.7 |
+    | 1,000, 1,500, 2,000 | include zero |
+
+    An autocorrelation-preserving test gives p = 0.0003 on the full rectangle and p = 0.04 after 500. The test shifts each chain's cut-edge series circularly against its seat series, 4,000 times, with offsets of at least 300 draws.
+  - **The direction itself is sound**, and it has better support than the ≥51 split:
+    - None of the 7,850 draws at 40–42 cut edges gives 0 seats.
+    - At a ≥45 split the shares are 2.62% against 0.09%.
+    - A chain-stratified Mantel–Haenszel ratio equals the crude ratio: 4.48 against 4.49 on the full rectangle, and 2.20 against 2.11 after 500. So the pooled figure is not a chain-composition artefact.
+    - The ratio that survives warm-up is about 1.8–2.2, not 4.5. Pooled shares after any warm-up of 500 or more are 1.6–2.2% against 0.97–1.11%.
+- **Assessment:**
+  - "0 seats is commoner among less compact draws" is supported.
+  - "In every chain" is a property of the 500-draw warm-up, and the quoted magnitudes need an interval.
+  - The test at `tests/test_seat_distribution.py:150-151` pins only the full-rectangle sign.
+
+**2. Compactness is presented as a second like-for-like failure. It is an outcome of the map, and conditioning on it would absorb a partisan effect as readily as a neutral one.** Severity: material.
+- **Location:**
+  - `README.md:50-56` ("not like-for-like … Nor are they as uncompact");
+  - `docs/DECISIONS.md:1209-1231` (D-041, VALUE);
+  - `docs/progress.md:2409-2421`;
+  - the figure note.
+- **Claim:** the comparison is not like-for-like "on two counts", population equality and compactness. D-041 lists filtering "as uncompact as the enacted plan" and re-sampling "under a compactness constraint" as the alternatives.
+- **What is wrong:**
+  - Population equality is a constraint the enacted plan had to meet. Matching the reference to it is matching on a cause.
+  - Compactness is not a constraint the plan meets and the draws fail; the draws are more compact. It is an outcome of where the lines go.
+  - In these draws compactness is tied to the seat outcome itself: no draw at 40–42 cut edges gives 0 seats. Any process that produces 0 seats here, neutral or partisan, produces less compact plans.
+  - Conditioning the reference on the enacted plan's compactness therefore conditions on a variable between the map-drawer's choices and the seats, a mediator. It raises the reference's 0-seat share whether or not the plan was drawn for that outcome, which pushes the comparison toward "unremarkable" by construction.
+  - D-041's alternatives are set aside for selection and normative reasons only. Neither D-041 nor the README records this argument.
+- **What the repository's own evidence supports instead:** the compactness gap is largely downstream of the population gap.
+  - The 454 population-tight draws (spread of 94 or less) average 48.1 cut edges against 45.5 for the rest.
+  - 21.6% of them have 51 or more cut edges, against 12.0% of the rest.
+  - This is consistent with `docs/FEASIBILITY.md` §5.3 as `docs/progress.md:2418-2420` cites it.
+  - The adjustment that matches a cause is re-sampling at the 94-person tolerance, and compactness follows from it.
+  - Presenting compactness as a coequal second caveat counts that one mismatch twice, and it invites an adjustment the data argue against.
+- **Why material:** it misframes the caveat on the comparison with a real map, and the argument is missing from the record of a VALUE decision the owner has yet to make.
+
+**3. "What the chains do show is drift" rests on numbers within Monte Carlo noise, contradicts the R-hat sentence before it, and omits the evidence that does exceed noise.** Severity: material.
+- **Location:** `README.md:35-42`. `docs/progress.md:2325-2326` and `2330-2332` give the same numbers without the word "drift".
+- **Claim:** "What the chains do show is drift: the 2-seat share is 46.1% over the first half of the rectangle and 53.0% over the second, and 45.3–50.5% on the other prefix rectangles the convergence report offers."
+- **Reproduced. The half gap is within noise.**
+  - Null model: a stationary geometric chain at the observed autocorrelation (τ 99–103, median ESS 271–285), 6 × 4,594 draws from a stationary start, 1,000 replicates.
+  - In that model the 6.9-point half gap has SD 5.8–6.0 points, and a gap at least that large occurs in 24% of replicates.
+  - At τ = 166, the all-rows block-means value, it occurs in 36%.
+  - Calibrated instead to the mean single-chain τ of 88, the gap is about 1.25 SD, so p is about 0.2.
+- **The rectangles are within noise.** Each lies within its own Monte Carlo error of 49.5%:
+
+  | Rectangle | 2-seat share | z against 49.5% |
+  | --- | --- | --- |
+  | 4 × 8,133 | 45.3% | −1.27 |
+  | 5 × 6,495 | 48.0% | −0.43 |
+  | 7 × 4,282 | 50.5% | +0.26 |
+  | 8 × 1,863 | 50.3% | +0.10 |
+
+  They are also nested, overlapping samples of the same chains.
+- **The two sentences contradict each other.**
+  - The sentence before says R-hat cannot resolve convergence at this size.
+  - Split R-hat is built from exactly these half-chain comparisons.
+  - The observed 1.0136 sits at the 13th–16th percentile of the stationary null, whose median is 1.021–1.022. The halves agree better than a typical stationary sampler's halves would.
+  - As written, the two sentences cannot both hold.
+- **What does exceed noise is chain-level, and the README does not cite it:**
+  - (a) Chains 0 and 6, the two that start at 1 seat, put 33.7% and 33.1% of their first halves at 2 seats. A stationary chain started at 1 seat does that in both chains with probability 0.006 at τ = 103, and 0.02 at τ = 166. By exchangeability, the two named half-chains are the two lowest of 12 with probability 1/66. This test is post hoc.
+  - (b) Beyond the rectangle, the two chains that ran to 12,000 draws put 33.2% and 51.6% of their draws at 2 seats. On batch means the Welch t is −2.5 to −3.2, p = 0.004–0.024, for blocks of 500 to 3,000. Chain 0's four 3,000-draw blocks (41, 31, 35 and 26%) are four of the five lowest of the 16 such blocks.
+- **Assessment:**
+  - The caution may well be right in direction: it fits slow mixing between a 1-seat-heavy region and the rest.
+  - But the evidence it states is noise. As written, the sentence is a verdict about the sampler that its own numbers do not carry.
+  - The supportable version cites (a) and (b) with their uncertainty, and says that on the rectangle itself neither R-hat nor the half split can tell.
+
+**4. How the Monte Carlo error is presented.** Severity: minor.
+- **Location:**
+  - `README.md:16` ("give or take about 6 points") and `README.md:20-21` ("3 to 4 points");
+  - `tools/plot_seat_distribution.py:550-552` and `640-643` (labels and whiskers from the ESS-based standard error) and `580-584` (footer R-hat);
+  - `tests/test_seat_distribution.py:84-86`.
+- **(a) The whiskers use the lowest estimate.** The whiskers, the ±6.0 and ±6.1 labels and the alt text all use 3.00 and 3.05 points. Those are the lowest of the standard-error estimates the README endorses. By the README's own "3 to 4 points", two standard errors are 6–8 points.
+- **(b) "3 to 4" assumes the chains mix.** It is a range of point estimates.
+  - The longest-block estimate (b = 3,000, 16 batches) has its own 95% range of 3.0–6.2 points.
+  - Allegation 3(b) is evidence that the chains do not fully mix. In that case every one of these estimates is a lower bound, and "at least 3 to 4 points" is what the evidence supports.
+- **(c) The footer reads as a verdict.** It prints "outside CRITERIA §8's 1.00–1.01 band" without the README's qualifier. That qualifier is that a stationary sampler at 286 effective draws reads outside the band about 95% of the time. The figure travels alone, as the module docstring says, so the line reads as a convergence verdict the rectangle cannot deliver.
+
+**5. The chain-death test cannot tell, and the text does not say so.** Severity: minor.
+- **Location:** `docs/progress.md:2333-2337`.
+- **Claim:** "5 of the 7 chains that died after their first draw died at a 2-seat plan … not significant (binomial p = 0.22)".
+- **Reproduced.** 5 of 7 is correct.
+  - **The p-value is one-sided, and the text doesn't say so.**
+    - One-sided exact p is 0.20 against the all-rows exposure of 48.55%, and 0.21–0.23 for exposures of 49.3–50%.
+    - Two-sided p is 0.28.
+    - The direction was chosen after seeing the data, and the text doesn't say that either.
+  - **The test has almost no power.**
+    - With 7 deaths, a one-sided 5% test rejects only at 7 of 7, with actual α 0.006.
+    - Its power is 5% at a hazard ratio of 2, 12% at 3 and 26% at 5.
+    - The exact 95% interval on the hazard ratio is 0.43 to 28.
+  - **"Died after their first draw" excludes chain 9.** That chain stopped at its first step from a 0-seat start. Including it gives 5 of 8, p = 0.33.
+- **Assessment:**
+  - "Not significant" here means the test could not have told either way.
+  - The sentence's "but it is the direction a selection effect would push" is right.
+  - Without the interval, "not significant" reads as reassurance.
+
+**6. The flag-rule calls hold only when the rule is given plan ids.** Severity: minor.
+- **Location:** `docs/progress.md:2435-2439`.
+- **Claim:** "would be flagged … would not … would be".
+- **Reproduced.** The mid-ranks 0.9896, 0.9968 and 0.9928 are exact. But:
+  - The rule of record (`src/detect/bench.py:309-317`) decides only when the location's effective sample size reaches `required_ess`, which is 50 at threshold 0.99 (`src/detect/confusion.py:466-473`).
+  - Without plan ids, that ESS is Kish over value multiplicities (`src/detect/outlier.py:899-906`): 39.0 on this reference.
+  - Over metric tuples standing in for plan ids, it is 269.8.
+  - The committed draws carry no plan ids, so against this reference the rule refuses rather than flags.
+- **What the record said:** the audit record this paragraph cites included that condition ("Without plan ids (Kish ESS 39 < 50), the rule refuses to decide at all"). The paragraph drops it.
+
+**7. "Because zero-seat plans come early" generalizes one chain.** Severity: minor.
+- **Location:** `docs/progress.md:2327-2328`.
+- **Reproduced.** The six chains' first 500 draws hold 112 zero-seat draws:
+
+  | Chain | Zero-seat draws in its first 500 |
+  | --- | --- |
+  | 6 (one excursion, draws 234–437) | 89 |
+  | 2 | 21 |
+  | 0 | 2 |
+  | 1, 5, 10 | 0 |
+
+  The 1.43% to 1.15% shift is one chain's early visit, not a property of zero-seat plans.
+
+### Checked and found sound
+
+- **Every quoted number** reproduces from my own loader:
+  - counts 395 / 13,516 / 13,653, and 832 / 28,780 / 27,941 over all committed rows;
+  - ESS 987 / 278 / 268 (my own Geyer estimate gives 268.1) and MCSE 0.38 / 3.00 / 3.05;
+  - seat-count R-hat 1.0136 and ESS 286.1;
+  - halves 46.1 / 53.0%;
+  - shares after dropping 500 draws: 1.15% at 0 seats and 50.24% at 2;
+  - the rectangle shares, the chain fates and the Senate counts;
+  - 454 draws at or under 94 persons, and a median spread of 225;
+  - the cut-edge splits, 151 of 3,341 and 244 of 24,223;
+  - 216 sweeps at 2.5 votes and 179 at 3.5.
+- **Item 2: block means.**
+  - 3.33, 3.66 and 3.88 reproduce.
+  - The chains outside the rectangle do not drive them: restricted to the six rectangle chains at full length they are 3.16, 3.33 and 3.62.
+  - Within the rectangle, batch means give 2.1–2.9 and single-chain τ ranges from 31 to 437. That fits the stated reason for using all rows, that the rectangle's horizon understates the dependence.
+  - "3 to 4 points" is a fair summary of the point estimates; allegation 4(b) covers the caveat.
+- **Item 3: the short-run standard error.**
+  - 10.77, 8.88 and 11.88 reproduce. A finite-length correction to the asymptotic estimate gives 10.65.
+  - z against 43% is 0.52–0.70, with either 3.05 or 3.9 as the new standard error.
+  - The conclusion is stronger than stated. Run as v0.1.0 ran, v2's own chains reproduce a 43%-like number: every 7-of-8 subset of their eight first-260-draw windows gives 30.4–41.6%, and the mean of the eight is 36.4%.
+  - The start-based estimate measures spread around the starts' own mean, so it leaves out a start-state bias of about −13 points. A cold-start 7 × 260 estimate's error is nearer 16 points RMSE.
+  - "Do not disagree" holds. "Cannot be told apart" would be more exact, since the old estimate's 95% interval spans roughly 20% to 66%.
+- **Item 4: arithmetic.** The rectangle shares reproduce. 5 of 7 reproduces, and p = 0.22 lies within 0.20–0.23 across the exposure bases.
+- **Item 5: R-hat cannot resolve the band.**
+  - My own simulation reproduces it. Geometric chains at τ 99–103 give a median split R-hat of 1.021–1.022 and P(≤ 1.01) of 0.04–0.05.
+  - The real dependence is heavier-tailed, with all-rows block-means τ of 122–177. At τ = 166 the median is 1.037 and P(≤ 1.01) is 0.007, so the statement is conservative.
+  - "With the same autocorrelation" (`docs/progress.md:2294`) means the same integrated autocorrelation time.
+- **Item 6: arithmetic.**
+  - The enacted plan's |EG| sits 3.50 votes above the 0-seat level, in the 179-draw group.
+  - The rule's statistic is max(p, 1 − p) ≥ 0.99 (`src/detect/confusion.py:1027-1055`), so the stated calls are right whenever the rule decides (allegation 6).
+  - The parity account is right: with T odd and k = 4, j odd districts in {1, 3} give offsets of 3.5 and 2.5 votes.
+- **Other claims that hold:**
+  - "45 per chain, 22 per split chain".
+  - "At least 4,020 distinct plans" is a valid lower bound.
+  - 18,303 repeats.
+  - The rule-of-three bound of 3/286 = 1.05%, which is conservative against the rare-event ESS.
+  - The 1-versus-2-seat order is not identified.
+  - The Senate's 3-seat draws all fall at chain 0, draws 232–239.
+  - The two contests agree on 82.5% of draws.
+  - Vehtari's "400" is the four-chain form of 100 per chain, which would be 600 for six chains. The conclusion is unaffected.
+
+### Reproduction
+
+Every quoted number above comes from the scripts in `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/audit2-stat/`; their outputs are saved there as `*.out`.
+
+- `repro_audit2.py` is self-contained. Run it from the worktree root with `PYTHONPATH=src python <path>/repro_audit2.py`. It runs in about 26 s and rebuilds allegations 1, 3, 5 and 6 and the item-3 subsets.
+- Its R-hat null uses 300 replicates and gives median 1.023, P(≤ 1.01) 0.06 and P(≤ observed) 0.13. The 1,000-replicate figures quoted above come from `a5_null.py`.
+- The other scripts:
+  - `load.py`: the independent loader;
+  - `a1_compact.py`, `a1b_compact.py`, `a1c_mh.py`, `a1d_tight.py`: allegations 1 and 2;
+  - `a2_mcse.py`, `a2b_mcse.py`: the Monte Carlo error;
+  - `a3_shortrun.py`: item 3;
+  - `a4_rect.py`, `a4b_death.py`: item 4;
+  - `a5_null.py`, `a5b_starts.py`: allegation 3 and item 5;
+  - `a6_flag.py`, `a6b_kish.py`: allegation 6.
+
+Core of `repro_audit2.py`. Seats are read off by nearest level; the plotter's sweep and margin checks pass on these draws, so the readings coincide.
+
+```python
+rows = {}
+for r in csv.DictReader(gzip.open("docs/experiment-2/ia-draws-v2.csv.gz", "rt")):
+    rows.setdefault(int(r["chain_index"]), []).append(r)
+V, T = 759_061 / 1_656_733, 1_656_733
+L = np.array([abs(2 * V - 0.5 - s / 4) for s in range(5)])
+eg = {i: np.array([float(r["abs_efficiency_gap@G20PRE"]) for r in v]) for i, v in rows.items()}
+seats = {i: np.abs(x[:, None] - L).argmin(1) for i, x in eg.items()}
+cut = {i: np.array([int(r["cut_edges"]) for r in v]) for i, v in rows.items()}
+RC, N = (0, 1, 2, 5, 6, 10), 4594
+# 1: per-chain (S[i][burn:][C>=51]==0).mean() - (...<51...).mean(), t(5) CI, burn in 0..2000;
+#    toroidal null: np.roll(cut series, rng.integers(300, n-300)) per chain, 4,000 times
+# 3: geometric null -- per step redraw the seat state from the rectangle marginal with prob 2/(tau+1);
+#    6 x 4,594, stationary start; half gap and CV.split_rhat; chains 0 vs 6 Welch t on batch means
+# 5: stats.binomtest(5, 7, 0.4855, alternative="greater"); exact CI -> hazard ratio; power at 7/7
+# 6: mid-rank ((ref<v)+0.5*(ref==v))/n on the sign-aligned EG; O.kish_ess over values vs metric tuples
+```
+
+---
+
+## Second refuter
+
+## Refutation of the Statistician's second-audit allegations (refuter, fresh context)
+
+**Overall.** No allegation is refuted outright, and all of the auditor's numbers reproduce, with small exceptions noted below. Two allegations are upheld (3, and 7 on stronger evidence than alleged). Five are partly upheld (1, 2, 4, 5 and 6). I lower allegation 1 from material to minor. Allegation 2 stays material only as to D-041's record. Two of the auditor's "checked and found sound" claims do not reproduce as stated: the single-chain τ range and the reading of Vehtari et al.'s 400. Neither changes a conclusion.
+
+**What I checked against.**
+- **Commit:** `afab97e`. The working tree was clean before and after. I edited no repository file. I read the allegations, the text under audit, the code and the committed evidence. I did not read commit messages or the auditor's scripts.
+- **Loader:** my own, using pandas with round-trip float parsing. The default parser merges distinct decimals: it gives 3,718 distinct rows on the rectangle instead of 4,020, and 19,088 repeats instead of 18,303. That would corrupt every tie count below.
+- **Seat reading:** each draw gets the nearest folded level |2V − ½ − s/4|. Both D-039 checks are asserted on all 57,553 rows: every sweep sits 2.5 or 3.5 votes above its level, and every other draw is within half the half-gap. A second reading in a separate loader unfolds the sign; it agreed on every draw.
+- **Diagnostics:** ESS and split R-hat come from `generate.convergence`. My own Geyer ESS matches it on every indicator (986.8 / 278.3 / 268.1).
+- **Rule of record:** `detect.bench.RULE`, run through `outlier.locate` and `confusion.flag`.
+- **Nulls for allegation 3:** two of my own, neither the auditor's.
+  - A geometric-redraw chain: at each step it redraws from the rectangle marginal with probability 2/(τ+1).
+  - A circular block bootstrap of the observed rectangle.
+- **Figure, tests, firewall:**
+  - `tools/plot_seat_distribution.py --out <scratch>` writes a PNG byte-identical to the committed figure (sha256 `811cad73…`).
+  - `tests/test_seat_distribution.py` gives 30 passed.
+  - `tools/check_firewall.py` prints clean.
+
+**Baseline, reproduced exactly:**
+- Rectangle counts 395 / 13,516 / 13,653; over all rows, 832 / 28,780 / 27,941.
+- ESS 986.8 / 278.3 / 268.1; MCSE 0.38 / 3.00 / 3.05 pts.
+- Seat-count split R-hat 1.0136, ESS 286.1.
+- 4,020 distinct rows on the rectangle (6,703 over all rows); 18,303 repeats.
+- Senate counts 270 / 11,410 / 15,876 / 8.
+
+### 1. [material → minor] The compactness contrast — **PARTLY UPHELD**
+
+**Reproduced:**
+
+| Draws dropped per chain | Chains higher at ≥51 | 0 seats at ≥51 vs below | Ratio | t(5) 95% for the per-chain difference |
+| --- | --- | --- | --- | --- |
+| 0 | 6 of 6 | 4.52% vs 1.01% | 4.49 | −0.68 to +5.73 pts |
+| 250 | 6 of 6 | 4.50% vs 1.05% | 4.28 | −0.61 to +5.75 |
+| 500 | 6 of 6 | 2.16% vs 1.02% | 2.11 | +0.29 to +2.27 |
+| 750 | 5 of 6 | 1.63% vs 0.97% | 1.68 | −0.11 to +1.68 |
+| 1,000 | 5 of 6 | 1.78% vs 1.03% | 1.72 | −0.03 to +1.72 |
+| 1,500 | 5 of 6 | 1.95% vs 1.10% | 1.77 | −0.15 to +1.99 |
+| 2,000 | 4 of 6 | 1.64% vs 1.11% | 1.47 | −1.08 to +2.31 |
+
+- **The excursion:** chain 6's draws 234–437 hold 89 of the 151 zero-seat draws at ≥51 cut edges, from 8 distinct metric rows. 84 of them sit at exactly 51, which is the enacted plan's own value and so the split point. A strict >51 split gives 2.18% against 1.36%.
+- **Visits:**
+  - 40 zero-seat visits at ≥51 against 51 below on the full rectangle, and 30 against 45 after 500 draws are dropped.
+  - After 500, chain 6's ≥51 cell holds 6 draws from 2 visits.
+- **Composition and dependence:**
+  - The chain-stratified Mantel–Haenszel ratio is 4.48 (crude 4.49), and 2.20 after 500 (crude 2.11).
+  - A circular-shift test (4,000 shifts, offsets of at least 300) gives one-sided p = 0.0005, and 0.039 after 500.
+- **Other splits:**
+  - At splits of 45 and of 47 cut edges, the direction holds in all six chains at every warm-up I tried (0, 500, 750, 1,000 and 2,000).
+  - At ≥45 the shares are 2.62% against 0.09%.
+  - None of the 7,850 draws at 40–42 cut edges gives 0 seats.
+
+**Upheld:**
+- The full-rectangle 4.5% rests mostly on one excursion that sits on the split value.
+- "In each of the six chains" at the enacted plan's level holds only for warm-ups of 500 or less.
+- No interval is given anywhere for the contrast: not at README.md:52–55, not at docs/progress.md:2412–2416, not in the figure note (tools/plot_seat_distribution.py:600–610), and not in D-041.
+
+**Not upheld:**
+- That the text claims more than is true. Both variants it quotes are 6 of 6, and it prints the 500-draw variant that removes the excursion.
+- That "Part of that is warm-up" is wrong. Two-thirds (2.4 of 3.5 points) is a part; "most of it" would be more exact.
+
+**Correction:** the ratio "that survives warm-up" is 1.47–2.11 crude for warm-ups of 500–2,000 (Mantel–Haenszel 2.20 at 500). That makes it about 1.5–2.2, not 1.8–2.2.
+
+**Severity: minor.**
+- The numbers serve one inference: the zero-seat share depends on compactness, so the unconditioned 1.43% is not like-for-like.
+- That inference holds at every warm-up, at splits of 45 and 47 in every chain, and under the shift test.
+- What is fragile is the magnitude and the per-chain claim at exactly 51. The text already brackets the magnitude. What it lacks is an interval and the excursion fact.
+
+### 2. [material → material for D-041 only] Compactness as a second like-for-like failure — **PARTLY UPHELD**
+
+**Reproduced:**
+- The 454 draws with a population spread of 94 or less average 48.09 cut edges, against 45.47 for the rest. 21.6% of them have 51 or more, against 12.0%.
+- No zero-seat draw falls at 40–42 cut edges. Zero-seat draws average 49.16 cut edges, against 45.46.
+
+**Upheld: the argument.**
+- Population spread and compactness are both properties of the plan the drawer chose. What separates them is this:
+  - Population equality is the binding constraint, first in Iowa's ordered criteria (`docs/CRITERIA.md` §2.1), and the ensemble fails it.
+  - Compactness is a lower-ranked criterion that the ensemble already over-satisfies. The enacted plan's level of compactness is therefore discretionary.
+- Conditioning the reference on that level conditions on a post-treatment property that is associated with the outcome. Strictly, compactness is a co-outcome of the plan rather than a mediator, but the bias is the same. The conditioning raises the reference's zero-seat share however the plan was drawn, which moves the comparison toward "unremarkable".
+- D-041 (`docs/DECISIONS.md`:1220–1231) treats the two features symmetrically in both of its alternatives and does not record this argument. Nor do README.md:50–55 or docs/progress.md:2409–2421.
+- For a VALUE decision the owner has yet to make, that omission is material.
+
+**Not upheld: the evidence offered for the remedy.**
+- **"The compactness gap is largely downstream of the population gap."**
+  - In these draws, population tightness moves the enacted plan's cut-edge mid-rank only from 0.899 (among the rest) to 0.794 (among the tight draws). The tight draws still average about 3 cut edges fewer than its 51.
+  - Over the rectangle, spread and cut edges are barely associated (Spearman 0.05).
+  - Mean cut edges by spread band (≤94 / 95–150 / 151–225 / 226–400) are 48.1 / 44.8 / 45.7 / 45.5, so the 95–150 band is the most compact.
+  - The 454 tight draws are a filter of 100 visits, which D-041 itself says is not the matched comparison.
+  - `docs/FEASIBILITY.md` §5.3's 57–67 cut edges come from a targeted search, so they support a mechanism, not a magnitude.
+  - What the evidence carries is "partly downstream, by an amount these draws cannot measure".
+- **"Counts that one mismatch twice."** docs/progress.md:2418–2421 already ties the two caveats together through FEASIBILITY §5.3. The README and D-041 present them as two counts. That is consistent with tightness explaining only part of the gap.
+- **"Any process that produces 0 seats here, neutral or partisan, produces less compact plans."**
+  - This is an association inside this ensemble, and it is concentrated in the 151–300-person spread band. 148 of the 151 zero-seat draws at ≥51 cut edges sit there (38 visits, against 46 below 51).
+  - The ≤150 band holds 7 zero-seat visits in all (1 at ≥51, 6 below). That is too few to show the association either way.
+  - A neutral ensemble cannot speak for a partisan process.
+
+**Severity:**
+- Material for D-041's record.
+- Minor for the README, which conditions on nothing and calls the comparison not yet a finding.
+- The correction is to add the post-treatment argument to D-041, not to merge the two caveats.
+
+### 3. [material] "What the chains do show is drift" — **UPHELD**, one sub-claim corrected
+
+**Reproduced:**
+- **The half gap:** 6.87 pts (from 46.10% to 52.97%). Using each half's own ESS, the standard errors are 4.15 and 5.61 pts, so z = 0.98.
+- **As a contrast:** among the 12 half-chain means, the first-versus-second contrast is χ²₁ = 1.27 (p = 0.26), against the stationary variance at τ = 102.8.
+- **Stationary nulls,** 1,000 replicates of 6 × 4,594 draws each:
+
+| Null | 2-seat ESS (median) | SD of the half gap | P(\|gap\| ≥ 6.87) | Split R-hat median | P(R-hat ≤ 1.01) | P(R-hat ≤ 1.0136) |
+| --- | --- | --- | --- | --- | --- | --- |
+| geometric, τ 88 | 315 | 5.50 | 0.21 | 1.0190 | 0.117* | 0.26 |
+| geometric, τ 103 | 272 | 5.85 | 0.24 | 1.0221 | 0.054 | 0.145 |
+| geometric, τ 166 | 166 | 7.70 | 0.36 | 1.0365 | 0.011 | 0.028 |
+| block bootstrap, B 500 | 362 | 5.49 | 0.21 | 1.0165 | 0.145 | 0.34 |
+| block bootstrap, B 1,000 | 323 | 5.26 | 0.19 | 1.0161 | 0.179 | 0.36 |
+
+\* This is one run's value. Pooled over 17,600 further replicates the figure is 0.082 (see Reproduction). No conclusion uses it.
+
+- **What the bootstrap means here:** it cuts all dependence longer than B, so it mixes faster than the real chains (ESS 323–362 against 268). That makes it anti-conservative for the gap, and the gap is still inside noise under it.
+- **The other rectangles,** each against its own MCSE: 45.35% (z −1.28), 48.05% (−0.43), 50.45% (+0.26) and 50.25% (+0.10). They are nested samples of the same chains.
+- **(a) The start effect is beyond noise.**
+  - Chains 0 and 6, the two that start at 1 seat, put 33.7% and 33.1% of their first halves at 2 seats.
+  - For chains started at 1 seat, P(both ≤ 33.7%) is 0.0067 under the geometric null at τ = 103, and 0.020 at τ = 166.
+  - Under block bootstraps whose first block starts at an observed 1-seat draw, it is 0.0018 at B = 500 and 0.0025 at B = 1,000.
+  - These two half-chains are the lowest 2 of the 12 (probability 1/66 under exchangeability; the test is post hoc).
+- **(b) The disagreement between the two long chains is beyond noise.**
+  - Over 12,000 draws, chains 0 and 6 sit at 33.2% and 51.6% at 2 seats.
+  - Welch's t on batch means is −3.08, −2.54, −2.88 and −3.15 at b = 500, 1,000, 2,000 and 3,000 (p = 0.0035–0.024).
+  - Chain 0's blocks of 3,000 draws are four of the five lowest of the 16 such blocks.
+
+**Assessment:**
+- README.md:39–42 offers two contrasts as evidence of drift. Both are inside Monte Carlo noise under every null I ran, parametric or not.
+- As written, the sentence is a verdict about the sampler that its own numbers do not carry.
+- The README's preceding sentence holds under both nulls:
+  - At matched ESS, a stationary sampler reads 1.01 or below in about 5% of replicates.
+  - Even under the faster-mixing bootstrap, it does so in only 15–18%.
+- The caution itself can stand on (a) and (b). The fix swaps the evidence, not the direction.
+
+**Correction to the evidence:** "As written, the two sentences cannot both hold" overstates the logic.
+- The pooled half contrast is one of the 11 degrees of freedom that split R-hat pools. A targeted contrast could therefore detect a drift that R-hat misses.
+- Here it does not: χ²₁ = 1.27, and the observed R-hat sits below the stationary median under both nulls (the 14.5th percentile at τ = 103, the 34th–36th under the bootstrap).
+- In substance, the auditor is right.
+
+### 4. [minor] How the Monte Carlo error is presented — **PARTLY UPHELD**
+
+- **(a) Partly upheld.**
+  - The whiskers and labels (`tools/plot_seat_distribution.py`:550–552 and 640–643) use the ESS-based 3.00 / 3.05 pts. So does the alt text's "give or take about 6 points (2 Monte Carlo standard errors)" (README.md:16).
+  - That is the bottom of the prose's own "3 to 4 points" (README.md:20–21), as alleged. On that range, two standard errors are 6–8 points; block means put them at 6.7–7.8.
+  - But 3.05 is not the lowest estimate on record. The spread of the six chain means gives 2.58, and batch means inside the rectangle give 2.65–2.87 at b = 500–3,000.
+  - The figure's footer prints the 3.3–3.9 block-means range beside the whiskers. The inconsistency worth fixing is the alt text's "about 6" next to the prose's "3 to 4".
+- **(b) Upheld, with its lower-bound claim made conditional.**
+  - The b = 3,000 block-means estimate rests on 16 batches. Its own 95% range is 2.96–6.20 pts on the ddof-1 estimate (4.00 pts). On the ddof-0 estimate the plotter prints (3.88 pts), it is 2.86–6.00.
+  - Restricted to the six rectangle chains at full length, block means give 3.16 / 3.33 / 3.62.
+  - Allegation 3(b) makes it plausible that every one of these estimates understates the error, so "at least 3 to 4 points" is the defensible wording.
+  - "Every one of these estimates is a lower bound" holds only if mixing is slower than the batch length. 3(b) suggests that but does not establish it.
+- **(c) Upheld.**
+  - The footer (`tools/plot_seat_distribution.py`:582–583, as rendered) reads "Seat count split R-hat 1.014, outside CRITERIA §8's 1.00–1.01 band". Nothing says the band cannot be resolved at about 286 effective draws.
+  - The subtitle gives the 286 but does not link it to the band.
+  - The first audit's refuter warned of exactly this: "Printed on its own, the 1.00–1.01 band would read as non-convergence that this ESS cannot diagnose".
+  - The module docstring says the figure travels without the README (`tools/plot_seat_distribution.py`:8–9).
+  - D-013 (`docs/DECISIONS.md`:309–311) reports a gate no method could pass as "unreachable", not "failed". That convention is written for detection gates, so here it is an analogy, not a rule.
+
+### 5. [minor] The chain-death test — **PARTLY UPHELD**
+
+**Reproduced:**
+- Seven chains died after more than one draw: 1, 2, 3, 5, 8, 10 and 11. Five of them died at a 2-seat plan; chains 10 and 11 died at 1 seat.
+- One-sided binomial p:
+  - 0.203 against the all-rows exposure (48.55% of draws at 2 seats);
+  - 0.219 against the rectangle's (49.53%);
+  - 0.227 against one half;
+  - 0.278 against the dying chains' own time at risk (52.96%).
+- Two-sided p is 0.276–0.285 on the first two bases, and 0.453 at one half.
+- A one-sided 5% test rejects only at 7 of 7 (α = 0.0064).
+- Its power is 0.051, 0.120 and 0.260 at hazard ratios of 2, 3 and 5.
+- The exact 95% interval on the hazard ratio is 0.43–27.8.
+- Including chain 9 gives 5 of 8, p = 0.33. That chain has one row: it died at its first step from its 0-seat start.
+
+**Upheld:**
+- The p-value at docs/progress.md:2336 is one-sided, the text does not say so, and the direction was chosen after seeing the data.
+- The test could not have told either way, and an interval would say so.
+- The wording "died after their first draw", read literally, includes chain 9, which recorded its first draw and then died. Leaving out a chain that died at its seeded start is defensible, but the text should say "after more than one draw". Including it changes nothing.
+
+**Not upheld:** "Without the interval, 'not significant' reads as reassurance." The sentence continues "but it is the direction a selection effect would push". It sits inside a paragraph whose point is that the chains the rectangle drops lean toward 2 seats.
+
+### 6. [minor] The flag-rule calls — **PARTLY UPHELD**
+
+**Reproduced** with the repository's own code (`bench.RULE` through `outlier.locate` and `confusion.flag`), on the rectangle's signed efficiency gap:
+- The zero-seat draws take two values, 2.5 and 3.5 votes above the 0-seat level, held by 216 and 179 draws. The enacted plan's gap equals the 3.5-vote value.
+- Their mid-ranks are 0.9896 and 0.9968. Treated as one tied value, all 395 sit at 0.9928.
+- **Without plan ids:** the Kish ESS over values is 39.0, below the rule's `required_ess` of 50. The rule returns `flagged=None` (UNRESOLVED) for all three values.
+- **With metric tuples standing in for plan ids:** the ESS is 269.8. The 2.5-vote value gets `False` and the 3.5-vote value `True`, which are exactly the paragraph's calls.
+
+**Upheld:**
+- docs/progress.md:2435–2439 cites the audit record but drops a condition the record stated: "Without plan ids (Kish ESS 39 < 50), the rule refuses to decide at all".
+- A reader reproducing the calls from the committed draws, which carry no plan ids, gets UNRESOLVED.
+
+**Not upheld:** "against this reference the rule refuses rather than flags."
+- That holds only for a caller who passes no ids. The bench always passes them:
+  - `src/detect/bench.py`:1607–1618 builds them (`reference_ids`);
+  - `relocate` (:1621–1641) and :2324–2325 and :2342–2348 hand them to `locate`.
+- Identical plans have identical metric rows, so grouping by plan splits the draws at least as finely as grouping by metric tuple. The true Kish ESS is therefore at least 269.8.
+- Under the rule as the bench runs it, the paragraph's calls stand. The fix is one clause: "given plan ids, as the bench supplies them".
+- The value-based ESS is low because distinct plans share values. The three largest value multiplicities (3,219, 2,504 and 785 draws) are all 1-seat values, and the Kish ESS over metric rows is about seven times that over values.
+
+### 7. [minor] "Because zero-seat plans come early" — **UPHELD**, on stronger evidence
+
+**Reproduced:**
+- The six chains' first 500 draws hold 112 of the 395 zero-seat draws, against 43 if they were spread evenly:
+
+| Chain | Zero-seat draws in its first 500 |
+| --- | --- |
+| 6 (draws 234–437) | 89 |
+| 2 | 21 |
+| 0 | 2 |
+| 1, 5, 10 | 0 |
+
+- In four of the six chains, the first 500 draws hold proportionally fewer zero-seat draws than the rest:
+
+| Chain | 0 seats in its first 500 | 0 seats in the rest |
+| --- | --- | --- |
+| 0 | 0.40% | 1.61% |
+| 1 | 0% | 1.71% |
+| 5 | 0% | 1.17% |
+| 10 | 0% | 0.49% |
+
+- Without chain 6, dropping the first 500 draws moves the zero-seat share from 1.23% to 1.27%: up, not down.
+- So the move from 1.43% to 1.15% at docs/progress.md:2326–2328 is chain 6's early visit, plus a little of chain 2's. It is not a property of zero-seat plans.
+
+### The auditor's "checked and found sound" claims
+
+**Reproduced as stated:**
+- the counts, shares, ESS, MCSE and R-hat;
+- the halves, the after-500 shares (1.15% and 50.24%), the rectangle shares, the chain fates and the Senate counts, including its 3-seat draws at chain 0, draws 232–239;
+- 454 draws at or under 94 persons, and a median spread of 225;
+- the cut-edge splits, 151 of 3,341 and 244 of 24,223;
+- 216 sweeps at 2.5 votes and 179 at 3.5, and the enacted plan's offset of 3.500 votes;
+- block means of 3.33 / 3.66 / 3.88 over all rows, and 3.16 / 3.33 / 3.62 for the six rectangle chains at full length;
+- batch means inside the rectangle within 2.1–2.9;
+- item 3:
+  - standard errors of 10.77, 8.88 and 11.88 pts, and 10.65 with the finite-length correction;
+  - z between 0.52 and 0.70;
+  - a first-260-draw mean of 36.4%, with 7-of-8 subsets of 30.4–41.6%;
+  - a start-state bias of −13.1 pts and an RMSE of 15.9;
+  - an interval of 19.7–66.3%;
+- item 5's R-hat null:
+  - at τ = 103, median 1.0221 and P(≤ 1.01) = 0.054 in this run, and 1.0220–1.0226 and 0.045–0.056 over four runs;
+  - at τ = 166, 1.0365 and 0.011;
+- 44.7 effective draws per chain and 22.3 per split chain;
+- the rule-of-three bound of 1.05%;
+- the 1-versus-2-seat order not identified, with chains 0 and 6 favouring 1 seat and the other four 2;
+- the two contests agreeing on 82.5% of draws;
+- the figure hash, 30 tests passed, and the firewall clean.
+
+**Not reproduced as stated:**
+- **"Single-chain τ ranges from 31 to 437" (item 2).** No estimator I tried gives that range:
+  - Unsplit Geyer per chain gives 49, 165, 31, 81, 57 and 148. That is a range of 31–165 and a mean of 88.5, which is allegation 3's "88".
+  - The repository's split ESS, run on each chain's two halves, gives 62, 464, 37, 84, 58 and 145.
+  - The point the claim supports holds under both: dependence varies widely by chain, and some chains exceed the pooled 103.
+- **"Vehtari's '400' is the four-chain form of 100 per chain, which would be 600 for six chains."** This is half right, checked against arXiv:1903.08008v5.
+  - §3.2 reads: "we only recommend relying on the R̂ estimate to make decisions about the quality of the chain if each of the split chains has an average ESS estimate of at least 50. In our minimum recommended setup of four parallel chains, the total ESS should be at least 400 before we expect R̂ to be useful". For that criterion, six chains need 600.
+  - §2, "Recommendations for practice", gives an absolute figure: "we recommend requiring that the rank-normalized ESS is greater than 400, … as typically sufficient to get a stable estimate of the Monte Carlo standard error."
+  - docs/progress.md:2284–2286's "a total above 400, and 50 per split chain" paraphrases both as written.
+  - 268 meets neither threshold, so nothing changes.
+
+**Smaller corrections inside the allegations:**
+- **Allegation 1:**
+  - The surviving ratio is about 1.5–2.2, not 1.8–2.2.
+  - My shift test gives p = 0.0005 on 4,000 shifts against the auditor's 0.0003; that is the same resolution.
+- **Allegation 3:** the z for the 4 × 8,133 rectangle is −1.28.
+- **Allegation 4(b):** the range 3.0–6.2 is computed on a ddof-1 estimate.
+- **Allegation 5:** the two-sided 0.28 depends on the exposure base.
+
+### Reproduction
+
+**Where things are:** scratch copies of the per-allegation scripts and their outputs are in `/tmp/claude-0/-home-user-districting-bench/c90a28a9-74fd-5bae-b74a-5033b5ec6055/scratchpad/refute2-stat/`. Scripts `r0` to `r7` cover the allegations, and `r3b` to `r3g` check the τ = 88 tail. Every number in this report comes from the script below, from the plotter, or from the Vehtari text.
+
+**Commands,** from the worktree root at `afab97e`:
+
+```
+PYTHONPATH=src python tools/plot_seat_distribution.py --out /tmp/fig.png && sha256sum /tmp/fig.png docs/figures/ia-neutral-seat-distribution.png
+PYTHONPATH=src python -m pytest tests/test_seat_distribution.py -q --strict-markers
+python tools/check_firewall.py
+PYTHONPATH=src python repro_refute2.py        # about 5 minutes
+pdftotext 1903.08008v5.pdf - | grep -n "greater than 400\|at least 50"   # Vehtari et al. §2 and §3.2
+```
+
+**The τ = 88 tail.** This script's random stream prints P(R-hat ≤ 1.01) = 0.117 on the τ = 88 line. Other runs give:
+- 0.066–0.097 from fifteen fresh-seed runs of the same null;
+- 0.086 from the same stream's next 1,600 replicates.
+
+Pooled over 17,600 replicates the figure is 0.082. The first 1,000 replicates of that stream are an extreme segment, and no conclusion uses the figure.
+
+```python
+"""Refuter, second first-result audit (Statistician lens). Self-contained; reads committed files only.
+
+Run from the worktree root:  PYTHONPATH=src python repro_refute2.py   (about 5 minutes)
+Simulated tails carry Monte Carlo error. In this stream the tau-88 line prints P(R-hat <= 1.01) = 0.117;
+fifteen fresh-seed runs of that null and the next 1,600 replicates of this stream (17,600 in all) give
+0.066-0.097 run by run, 0.082 pooled. No verdict uses that number.
+Own loader (pandas, round-trip float parsing); seats read off |EG| with both D-039 checks
+asserted; ESS and split R-hat from generate.convergence; the rule of record from detect.bench.
+"""
+import itertools
+import json
+from collections import Counter
+
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+from detect import bench, confusion as C, outlier as O
+from generate import convergence as CV
+
+E2 = "docs/experiment-2/"
+# round_trip: pandas' default parser merges distinct decimals (3,718 distinct rows, not 4,020)
+df = pd.read_csv(E2 + "ia-draws-v2.csv.gz", float_precision="round_trip")
+side = {c["index"]: c for c in json.load(open(E2 + "ia-draws-v2-chains.json"))["chains"]}
+rep = json.load(open("docs/phase-2/phase-2-report.json"))["IA"]
+METRICS = list(df.columns[4:])
+TOT = {"G20PRE": (759_061, 897_672), "G20USS": (754_859, 864_997)}
+K, RC, N, CUT = 4, (0, 1, 2, 5, 6, 10), 4594, rep["compactness"]["cut_edges"]
+for i, c in side.items():
+    assert (df.chain_index == i).sum() == c["n_rows"]
+
+
+def read_seats(contest):
+    d, r = TOT[contest]
+    T, V = d + r, d / (d + r)
+    c, L = 2 * V - 0.5, np.abs(2 * V - 0.5 - np.arange(K + 1) / K)
+    g = df[f"abs_efficiency_gap@{contest}"].to_numpy()
+    s = np.abs(g[:, None] - L).argmin(1)
+    res, sweep = g - L[s], (s == 0) | (s == K)
+    assert np.all(np.abs(res[~sweep]) <= np.diff(np.sort(L)).min() / 4)          # margin
+    grid = [K - j / 2 for j in range(K + 1) if j % 2 == T % 2]
+    assert np.all(np.min(np.abs(res[sweep, None] * T - np.array(grid)), 1) < 1e-6)  # sweeps
+    return s, np.where(c - s / K >= 0, g, -g), T, L
+
+
+df["s"], df["eg"], T, L = read_seats("G20PRE")
+df["s_uss"] = read_seats("G20USS")[0]
+ch = {i: g.reset_index(drop=True) for i, g in df.groupby("chain_index")}
+R = {i: ch[i].iloc[:N] for i in RC}
+P = pd.concat(R.values(), ignore_index=True)
+S = np.array([R[i].s.to_numpy() for i in RC])
+t5 = stats.t.ppf(0.975, 5)
+rng = np.random.default_rng(20261011)
+
+
+def ind(X, s):
+    return list((np.asarray(X) == s).astype(float))
+
+
+def visits(hit):
+    return int(hit[0]) + int((hit[1:] & ~hit[:-1]).sum())
+
+
+print("== baseline ==")
+p = {s: (S == s).mean() for s in range(3)}
+ess = {s: CV.ess(ind(S, s)) for s in range(3)}
+print("counts", [int((S == s).sum()) for s in range(5)], "all rows", [int((df.s == s).sum()) for s in range(5)],
+      "| ESS", [round(ess[s], 1) for s in range(3)], "| MCSE pts",
+      [round(float(100 * np.sqrt(p[s] * (1 - p[s]) / ess[s])), 2) for s in range(3)])
+print("seat-count split R-hat %.4f ESS %.1f | distinct rows %d / %d | repeats %d | Senate %s"
+      % (CV.split_rhat(S.astype(float)), CV.ess(list(S.astype(float))), len(P[METRICS].drop_duplicates()),
+         len(df[METRICS].drop_duplicates()),
+         sum(int((R[i][METRICS].to_numpy()[1:] == R[i][METRICS].to_numpy()[:-1]).all(1).sum()) for i in RC),
+         [int((P.s_uss == s).sum()) for s in range(5)]))
+
+print("\n== allegation 1: 0 seats at >= 51 cut edges vs below ==")
+for burn in (0, 250, 500, 750, 1000, 1500, 2000):
+    d, A, B = [], [], []
+    for i in RC:
+        g = R[i].iloc[burn:]
+        z, hi = (g.s == 0).to_numpy(), (g.cut_edges >= CUT).to_numpy()
+        d.append(z[hi].mean() - z[~hi].mean()); A.append(z[hi]); B.append(z[~hi])
+    d, A, B = np.array(d), np.concatenate(A), np.concatenate(B)
+    m, se = d.mean(), d.std(ddof=1) / np.sqrt(6)
+    print(f"burn {burn:4d}: {(d > 0).sum()}/6 chains; {100*A.mean():.2f}% vs {100*B.mean():.2f}% "
+          f"(ratio {A.mean()/B.mean():.2f}); t(5) {100*(m-t5*se):+.2f} to {100*(m+t5*se):+.2f}")
+e6 = np.where((R[6].s == 0).to_numpy() & (R[6].cut_edges >= CUT).to_numpy())[0]
+ex = R[6].iloc[e6[e6 < 500]]
+print(f"chain 6, first 500: {len(ex)} of {int(((P.s == 0) & (P.cut_edges >= CUT)).sum())} at draws "
+      f"{ex.draw.min()}-{ex.draw.max()}, {len(ex[METRICS].drop_duplicates())} distinct rows, "
+      f"{int((ex.cut_edges == CUT).sum())} at exactly {CUT}")
+for cut in (45, 47, CUT):
+    pos = [sum(R[i].iloc[b:].pipe(lambda g: (g.s[g.cut_edges >= cut] == 0).mean() > (g.s[g.cut_edges < cut] == 0).mean())
+               for i in RC) for b in (0, 500, 750, 1000, 2000)]
+    print(f"split >= {cut}: chains higher at burn 0/500/750/1000/2000: {[int(x) for x in pos]}")
+z = P.s == 0
+print(f"> {CUT}: {100*z[P.cut_edges > CUT].mean():.2f}% vs {100*z[P.cut_edges <= CUT].mean():.2f}%; >= 45: "
+      f"{100*z[P.cut_edges >= 45].mean():.2f}% vs {100*z[P.cut_edges < 45].mean():.2f}%; 40-42: "
+      f"{int(P.cut_edges.between(40, 42).sum())} draws, {int(z[P.cut_edges.between(40, 42)].sum())} at 0")
+for burn in (0, 500):
+    va = sum(visits(((R[i].s == 0) & (R[i].cut_edges >= CUT)).to_numpy()[burn:]) for i in RC)
+    vb = sum(visits(((R[i].s == 0) & (R[i].cut_edges < CUT)).to_numpy()[burn:]) for i in RC)
+    h6 = ((R[6].s == 0) & (R[6].cut_edges >= CUT)).to_numpy()[burn:]
+    print(f"burn {burn}: zero-seat visits at >= {CUT} {va}, below {vb}; chain 6 at >= {CUT}: {int(h6.sum())} draws, {visits(h6)} visits")
+for burn in (0, 500):
+    num = den = 0.0
+    for i in RC:
+        g = R[i].iloc[burn:]
+        zz, hi = (g.s == 0).to_numpy(), (g.cut_edges >= CUT).to_numpy()
+        num += zz[hi].sum() * (~hi).sum() / len(g); den += zz[~hi].sum() * hi.sum() / len(g)
+    Z = [(R[i].s.to_numpy()[burn:] == 0) for i in RC]
+    Cc = [R[i].cut_edges.to_numpy()[burn:] for i in RC]
+    f = lambda cs: (lambda hi, zz: zz[hi].mean() - zz[~hi].mean())(np.concatenate([c >= CUT for c in cs]), np.concatenate(Z))
+    obs = f(Cc)
+    null = np.array([f([np.roll(c, rng.integers(300, len(c) - 300)) for c in Cc]) for _ in range(4000)])
+    print(f"burn {burn}: MH ratio {num/den:.2f}; circular-shift p {(1 + (null >= obs).sum())/4001:.4f}")
+
+print("\n== allegation 2: population-tight draws ==")
+tight = P.population_spread <= 94
+print("tight-region visits", sum(visits((R[i].population_spread <= 94).to_numpy()) for i in RC))
+for lab, mk in (("tight", tight), ("rest", ~tight)):
+    print(f"{lab}: n {mk.sum()}, mean cut {P.cut_edges[mk].mean():.2f}, >= 51 {100*(P.cut_edges[mk] >= CUT).mean():.1f}%, "
+          f"0 seats {100*(P.s[mk] == 0).mean():.2f}%, enacted mid-rank "
+          f"{((P.cut_edges[mk] < CUT).sum() + 0.5*(P.cut_edges[mk] == CUT).sum())/mk.sum():.3f}")
+print(f"Spearman(spread, cut) {stats.spearmanr(P.population_spread, P.cut_edges).statistic:.3f}; mean cut by band",
+      P.groupby(pd.cut(P.population_spread, [0, 94, 150, 225, 400]), observed=True).cut_edges.mean().round(1).tolist(),
+      f"; 0-seat draws mean cut {P.cut_edges[z].mean():.2f} vs {P.cut_edges[~z].mean():.2f}")
+for lo, hi in ((0, 150), (151, 300)):
+    for lab, cond in ((">=51", P.cut_edges >= CUT), ("<51", P.cut_edges < CUT)):
+        mk = P.population_spread.between(lo, hi) & cond
+        hits = [visits(((R[i].s == 0) & R[i].population_spread.between(lo, hi) &
+                        ((R[i].cut_edges >= CUT) if lab == ">=51" else (R[i].cut_edges < CUT))).to_numpy()) for i in RC]
+        print(f"  spread {lo}-{hi}, {lab}: {int(z[mk].sum())} zero-seat draws of {mk.sum()}, {sum(hits)} visits")
+
+print("\n== allegation 3: drift ==")
+h = N // 2
+gap = (S[:, h:] == 2).mean() - (S[:, :h] == 2).mean()
+rh_obs = CV.split_rhat(S.astype(float))
+se_h = [np.sqrt(x.mean() * (1 - x.mean()) / CV.ess(list(x.astype(float)))) for x in (S[:, :h] == 2, S[:, h:] == 2)]
+Hm = np.array([[(S[i, :h] == 2).mean(), (S[i, h:] == 2).mean()] for i in range(6)])
+v_half = p[2] * (1 - p[2]) * (6 * N / ess[2]) / h
+print(f"gap {100*gap:.2f} pts; per-half SE {np.round(100*np.array(se_h), 2)}, z {gap/np.hypot(*se_h):.2f}; "
+      f"1-df contrast chi2 {6*((Hm.mean(0)-Hm.mean())**2).sum()/v_half:.2f}; half-chains {np.round(100*Hm, 1).tolist()}")
+
+
+def chunked(make, reps, size=200):
+    return np.concatenate([make(min(size, reps - k)) for k in range(0, reps, size)])
+
+
+def geometric(tau, reps, chains=6, start=None):
+    """Stationary geometric-redraw chain: redraw from the rectangle marginal w.p. 2/(tau+1)."""
+    r = 2 / (tau + 1)
+
+    def make(m):
+        redraw = rng.random((m, chains, N)) < r
+        new = rng.choice(3, size=(m, chains, N), p=[p[0], p[1], p[2]]).astype(np.int8)
+        redraw[..., 0] = True
+        if start is not None:
+            new[..., 0] = start
+        idx = np.maximum.accumulate(np.where(redraw, np.arange(N, dtype=np.int32), 0), axis=2)
+        return np.take_along_axis(new, idx, axis=2)
+    return chunked(make, reps)
+
+
+def block_boot(B, reps, chains=6, first=None):
+    """Circular block bootstrap of the observed rectangle: blocks of B draws, random chain and offset."""
+    nb = -(-N // B)
+
+    def make(m):
+        src, off = rng.integers(0, 6, (m, chains, nb)), rng.integers(0, N, (m, chains, nb))
+        if first is not None:
+            k = rng.integers(0, len(first[0]), (m, chains))
+            src[..., 0], off[..., 0] = first[0][k], first[1][k]
+        pos = (off[..., None] + np.arange(B)) % N
+        return S[src[..., None], pos].astype(np.int8).reshape(m, chains, nb * B)[..., :N]
+    return chunked(make, reps)
+
+
+def null(X, label):
+    g = (X[:, :, h:] == 2).mean((1, 2)) - (X[:, :, :h] == 2).mean((1, 2))
+    rh = np.array([CV.split_rhat(x.astype(float)) for x in X])
+    es = np.array([CV.ess(ind(x, 2)) for x in X])
+    print(f"{label}: ESS {np.median(es):.0f}; gap SD {100*g.std():.2f}, P(|gap|>=obs) {(np.abs(g) >= abs(gap)).mean():.3f}; "
+          f"R-hat median {np.median(rh):.4f}, P(<=1.01) {(rh <= 1.01).mean():.3f}, P(<=obs) {(rh <= rh_obs).mean():.3f}")
+
+
+for tau in (88, 103, 166):
+    null(geometric(tau, 1000), f"geometric tau {tau}")
+for B in (500, 1000):
+    null(block_boot(B, 1000), f"block bootstrap B={B}")
+thr = (S[[0, 4], :h] == 2).mean(1).max()
+for tau in (103, 166):
+    f = (geometric(tau, 4000, chains=2, start=1)[:, :, :h] == 2).mean(2)
+    print(f"(a) geometric tau {tau}, start 1: P(both <= {100*thr:.1f}%) {(f <= thr).all(1).mean():.4f}")
+ones = np.where(S == 1)
+for B in (500, 1000):
+    f = (block_boot(B, 4000, chains=2, first=ones)[:, :, :h] == 2).mean(2)
+    print(f"(a) block bootstrap B={B}, first block at a 1-seat draw: P(both) {(f <= thr).all(1).mean():.4f}")
+c0, c6 = (ch[0].s.to_numpy() == 2), (ch[6].s.to_numpy() == 2)
+for b in (500, 1000, 2000, 3000):
+    t = stats.ttest_ind(c0.reshape(-1, b).mean(1), c6.reshape(-1, b).mean(1), equal_var=False)
+    print(f"(b) b={b}: Welch t {t.statistic:.2f}, p {t.pvalue:.4f}")
+blocks = sorted((100 * (g.s.to_numpy()[j*3000:(j+1)*3000] == 2).mean(), i) for i, g in ch.items() for j in range(len(g) // 3000))
+print(f"(b) {len(blocks)} blocks of 3,000, lowest five (share, chain)", [(round(float(v), 1), int(i)) for v, i in blocks[:5]])
+for r in json.load(open(E2 + "ia-convergence-rectangles.json"))["rectangles"]:
+    n = r["prefix_length"]
+    kept = [ch[i].s.to_numpy()[:n] for i in ch if len(ch[i]) >= n]
+    s2 = np.mean(np.concatenate(kept) == 2)
+    print(f"rectangle {len(kept)}x{n}: {100*s2:.2f}%, z {(s2 - p[2])/np.sqrt(s2*(1-s2)/CV.ess(ind(kept, 2))):+.2f}")
+
+print("\n== allegation 4: Monte Carlo error ==")
+def bm(series, b, ddof=0):
+    x = np.concatenate(series)
+    m = np.array([s[j*b:(j+1)*b].mean() for s in series for j in range(len(s) // b)])
+    return b * ((m - x.mean())**2).sum() / (len(m) - ddof) / x.var(), len(m)
+rows = [(g.s.to_numpy() == 2).astype(float) for g in ch.values() if len(g)]
+six = [(ch[i].s.to_numpy() == 2).astype(float) for i in RC]
+for lab, ser in (("all rows", rows), ("six chains full", six), ("rectangle", ind(S, 2))):
+    print(lab, "b=500/1000/3000:", [round(float(100*np.sqrt(p[2]*(1-p[2])*bm(ser, b)[0]/(6*N))), 2) for b in (500, 1000, 3000)])
+tau1, nb = bm(rows, 3000, ddof=1)
+se1 = np.sqrt(p[2]*(1-p[2])*tau1/(6*N))
+print(f"b=3000: {nb} batches, ddof-1 SE {100*se1:.2f}, 95% {100*se1*np.sqrt((nb-1)/stats.chi2.ppf(.975, nb-1)):.2f}-"
+      f"{100*se1*np.sqrt((nb-1)/stats.chi2.ppf(.025, nb-1)):.2f}; chain-spread SE {100*S.__eq__(2).mean(1).std(ddof=1)/np.sqrt(6):.2f}")
+se0 = np.sqrt(p[2]*(1-p[2])*bm(rows, 3000)[0]/(6*N))
+print(f"b=3000 ddof-0 SE {100*se0:.2f} (the plotter's), 95% {100*se0*np.sqrt((nb-1)/stats.chi2.ppf(.975, nb-1)):.2f}-"
+      f"{100*se0*np.sqrt((nb-1)/stats.chi2.ppf(.025, nb-1)):.2f}")
+def geyer(x):
+    n = len(x); xc = x - x.mean(); f = np.fft.rfft(xc, 2*n); a = np.fft.irfft(f*np.conj(f))[:n]; rho = a / a[0]
+    pr = [rho[t] + rho[t+1] for t in range(0, n - 1, 2)]
+    cut = next((k for k in range(1, len(pr)) if pr[k] <= 0), len(pr))
+    return -1 + 2 * np.minimum.accumulate(pr[:cut]).sum()
+print("single-chain tau, unsplit Geyer", [int(round(geyer((S[i] == 2).astype(float)))) for i in range(6)],
+      "split CV.ess", [round(h * 2 / CV.ess([(S[i, :h] == 2).astype(float), (S[i, -h:] == 2).astype(float)])) for i in range(6)])
+
+print("\n== allegation 5: deaths ==")
+died = [i for i, c in side.items() if not c["completed"] and c["n_rows"] > 1]
+k = sum(int(ch[i].s.iloc[-1] == 2) for i in died)
+for lab, q in (("all rows", (df.s == 2).mean()), ("rectangle", p[2]), ("half", 0.5),
+               ("dying chains' rows", np.mean(np.concatenate([ch[i].s for i in died]) == 2))):
+    print(f"{k}/{len(died)} vs {lab} {100*q:.2f}%: one-sided {stats.binomtest(k, len(died), q, alternative='greater').pvalue:.3f}, "
+          f"two-sided {stats.binomtest(k, len(died), q).pvalue:.3f}; with chain 9 (5/8) "
+          f"{stats.binomtest(k, len(died) + 1, q, alternative='greater').pvalue:.3f}")
+q0 = (df.s == 2).mean()
+print("power at HR 2/3/5:", [round(float((hr*q0/(hr*q0 + 1 - q0))**7), 3) for hr in (2, 3, 5)], "alpha", round(float(q0**7), 4),
+      "HR interval", [round(float((x/(1-x))/(q0/(1-q0))), 2) for x in stats.binomtest(k, 7).proportion_ci(0.95, "exact")])
+
+print("\n== allegation 6: the rule of record ==")
+eg = P.eg.to_numpy()
+ids = [tuple(r) for r in P[METRICS].itertuples(index=False)]
+print(f"all zero-seat draws as one tied value: mid-rank {((eg < eg[P.s == 0].min()).sum() + 0.5*(P.s == 0).sum())/len(eg):.4f}")
+kish = lambda items: len(items)**2 / (np.array(list(Counter(items).values()), float)**2).sum()
+print(f"Kish ESS: values {kish(list(eg)):.1f}, metric tuples {kish(ids):.1f}; largest value multiplicities "
+      f"{[(n, int(np.bincount(P.s[eg == v]).argmax())) for v, n in Counter(eg).most_common(3)]}")
+for v in sorted(set(eg[P.s == 0])) + [rep["partisan"]["efficiency_gap"]]:
+    for lab, pid in (("no ids", None), ("tuple ids", ids)):
+        locs = O.locate(None, {"efficiency_gap": list(eg)}, {"efficiency_gap": float(v)},
+                        metrics=["efficiency_gap"], ensemble_plan_ids=pid)
+        d = C.flag(locs, bench.RULE)
+        print(f"  {(v - L[0])*T:.1f} votes [{lab}]: mid-rank {locs['efficiency_gap'].percentile:.4f}, "
+              f"ESS {locs['efficiency_gap'].ess:.1f}, flagged={d.flagged}")
+
+print("\n== allegation 7 and item 3 ==")
+print("zero-seat draws in first 500 by chain", {i: int((R[i].s.iloc[:500] == 0).sum()) for i in RC},
+      "| first-500 vs rest %", {i: (round(float(100*(R[i].s.iloc[:500] == 0).mean()), 2), round(float(100*(R[i].s.iloc[500:] == 0).mean()), 2)) for i in RC})
+no6 = [R[i].s.to_numpy() for i in RC if i != 6]
+print(f"without chain 6: {100*np.mean(np.concatenate(no6) == 0):.2f}% -> {100*np.mean(np.concatenate([x[500:] for x in no6]) == 0):.2f}% after 500")
+allc = [g.s.to_numpy() for g in ch.values() if len(g)]
+w = [(x[j*260:(j+1)*260] == 2).mean() for x in allc for j in range(len(x) // 260)]
+st = [(x[:260] == 2).mean() for x in allc if len(x) >= 260]
+sub = [np.mean(c) for c in itertools.combinations(st, 7)]
+print(f"7x260 SE: windows {100*np.std(w, ddof=1)/np.sqrt(7):.2f}, starts {100*np.std(st, ddof=1)/np.sqrt(7):.2f}, "
+      f"asymptotic {100*np.sqrt(p[2]*(1-p[2])*(6*N/ess[2])/1820):.2f}; starts mean {100*np.mean(st):.1f}%, 7-of-8 "
+      f"{100*min(sub):.1f}-{100*max(sub):.1f}%")
+tau2 = 6 * N / ess[2]; rho = (tau2 - 1) / (tau2 + 1)
+fin = np.sqrt(p[2]*(1-p[2])*((1+rho)/(1-rho) - 2*rho*(1-rho**260)/(260*(1-rho)**2))/1820)
+old = [np.std(w, ddof=1)/np.sqrt(7), np.std(st, ddof=1)/np.sqrt(7), np.sqrt(p[2]*(1-p[2])*tau2/1820)]
+zs = [(p[2] - 782/1820)/np.hypot(new, o) for new in (np.sqrt(p[2]*(1-p[2])/ess[2]), 0.039) for o in old]
+print(f"finite-length SE {100*fin:.2f}; z vs 43%: {min(zs):.2f}-{max(zs):.2f}; start bias {100*(np.mean(st)-p[2]):.1f} pts, "
+      f"RMSE {100*np.hypot(np.mean(st)-p[2], old[1]):.1f}; 43% +/- 1.96 x {100*old[2]:.2f} = {43-196*old[2]:.1f}-{43+196*old[2]:.1f}%")
+```
+
+---
+
+## Author's response to the second audit
+
+The refuter refuted no allegation outright, so each is answered by a change, in
+the commit that follows `afab97e`. Numbers the answers quote are printed by
+`tools/plot_seat_distribution.py` and pinned by `tests/test_seat_distribution.py`,
+except where they come from the reports above.
+
+| # | Allegation | Refuter | What changed |
+| --- | --- | --- | --- |
+| 1 | The compactness contrast is quoted as robust, but rests on one excursion and on the 500-draw warm-up, with no interval | Partly upheld; minor | `docs/progress.md` gives the excursion (89 of the 151 zero-seat draws at 51 or more cut edges are chain 6's), how "every chain" depends on the warm-up, the chain-level intervals (−0.7 to +5.7 points on the full rectangle, +0.3 to +2.3 after 500), the surviving ratio of about 1.5 to 2.2, and the direction's sturdier support (no zero-seat draw at 40–42 cut edges; the chain-stratified ratio equals the crude one). The README and the figure's note no longer quote the magnitudes or "in every chain"; they state the direction only. |
+| 2 | Compactness is presented as a second like-for-like failure, though conditioning on it would absorb a partisan effect | Partly upheld; material for D-041 | D-041 records the argument: population equality is the first of Iowa's ordered criteria and the draws fall short of the enacted plan on it; compactness is the fourth, the draws exceed the enacted plan on it, and conditioning on it would raise the reference's zero-seat share however the plan was drawn. The README and `docs/progress.md` call compactness context, not a second adjustment. The part not upheld, that the gap is "largely downstream" of population, is written as "part of the gap may follow from the population gap, by an amount these draws cannot measure". The plotter prints the population-tight draws' cut edges against the rest's. |
+| 3 | "What the chains do show is drift" rests on numbers within noise | Upheld | The README's evidence for slow mixing is now chain by chain: the two chains that started at 1 seat put a third of their first halves at 2, and the two chains that completed disagree, 33.2% against 51.6%, each with its probability from these reports. The half split and the rectangles are described as within Monte Carlo noise. |
+| 4 | How the Monte Carlo error is presented | Partly upheld | (a) The alt text says the ±6-point whiskers are one estimate and others run higher. (b) The README says "3 to 4 points or more", and that 3 to 4 "may understate" the error. (c) The footer now adds, computed from the effective sample, that 24 effective draws per split chain is below the 50 Vehtari et al. (2021) ask for before relying on R-hat. |
+| 5 | The chain-death test cannot tell, and the text does not say so | Partly upheld | `docs/progress.md` gives the p-value as one-sided for a direction chosen after looking, adds the exact 95% interval on the hazard ratio (0.43 to 28), and says "after more than one draw". |
+| 6 | The flag-rule calls hold only when the rule is given plan ids | Partly upheld | `docs/progress.md` says the calls hold "given plan identities, as the bench supplies them", and that a reader of the committed draws, which carry none, gets no decision. |
+| 7 | "Because zero-seat plans come early" generalizes one chain | Upheld | `docs/progress.md` says the shift is chain 6's early excursion (89 of the 112 zero-seat draws in the six chains' first 500), and that without chain 6 the share rises from 1.23% to 1.27%. The plotter prints each chain's draws by seats in its first 500, and the test pins the zero-seat counts. |
+| — | The auditor's "single-chain τ ranges from 31 to 437" | Not reproduced | No text uses it. |
+| — | The auditor's reading of Vehtari et al.'s 400 | Half right | The `Research Synthesist`, checking the sentence against the paper separately, found its purpose clause overstated. `docs/progress.md` now says the two thresholds are what the paper recommends for reliable R-hat and ESS estimates. |
+
+The `Research Synthesist` also found that `src/generate/convergence.py`'s rank
+normalization divides by `S − 1/4` where the paper's Eq. 14 has `S + 1/4`.
+Patched in memory, the correction moves none of the diagnostics this section
+quotes at the precision quoted. `docs/progress.md` records it as an open defect,
+for its own change under `src/generate/`'s review.
