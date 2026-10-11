@@ -2419,8 +2419,7 @@ reading depends on two checks rather than on which level is nearest:
   none of is always read as 0 unless one of its districts is exactly tied, so
   short of a tie a misreading could only add to the count. The 0-seat count is
   therefore a reading too, but a harder one to get wrong than the 1-versus-2
-  split below, and only a recount of the draws read as 0, which are spread over
-  all six chains, would verify it.
+  split below, and only a count could verify it. The next section reports one.
 - **Every other draw keeps a margin.** The plotter refuses the whole sample if
   any draw sits more than half of the half-gap from its level. The largest
   residual is 0.0143, about a third of the 0.0413 half-gap, and the residuals'
@@ -2442,6 +2441,31 @@ turnout, and Colorado's plan sits far from Colorado's closest levels. The method
 cannot read Colorado's draws at all, and refuses them: its closest levels sit
 0.028 apart, and 9,857 of its 20,000 draws sit beyond the margin
 (`tests/test_seat_distribution.py`).
+
+## Every reading confirmed by count (D-043)
+
+The reading above has since been checked by counting. `tools/recount_seats.py`
+regenerated all 57,553 committed draws from their chains' seeds, and each
+reproduced its committed row: every integer column exactly, |efficiency gap| and
+|mean-median| exactly under both contests, and mean Polsby-Popper to within
+6×10⁻¹⁷. It then counted each draw's seats from the returns. The count agrees with
+the reading on every draw, under both contests:
+
+| draws | 0 seats | 1 | 2 | 3 |
+| --- | --- | --- | --- | --- |
+| rectangle, presidential vote | 395 | 13,516 | 13,653 | 0 |
+| rectangle, Senate vote | 270 | 11,410 | 15,876 | 8 |
+| all 57,553, presidential vote | 832 | 28,780 | 27,941 | 0 |
+| all 57,553, Senate vote | 389 | 23,408 | 33,742 | 14 |
+
+So every share and interval in this document rests on counted seats, and the
+ways a reading could go wrong, set out above, no longer bear on any number quoted
+here. The counts are committed as `docs/first-result/ia-seats-v2.csv.gz`, and the
+plotter refuses to draw if its reading and the count differ on any draw. The
+returns are VEST's Iowa file as Harvard Dataverse served it on 2026-10-11
+(dataset version 49, uploaded 2026-10-03). Every committed |efficiency gap|
+reproducing exactly shows that it gives the district totals the draws were
+measured with.
 
 ## The enacted plan's caveats, now with numbers
 

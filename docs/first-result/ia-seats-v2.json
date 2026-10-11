@@ -1,0 +1,80 @@
+{
+  "generated_by": "tools/recount_seats.py",
+  "draws": "docs/experiment-2/ia-draws-v2.csv.gz",
+  "draws_sha256": "bc77a174258bf9665fd93f28dce272e9f965a348df228fa806d2f8c4e5b1e2d1",
+  "config_digest": "9c12c12b71d67878",
+  "elections_sha256": "18d9cd34f7276d3a5e1e2a9c8de88989c8f9eb39d5297183fb48de70f7fb6058",
+  "contests": [
+    "G20PRE",
+    "G20USS"
+  ],
+  "n_rows": 57553,
+  "chains": [
+    {
+      "index": 0,
+      "seed": 4598121023295815364,
+      "n_rows": 12000
+    },
+    {
+      "index": 1,
+      "seed": 2886321513896777121,
+      "n_rows": 8133
+    },
+    {
+      "index": 2,
+      "seed": 4721323868467649745,
+      "n_rows": 6495
+    },
+    {
+      "index": 3,
+      "seed": 8578766234884288292,
+      "n_rows": 4282
+    },
+    {
+      "index": 5,
+      "seed": 5253085204740225123,
+      "n_rows": 4594
+    },
+    {
+      "index": 6,
+      "seed": 6021033162876088556,
+      "n_rows": 12000
+    },
+    {
+      "index": 8,
+      "seed": 1491668099493327661,
+      "n_rows": 1863
+    },
+    {
+      "index": 9,
+      "seed": 4674702755440810699,
+      "n_rows": 1
+    },
+    {
+      "index": 10,
+      "seed": 5344298679110264931,
+      "n_rows": 8136
+    },
+    {
+      "index": 11,
+      "seed": 3911660532335731725,
+      "n_rows": 49
+    }
+  ],
+  "integer_columns": [
+    "competitive_districts@G20PRE",
+    "competitive_districts@G20USS",
+    "county_splits",
+    "cut_edges",
+    "population_spread"
+  ],
+  "float_tolerance": 1e-12,
+  "largest_float_difference": {
+    "abs_efficiency_gap@G20PRE": 0.0,
+    "abs_efficiency_gap@G20USS": 0.0,
+    "abs_mean_median@G20PRE": 0.0,
+    "abs_mean_median@G20USS": 0.0,
+    "polsby_popper_mean": 5.551115123125783e-17
+  },
+  "tied_districts": 0
+}

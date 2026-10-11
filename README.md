@@ -13,15 +13,15 @@ map adoption.**
 
 ## First result
 
-![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats and from 0.4% to 2.5% at 0. Iowa's enacted plan is marked at 0 seats; the figure's note says its 0 turns on one district at 49.8% Democratic, that the comparison is not like-for-like because the draws are not held to the plan's 94-person population spread, and that it is not yet a finding. The footer says each draw's seats are read off the absolute value of its efficiency gap (D-039).](docs/figures/ia-neutral-seat-distribution.png)
+![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats and from 0.4% to 2.5% at 0. Iowa's enacted plan is marked at 0 seats; the figure's note says its 0 turns on one district at 49.8% Democratic, that the comparison is not like-for-like because the draws are not held to the plan's 94-person population spread, and that it is not yet a finding. The footer says each draw's seats are counted from the returns (D-043).](docs/figures/ia-neutral-seat-distribution.png)
 
 Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
 presidential vote, and 2 seats in about half of its draws** (49.5%, with a Monte
 Carlo standard error of 3 to 4 points or more; the six chains, separately seeded
-runs of the sampler, range from 41% to 58%). Each draw's seats are read off the
-size of its committed efficiency gap, not recounted from the election returns
-(D-039). Under the 2020 Senate vote the same draws reach 3 seats, though only in
+runs of the sampler, range from 41% to 58%). Each draw's seats are counted from
+the election returns, on its plan regenerated from the sampler's seed (D-043).
+Under the 2020 Senate vote the same draws reach 3 seats, though only in
 two plans early in one chain, so the top of the 0–2 range depends on the
 election. It is also the sampler's range, not the limit of what is possible: a
 3-seat plan meeting the same population and contiguity constraints exists under
@@ -186,7 +186,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 640 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 645 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -228,12 +228,12 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 786 passed, 5 skipped (derived; see below)
+PYTHONPATH=src pytest tests -q         # 791 passed, 5 skipped (derived; see below)
 python tools/check_firewall.py         # must print: clean
 ```
 
-The 786 is derived, not measured: this file recorded 719 with the data at
-v0.1.0; the 67 tests added since need neither the data nor the network; and no
+The 791 is derived, not measured: this file recorded 719 with the data at
+v0.1.0; the 72 tests added since need neither the data nor the network; and no
 code an earlier test runs has changed except docstrings.
 
 **Without the election returns you can still generate.** The neutral half needs
@@ -259,7 +259,15 @@ python tools/plot_experiment_2.py --ensemble v2   # -> docs/figures/exp2-*.png
 python tools/plot_experiment_3.py                # -> docs/figures/exp3-gameability.png
 python tools/plot_seat_distribution.py           # -> docs/figures/ia-neutral-seat-distribution.png
                                                  #    (no data needed)
+python tools/recount_seats.py                    # -> docs/first-result/ia-seats-v2.csv.gz
+                                                 #    (needs the Iowa data; ~25 min on 4 cores)
 ```
+
+The first result's seats are counts. `tools/recount_seats.py` regenerates every
+committed Iowa draw from its chain's seed, checks that it reproduces its committed
+row, and counts its seats from the returns (D-043). It writes only if every draw
+reproduces, and the plotter refuses to draw unless its own reading of each draw
+agrees with that count.
 
 One check reaches outside the repository. It needs the network, not the data:
 

@@ -25,9 +25,16 @@ tests, intervals and reweightings, were computed by the auditors' and refuters'
 own scripts, as their reports in ``docs/first-result/INSTRUMENT-AUDIT.md``
 describe.
 
-**Seats are read off the efficiency gap, not recounted** (D-039). The draws file
-records |efficiency gap| per contest, not seats, and a recount needs the election
-returns, which the repository cannot redistribute. With wasted votes counted
+**Seats are read off the efficiency gap, and the count confirms every reading**
+(D-039, D-043). The draws file records |efficiency gap| per contest, not seats.
+``tools/recount_seats.py`` has since regenerated every committed draw from its
+chain's seed, checked that it reproduces its committed row, and counted its seats
+from the returns, which the repository does not redistribute; the counts are
+committed as ``docs/first-result/ia-seats-v2.csv.gz``. :func:`seat_distribution`
+reads every draw's seats as below and refuses unless the reading agrees with the
+count on every draw under both contests, so the figure's bars are counts. The
+reading stays because it is how the draws file is read, and the count is how it
+is checked. With wasted votes counted
 against half of each district's votes the gap is exactly ``2V - 1/2 - tau``,
 where ``V`` is the statewide two-party Democratic share and ``tau`` the share of
 two-party votes cast in districts the Democrats win; ``tau`` is the seat share
@@ -43,19 +50,18 @@ nearness, that make the reading a measurement:
   win none (or all) of, with no exactly tied district, sits off its level only by
   the strict-majority threshold the committed gap uses: each district's winner
   wastes one vote fewer when its total is even and half a vote fewer when it is
-  odd. Over ``k`` districts that
-  is ``k - j/2`` votes, ``j`` the number of odd totals, and ``j`` has the parity
-  of the statewide total ``T``. While ``V`` lies between 1/4 and 3/4 the offset
-  puts a sweep above its level, never below. The grid is necessary, not
-  sufficient. With ``V`` below 1/2, as under both Iowa contests, a plan that is
-  not a sweep and has no exactly tied district never lands on the ``k``-seat
-  grid, and lands on the 0-seat one only if the districts the Democrats win cast
-  ``4V - 1`` of the two-party vote, to within a few votes: under Iowa's 2020
-  presidential vote, one of six totals, 1,379,512 to 1,379,517 of 1,656,733.
-  Any other such plan whose gap lands nearest the 0-seat level is refused. So the 0-seat count the enacted-plan
-  comparison rests on is a reading, though a harder one to get wrong than the
-  1-versus-2 split, and only a recount from the plans and the returns would
-  verify it.
+  odd. Over ``k`` districts that is ``k - j/2`` votes, ``j`` the number of odd
+  totals, and ``j`` has the parity of the statewide total ``T``. While ``V`` lies
+  between 1/4 and 3/4 the offset puts a sweep above its level, never below. The
+  grid is necessary, not sufficient. With ``V`` below 1/2, as under both Iowa
+  contests, a plan that is not a sweep and has no exactly tied district never
+  lands on the ``k``-seat grid, and lands on the 0-seat one only if the
+  districts the Democrats win cast ``4V - 1`` of the two-party vote, to within a
+  few votes: under Iowa's 2020 presidential vote, one of six totals, 1,379,512
+  to 1,379,517 of 1,656,733. Any other such plan whose gap lands nearest the
+  0-seat level is refused. So the 0-seat reading, like the others, rests on the
+  turnout assumption, though it is harder to get wrong than the 1-versus-2
+  split; the count is what verifies it.
 * **Every other draw needs a clear margin.** It must sit within half of the
   half-gap of its level, so the middle of every gap must be empty. A 1-seat plan
   is misread as 2 only if its one Democratic district casts over 31% of the
@@ -76,6 +82,8 @@ footer quotes that one too.
 from __future__ import annotations
 
 import argparse
+import csv
+import gzip
 import json
 import math
 import numbers
@@ -102,6 +110,10 @@ from generate import convergence as CV      # noqa: E402
 OUT = ROOT / "docs" / "figures" / "ia-neutral-seat-distribution.png"
 REPORT = ROOT / "docs" / "phase-2" / "phase-2-report.json"
 RECTANGLES = ROOT / "docs" / "experiment-2" / "ia-convergence-rectangles.json"
+#: Every committed draw's Democratic seats under both contests, counted from the
+#: returns on its regenerated plan by tools/recount_seats.py (D-043). The reading
+#: below must agree with it on every draw, or nothing is drawn.
+RECOUNT = ROOT / "docs" / "first-result" / "ia-seats-v2.csv.gz"
 
 STATE, ENSEMBLE = "IA", "v2"
 #: The ensemble the v2 chains extend: same seeds, so its draws are their prefix.
@@ -397,6 +409,46 @@ def cut_edge_counts(rows: list[dict], seats: list[int], s: int) -> dict:
     return {e: (draws[e], at[e], len(distinct[e])) for e in sorted(draws)}
 
 
+def counted_seats(path: Path) -> dict[tuple[int, str], list[int]]:
+    """Each chain's counted seats by contest, from the committed recount (D-043)."""
+    counted: dict[tuple[int, str], list[int]] = {}
+    with gzip.open(path, "rt", newline="") as handle:
+        for record in csv.DictReader(handle):
+            index, draw = int(record["chain_index"]), int(record["draw"])
+            for contest in (CONTEST, ALTERNATE):
+                seats = counted.setdefault((index, contest), [])
+                if draw != len(seats):
+                    raise ValueError(f"{path.name}: chain {index} has draw {draw} "
+                                     f"where draw {len(seats)} belongs")
+                seats.append(int(record[f"dem_seats@{contest}"]))
+    return counted
+
+
+def check_against_count(read: dict[tuple[int, str], list[int]],
+                        counted: dict[tuple[int, str], list[int]]) -> int:
+    """How many draws the count confirms the reading of, under each contest.
+
+    Raises ValueError unless the two cover the same chains, draws and contests
+    and agree on every draw: one disagreement means the reading is wrong, and so
+    is every share built on it.
+    """
+    if set(read) != set(counted):
+        raise ValueError(f"the recount covers {sorted(counted)}, the reading "
+                         f"{sorted(read)}: they describe different draws")
+    for (index, contest), seats in sorted(read.items()):
+        count = counted[(index, contest)]
+        if len(seats) != len(count):
+            raise ValueError(f"chain {index} has {len(seats)} draws read and "
+                             f"{len(count)} counted under {contest}")
+        for draw, (a, b) in enumerate(zip(seats, count)):
+            if a != b:
+                raise ValueError(
+                    f"chain {index} draw {draw} reads as {a} D seats off its "
+                    f"|efficiency gap| under {contest}, and counts {b} from the "
+                    "returns (D-043): the reading is wrong.")
+    return sum(len(seats) for (_, contest), seats in read.items() if contest == CONTEST)
+
+
 def seat_distribution() -> dict:
     """The seat distribution under both contests, every value from committed files."""
     report = json.loads(REPORT.read_text())[STATE]
@@ -427,6 +479,22 @@ def seat_distribution() -> dict:
 
     primary = contest_distribution(chains, CONTEST, k, all_rows)
     alternate = contest_distribution(chains, ALTERNATE, k)
+
+    # Every committed draw's reading, under both contests, against its count.
+    alt_dem, alt_rep = TWO_PARTY[ALTERNATE]
+    alt_levels = seat_levels(alt_dem / (alt_dem + alt_rep), k)
+    read = {}
+    for i, rows_, seats_ in zip(every_index, all_rows, primary["all_seats"]):
+        if rows_:
+            read[(i, CONTEST)] = seats_
+            read[(i, ALTERNATE)] = recover_seats(
+                [row[f"abs_efficiency_gap@{ALTERNATE}"] for row in rows_],
+                alt_levels, alt_dem + alt_rep)[0]
+    n_counted = check_against_count(read, counted_seats(RECOUNT))
+    counted_totals = {contest: {} for contest in (CONTEST, ALTERNATE)}
+    for (_, contest), seats_ in read.items():
+        for x in seats_:
+            counted_totals[contest][x] = counted_totals[contest].get(x, 0) + 1
 
     enacted = partisan["dem_seats"]
     if not primary["counts"].get(enacted):
@@ -564,6 +632,8 @@ def seat_distribution() -> dict:
         "n_chains_stopped_early": sum(1 for n in lengths if 0 < n < rectangle),
         "n_draws": len(rows),
         "n_rows_committed": sum(lengths),
+        "n_rows_counted": n_counted,
+        "counted_totals": {c: dict(sorted(t.items())) for c, t in counted_totals.items()},
         "distinct_metric_rows": len({tuple(sorted(row.items())) for row in rows}),
         "distinct_metric_rows_committed": len({tuple(sorted(row.items()))
                                                for rows_ in all_rows for row in rows_}),
@@ -679,8 +749,9 @@ def figure_text(d: dict) -> dict:
     footer = textwrap.wrap(
         f"Range in these draws: {min(span)}–{max(span)} D seats of {k}"
         + (f"; none reached {' or '.join(map(str, missing))}." if missing else ".") + reach
-        + " Seats are read off each draw's |efficiency gap| (D-039). Dots: each chain's "
-        "share. Whiskers and ±: 2 Monte Carlo standard errors of the pooled share, from "
+        + f" Seats are counted from the returns on all {d['n_rows_counted']:,} committed "
+        "draws (D-043). Dots: each chain's share. Whiskers and ±: 2 Monte Carlo standard "
+        "errors of the pooled share, from "
         f"its effective sample size{block}. Seat count split R-hat {rhat:.3f}, {where} "
         f"CRITERIA §8's {RHAT_BAND[0]:.2f}–{RHAT_BAND[1]:.2f} band"
         + ("; " + ", and ".join(caution) if caution else "")
@@ -871,6 +942,10 @@ def summary_lines(d: dict) -> list[str]:
         f"in all {d['n_rows_committed']:,} committed rows)",
         f"draws repeating the draw before them: {d['repeats']:,} of {d['n_draws']:,} "
         f"({100 * d['repeats'] / d['n_draws']:.1f}%)",
+        f"seats read off |efficiency gap| agree with the count from the returns on all "
+        f"{d['n_rows_counted']:,} committed draws, under both contests (D-043): "
+        + "; ".join(f"{contest} " + ", ".join(f"{s} D {n:,}" for s, n in t.items())
+                    for contest, t in d["counted_totals"].items()),
         "each rectangle chain's first rows against v1's draws from the same seed: "
         + ", ".join(f"chain {i} {same:,} of {n:,} identical"
                     for i, (same, n) in d["earlier_prefix"].items()),

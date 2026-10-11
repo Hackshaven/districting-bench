@@ -1171,6 +1171,10 @@ half-gap, so the plotter refuses Colorado (`tests/test_seat_distribution.py`
 pins both counts). Nothing uses the method there. Storing the signed gap, or
 the seat count, in the next measurement would remove the need for any of this.
 
+*Since:* D-043 counts every committed draw's seats from the returns, on plans
+regenerated from their seeds, and the reading agrees on all 57,553 under both
+contests.
+
 *Earlier entries:* D-012 and D-013 quote the 1,820-draw shares (2 seats at
 43.0%). Their conclusions rest on the 0–2 span, which stands under the
 presidential vote. The shares themselves are superseded by the ones recorded
@@ -1335,3 +1339,76 @@ reviews after it added the third case, showed that none of the reweightings is a
 matched reference, and brought in §42.4(4). Earlier versions also called matching
 on population equality matching "on a constraint", which read the enacted plan's
 94-person spread as a legal requirement.
+
+## D-042 — An entry not yet merged is corrected in place, with a note
+
+**Date:** 2026-10-11 · **Phase:** post-release · **Owner's decision**
+
+The decision log's rule is that entries aren't rewritten, and a reversal is a new
+entry. D-039 and D-041 were written in the change that became pull request #7,
+and review corrected both before it merged. Each was corrected in place, under a
+"*Corrected in review:*" note that says what the earlier version claimed and what
+showed it wrong.
+
+*Chosen, by the owner on pull request #7:* that is the rule for an entry that has
+not merged. Until then the entry is a draft. Correcting it in place keeps the log
+to the decisions that were in force, and the note keeps each correction visible.
+Once an entry is on `main` it is not rewritten, and a reversal is a new entry, as
+before.
+
+*Alternative:* a new entry for every correction made before merge. Rejected: a
+reader of `main` would meet entries that were superseded before anyone could act
+on them, with the one in force at the end.
+
+*Also chosen:* pull request #7 merges with a merge commit, not a squash. The audit
+records in `docs/first-result/` and `docs/cross-checks/` cite the branch's commits
+by hash, and a squash would leave those hashes resolving to nothing on `main`.
+
+## D-043 — Every committed Iowa draw's seats are counted from the returns, and the reading agrees
+
+**Date:** 2026-10-11 · **Phase:** post-release · **Owner's decision** (to verify the count)
+
+D-039 reads each draw's Democratic seats off its committed |efficiency gap|,
+because the draws file holds metrics, not plans. Its fourth audit showed that the
+reading is hard to get wrong but cannot verify itself, and the owner chose to
+verify it.
+
+*Chosen:* count every committed draw. `tools/recount_seats.py` regenerates each
+committed chain from its seed, as `tools/experiment_2_tradeoffs.py` drew it, and
+measures every draw with that script's own `measure_plan`. All 57,553 committed
+draws reproduce their committed rows: cut edges, population spread, county
+splits and competitive districts exactly; |efficiency gap| and |mean-median|
+exactly, under both contests; and mean Polsby-Popper to within 6×10⁻¹⁷, the
+geometry library's rounding. Each draw's seats are then counted from the returns,
+and the counts are committed as `docs/first-result/ia-seats-v2.csv.gz`, with a
+sidecar recording what was read. No tied district occurs. The plotter checks its
+reading against the count on every draw, under both contests, and refuses on any
+difference. There is none, so the figure's bars are counts, and no number the
+repository has published moves.
+
+These are the same draws, counted, not new ones: each regenerated draw reproduces
+its committed row, so this is not the re-run D-036 names a new experiment.
+
+*The returns:* VEST's Iowa file, `ia_2020.zip`, as Harvard Dataverse served it on
+2026-10-11. That is dataset version 49, with the file uploaded on 2026-10-03 and
+MD5 `500252facae6107b93128406ebf5177b`. The owner accepted its stated terms, CC BY
+4.0 with a no-warranty disclaimer, for this use; nothing from it is committed but
+seat counts. The file postdates the draws, and the repository never recorded which
+version they were measured with. Every |efficiency gap| and |mean-median| on every
+plan the chains visit reproducing exactly shows that it gives the district totals
+the draws were measured with.
+
+*Alternatives:*
+- **Recount only the 395 draws read as 0 seats.** That still means regenerating
+  20,127 draws. Rejected: for 37% more, every draw is counted, and the 1-versus-2
+  split, which a reading could get wrong without complaint, is settled too.
+- **Keep the reading, and say on the figure that it is one.** Rejected by the
+  owner.
+- **Add a seats column to the draws file.** Rejected for D-039's reason: that file
+  is the record of the measurement that was made (D-027). The counts sit beside
+  it.
+
+*Limits:* the recount needs the data and about 25 minutes on four cores, so CI
+cannot run it; it checks the committed counts instead. `docs/CRITERIA.md` §9.1
+says VEST declares no licence, and the dataset now states CC BY 4.0. Amending §9.1
+is the owner's.

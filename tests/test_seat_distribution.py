@@ -20,6 +20,8 @@ No data guard: every file read here is committed.
 from __future__ import annotations
 
 import copy
+import csv
+import gzip
 import itertools
 import json
 import sys
@@ -351,6 +353,48 @@ def test_colorado_draws_are_refused():
             sum(r > S.MARGIN * half_gap for r in off)) == (20_000, 125, 9_857)
 
 
+def test_the_count_confirms_every_reading_and_a_contradiction_refuses(
+        dist, tmp_path, monkeypatch):
+    # tools/recount_seats.py regenerated every committed draw and counted its
+    # seats from the returns (D-043). seat_distribution checks its reading
+    # against that count on every draw under both contests, so the bars are
+    # counts. Each way the two could part must refuse.
+    assert dist["n_rows_counted"] == dist["n_rows_committed"] == 57_553
+    counted = S.counted_seats(S.RECOUNT)
+    assert sum(map(len, counted.values())) == 2 * 57_553
+    # docs/progress.md quotes the counts over every committed draw
+    totals = {c: {} for c in (S.CONTEST, S.ALTERNATE)}
+    for (_, contest), seats in counted.items():
+        for x in seats:
+            totals[contest][x] = totals[contest].get(x, 0) + 1
+    assert totals == {"G20PRE": {0: 832, 1: 28_780, 2: 27_941},
+                      "G20USS": {0: 389, 1: 23_408, 2: 33_742, 3: 14}}
+    read = {key: list(seats) for key, seats in counted.items()}
+    assert S.check_against_count(read, counted) == 57_553
+    read[(0, "G20USS")][7] += 1
+    with pytest.raises(ValueError, match="chain 0 draw 7 reads as .* under G20USS"):
+        S.check_against_count(read, counted)
+    del read[(0, "G20USS")]
+    with pytest.raises(ValueError, match="different draws"):
+        S.check_against_count(read, counted)
+    with gzip.open(S.RECOUNT, "rt", newline="") as handle:
+        header, *rows = list(csv.reader(handle))
+
+    def recount(rows_):
+        path = tmp_path / f"recount-{len(list(tmp_path.iterdir()))}.csv.gz"
+        with gzip.open(path, "wt", newline="") as handle:
+            csv.writer(handle).writerows([header, *rows_])
+        return path
+    with pytest.raises(ValueError, match="where draw 1 belongs"):
+        S.counted_seats(recount([rows[0], rows[2], rows[1], *rows[3:]]))
+    # and end to end: one count changed, and the figure is not drawn
+    changed = [list(r) for r in rows]
+    changed[123][2] = str(int(changed[123][2]) + 1)
+    monkeypatch.setattr(S, "RECOUNT", recount(changed))
+    with pytest.raises(ValueError, match="chain 0 draw 123 reads as .* under G20PRE"):
+        S.seat_distribution()
+
+
 def test_a_draw_past_the_margin_refuses_the_whole_sample(levels):
     # 0.7 of the half-gap is still nearer the 2-seat level than the 1-seat one,
     # so nearness alone would read it as 2 seats. That is the case the margin
@@ -433,7 +477,9 @@ def test_the_figure_text_is_pinned(dist):
                    "2020 Senate vote, 8 draws reach 3: 2 distinct plans, all in "
                    "one chain's first 500 draws",
                    "2-seat share's standard error at 3.3–3.9 pts",
-                   "R-hat 1.014, above CRITERIA §8's 1.00–1.01 band"):
+                   "R-hat 1.014, above CRITERIA §8's 1.00–1.01 band",
+                   "Seats are counted from the returns on all 57,553 committed "
+                   "draws (D-043)"):
         assert phrase in footer
     assert all(len(line) <= S.FOOTER_WIDTH for line in text["footer"])
 
