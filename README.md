@@ -13,7 +13,7 @@ map adoption.**
 
 ## First result
 
-![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws, 1 seat in 49.0% and 2 seats in 49.5%, each with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats; the figure's note gives the reason that comparison is not like-for-like, with compactness as context, and calls it not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
+![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats. Iowa's enacted plan is marked at 0 seats; the figure's note gives the reason that comparison is not like-for-like and calls it not yet a finding.](docs/figures/ia-neutral-seat-distribution.png)
 
 Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
@@ -53,12 +53,17 @@ Iowa's enacted plan returns 0 D seats, as 1.4% of these draws do (0.4–2.5% acr
 the six chains), and its 0 turns on one district at 49.8% Democratic. That
 comparison is **not yet a finding**, because it is not like-for-like: the draws
 are not held to the 94-person population equality the enacted plan meets, and only
-454 of the 27,564 are that equal. The enacted plan is also less compact than 88%
-of the draws, and 0 seats is commoner among less compact ones. But compactness is
-an outcome of where the lines go, and the draws already exceed the enacted plan's
-level of it, where they fall short on population; adjusting for it would raise the
-reference's 0-seat share however the plan was drawn. So it is context for the
-comparison, not a second adjustment to make (D-041). See `docs/progress.md`.
+454 of the 27,564 are that equal. How its compactness compares depends on the
+measure, and the draws carry two: 88% of them have fewer cut edges than its 51
+(77–92% across chains), but on mean Polsby-Popper it sits mid-ensemble, with 49% of
+them more compact (36–60%). Pooled, 0 seats is commoner among the draws no more
+compact than it on either measure, more so on cut edges (4.5% against 1.0%) than on
+Polsby-Popper (2.0% against 0.8%). Whether to match the comparison on compactness,
+and on which measure, is open. If the plan's shape follows from how it was drawn,
+matching would absorb part of what the comparison tests; if it follows from
+constraints the draws do not meet, matching would move the reference toward a
+matched one, by an amount and in a direction these draws cannot fix. That choice is
+the owner's (D-041). See `docs/progress.md`.
 
 ---
 
@@ -160,7 +165,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 636 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 638 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -202,12 +207,12 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 782 passed, 5 skipped (derived; see below)
+PYTHONPATH=src pytest tests -q         # 784 passed, 5 skipped (derived; see below)
 python tools/check_firewall.py         # must print: clean
 ```
 
-The 782 is derived, not measured: this file recorded 719 with the data at
-v0.1.0; the 63 tests added since need neither the data nor the network; and no
+The 784 is derived, not measured: this file recorded 719 with the data at
+v0.1.0; the 65 tests added since need neither the data nor the network; and no
 code an earlier test runs has changed except docstrings.
 
 **Without the election returns you can still generate.** The neutral half needs

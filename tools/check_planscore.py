@@ -14,16 +14,19 @@ Every difference found is a definition, not an error, and each one is checked
 by reproducing PlanScore's number from this repository's:
 
 * **Efficiency gap: two formulas, not two signs.** PlanScore's code computes,
-  and its files publish, ``(S - 1/2) - 2(V - 1/2)`` -- seat share and statewide
-  vote share only, the equal-turnout form -- positive for the Democrats
-  (``calculate_EG``), although its metric page describes the wasted-vote form.
-  ``evaluate.partisan`` counts wasted votes district by district, as
-  CRITERIA.md section 5.1 defines the metric, positive for the Republicans. In
-  PlanScore's orientation the two differ by ``tau - S``, the share of votes
-  cast in districts the Democrats won less the share of seats they won, plus a
-  strict-majority threshold term of at most ``k/T``. So they agree whenever
-  ``tau = S``: at equal turnout, and in any one-party sweep, whatever the
-  turnout. PlanScore publishes no wasted-vote gap, so :func:`compare_race`
+  and its files publish, ``(S - 1/2) - 2(V - 1/2)`` -- the equal-turnout form,
+  from the seat share and the statewide vote share, once any statewide share
+  outside ``PLANSCORE_CLAMP`` has been swung into it -- positive for the
+  Democrats (``calculate_EG``), although its metric page describes the
+  wasted-vote form. ``evaluate.partisan`` counts wasted votes district by
+  district, as CRITERIA.md section 5.1 defines the metric, positive for the
+  Republicans. Inside that band, where every race compared lies and outside
+  which :func:`equal_turnout_gap` refuses, the two differ in PlanScore's
+  orientation by ``tau - S``, the share of votes cast in districts the
+  Democrats won less the share of seats they won, plus a strict-majority
+  threshold term of at most ``k/T``. So there they agree whenever ``tau = S``:
+  at equal turnout, and in any one-party sweep, whatever the turnout.
+  PlanScore publishes no wasted-vote gap, so :func:`compare_race`
   checks that count two other ways: against the identity, with ``tau``
   computed from the district totals, and against GerryChain's own
   ``wasted_votes`` (:func:`gerrychain_gap`). A defect in the wasted-vote count

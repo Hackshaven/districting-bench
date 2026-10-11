@@ -1168,10 +1168,14 @@ agree up to sign and scale, and the efficiency gap does not. PlanScore's code
 computes, and its files publish, the equal-turnout form `(S − ½) − 2(V − ½)`,
 while `evaluate.partisan` counts wasted votes (`docs/progress.md`, "Cross-check
 against PlanScore"). PlanScore's own metric page, which `CRITERIA.md` cites,
-describes the wasted-vote form, as `CRITERIA.md` §5.1 does; PlanScore's code
-counted wasted votes until August 2021 (the audit in
-`docs/cross-checks/INSTRUMENT-AUDIT.md`). In PlanScore's orientation the two
-differ by `τ − S`, plus a strict-majority term of at most `k/T`, so they agree
+describes the wasted-vote form, as `CRITERIA.md` §5.1 does. PlanScore's code
+counted wasted votes until August 2021, when commit 24331854 changed it "to use
+vote share instead of raw counts"; the per-race values compared here arrived after
+that (19927c3e, September 2021), so PlanScore has never published them in the
+wasted-vote form, though its plan page still describes them in wasted-vote words.
+PlanScore first swings any statewide vote share outside 25–75% into that band.
+Inside it, where all eight races compared lie, the two differ in PlanScore's
+orientation by `τ − S`, plus a strict-majority term of at most `k/T`, so they agree
 whenever `τ = S`, which includes equal turnout and any one-party sweep.
 
 *Chosen:* keep the wasted-vote form, correct the docstring that called the two
@@ -1216,40 +1220,54 @@ The README locates Iowa's enacted plan in the v2 ensemble's seat distribution: i
 returns 0 seats, as 1.43% of the draws do (`docs/progress.md`, "The enacted plan's
 caveats, now with numbers"). The comparison is not like-for-like: the draws are
 not held to the enacted plan's 94-person population spread, and only 454 of the
-27,564 are that equal. The draws are also more compact than the enacted plan, 88%
-of them with fewer cut edges than its 51, and 0 seats is commoner among the less
-compact draws.
+27,564 are that equal. How its compactness compares depends on the measure: 88% of
+the draws have fewer cut edges than its 51, but on mean Polsby-Popper, the other
+measure the draws carry, it sits mid-ensemble, with 48.7% of them more compact. The
+two measures order the draws with a rank correlation of 0.76, below the ~0.9 at
+which `CRITERIA.md` §3 lets the choice of measure go unstated. Pooled, 0 seats is
+commoner among the draws no more compact than the plan on either measure, more so
+on cut edges.
 
 *Chosen:* report the unconditioned share, with the population mismatch as the
-reason the comparison is not yet a finding and compactness as context, and leave
-any conditioning to the owner.
+reason the comparison is not yet a finding; report compactness on both measures
+beside it, in the README and `docs/progress.md` but not on the figure, which has no
+room for both and their disagreement; and leave any conditioning to the owner.
 
 *Why the two are not treated alike:* population equality is the first of Iowa's
 ordered criteria (`CRITERIA.md` §2.1), and the draws do not meet the enacted
 plan's level of it, so matching the reference to it matches on a constraint.
-Compactness is the fourth, and the draws already exceed the enacted plan's level
-of it: how uncompact the plan is was a choice, another outcome of where its lines
-go. In this ensemble less compact plans are where zero-seat outcomes lie, so
-conditioning the reference on the enacted plan's compactness would raise the
-reference's zero-seat share whether or not the plan was drawn for that outcome
-(the second audit in `docs/first-result/INSTRUMENT-AUDIT.md`). Part of the
-compactness gap may follow from the population gap, by an amount these draws
-cannot measure: the 454 population-tight draws average 48.1 cut edges against
-45.5 for the rest, but across the draws population spread and cut edges are barely
-associated.
+Compactness is the fourth, and whether to match on it cannot be settled from these
+draws. If the plan's shape follows from how it was drawn, conditioning the
+reference on it absorbs part of what the comparison tests (the second audit in
+`docs/first-result/INSTRUMENT-AUDIT.md`). If it follows from constraints the draws
+do not meet, conditioning moves the reference toward a matched one, by an amount
+and in a direction these draws cannot fix: candidate matched references give
+zero-seat shares from 0.44% to 2.4%, against 4.5% among the draws at or above the
+plan's own cut-edge count (the third audit there). Which measure to match on is a
+further choice, since the draws are more compact than the plan on cut edges and
+not on Polsby-Popper. Part of the cut-edge gap may follow from the population gap,
+by an amount these draws cannot measure: the 454 population-tight draws average
+48.1 cut edges against 45.5 for the rest, but across the draws population spread
+and cut edges are barely associated, and too few of the 454 give 0 seats to show
+whether compactness matters among them.
 
 *Alternatives:*
 - **Filter the ensemble to draws as equal as the enacted plan.** Not done. A
   filter shows what goes with more equality inside this ensemble, not what a
   sampler drawing at that tolerance produces (Experiment 1 §3), and the 454
   population-tight draws hold one zero-seat plan.
-- **Filter or constrain the ensemble on compactness.** Not done, for the reason
-  above; the zero-seat share among the less compact draws also halves once each
-  chain's warm-up is dropped.
+- **Filter or constrain the ensemble on compactness.** Not done, for the reasons
+  above; on cut edges the zero-seat share among the draws no more compact than the
+  plan also halves once each chain's warm-up is dropped.
 - **Re-sample at the enacted plan's tolerance.** The matched comparison, and a new
   experiment with its own name (D-036). Its plans would be less compact on their
   own.
 
 *Why this is the owner's:* which features of an enacted plan a neutral ensemble
-must match before a comparison with it counts is a judgment `docs/CRITERIA.md`
-does not settle.
+must match before a comparison with it counts, and on which compactness measure,
+is a judgment `docs/CRITERIA.md` does not settle.
+
+*Corrected in review:* the first version of this entry gave compactness on cut
+edges alone, said the draws already exceed the enacted plan's level of it, and
+argued only the first of the two cases above. The third audit in
+`docs/first-result/INSTRUMENT-AUDIT.md` records the correction.

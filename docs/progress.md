@@ -2298,13 +2298,14 @@ it cannot tell that apart from a sampler that has not converged.
 
 **An open defect in the diagnostic, which leaves these numbers unchanged.** The
 rank normalization in `src/generate/convergence.py` maps rank `r` of `S` draws to
-`(r − 3/8)/(S − 1/4)`, where Vehtari et al. (2021, Eq. 14) have `S + 1/4`; it
-stretches only the top tail. Patching the function in memory, once, in scratch,
-moves none of the diagnostics quoted here at the precision quoted: the Senate seat
-count's ESS goes from 262.94 to 262.92, and nothing else moves at the precision
-the plotter prints. It may move diagnostics on continuous quantities elsewhere.
-Fixing it is a change to `src/generate/` with its own review, and is not made
-here.
+`(r − 3/8)/(S − 1/4)`, where Vehtari et al. (2021) have `S + 1/4` (eq. 4.1 as
+corrected on 22 June 2021, and eq. 14 in arXiv v4–v5; earlier printings had the
+code's `S − 1/4`); it stretches only the top tail. Patching the function in
+memory, once, in scratch, moves none of the diagnostics quoted here at the
+precision quoted: the Senate seat count's ESS goes from 262.94 to 262.92, and
+nothing else moves at the precision the plotter prints. It may move diagnostics
+on continuous quantities elsewhere. Fixing it is a change to `src/generate/` with
+its own review, and is not made here.
 
 **At its top, the span depends on the election, and on the sampler.** Under the
 presidential vote no draw gives Democrats 3 or more seats, in the rectangle or
@@ -2439,40 +2440,65 @@ Restricting the ensemble to those 454 draws would not be the matched comparison
 anyway. Filtering a tight ensemble measures what more equality costs within it,
 not what drawing at that tolerance produces (Experiment 1 §3).
 
-**Compactness is context for the comparison, not a second mismatch.** The draws
-are more compact than the enacted plan: it has 51 cut edges, and 88% of the
-draws have fewer. Both counts come from `evaluate.compactness.cut_edges` on the
-same rook graph, `data/processed/ia_adjacency.json`. Zero seats are commoner
-among the less compact draws: 4.52% of the 3,341 with 51 or more cut edges give
-0 seats, against 1.01% of the 24,223 with fewer. The direction is robust; the
-magnitude is not (audit record). None of the 7,850 draws at 40–42 cut edges
-gives 0 seats, and the contrast survives stratifying by chain, but 89 of those
-151 zero-seat draws are one excursion of chain 6, early in its first 500 draws.
-Once each chain's first 500 are dropped the shares are 2.16% and 1.02%, and
-after any warm-up of 500 to 2,000 draws the ratio is about 1.5 to 2.2 rather
-than 4.5, with a chain-level 95% interval for the difference of +0.3 to +2.3
-points; on the full rectangle that interval, −0.7 to +5.7, includes zero. The
-contrast holds in all six chains at that 500-draw cut, and in five of six after
-dropping more.
+**How the enacted plan's compactness compares depends on the measure.** The draws
+carry two compactness measures, and they place the plan differently. On cut edges
+the draws are more compact: it has 51, and 87.9% of the draws have fewer (77.1–91.9%
+by chain, and 78.4% of the 454 as equal as it). Both counts come from
+`evaluate.compactness.cut_edges` on the same rook graph,
+`data/processed/ia_adjacency.json`. On mean Polsby-Popper over its four districts,
+computed by `evaluate.compactness.measure_districts` on the same county geometry as
+the draws', its 0.3334 sits mid-ensemble: 48.7% of the draws score higher
+(36.1–60.4% by chain, and 33.7% of the population-tight draws), and the draws'
+median is 0.3325. Over the draws the two measures' rank correlation, both oriented
+so that larger is less compact, is 0.76, below the ~0.9 at which `CRITERIA.md` §3
+lets the choice of measure go unstated, so both are reported and the disagreement
+is shown rather than resolved. Reock, Schwartzberg and convex hull cannot be
+placed: the draws carry only these two, and their plans are not committed (audit
+record).
 
-Population equality is the first of Iowa's ordered criteria (`CRITERIA.md`
-§2.1), and the draws do not meet the enacted plan's level of it, so matching the
-reference to it matches on a constraint. Compactness is the fourth, and the
-draws already exceed the enacted plan's level of it: how uncompact the plan is
-was a choice, another outcome of where its lines go, and in this ensemble less
-compact plans are where zero-seat outcomes lie. Conditioning the reference on
-the enacted plan's compactness would therefore raise the reference's zero-seat
-share whether or not the plan was drawn for that outcome (audit record). Part of
-the compactness gap may follow from the population gap, by an amount these draws
-cannot measure: the 454 draws as equal as the enacted plan average 48.1 cut
-edges, 21.6% of them at 51 or more, against 45.5 and 12.0% for the rest, as
-`docs/FEASIBILITY.md` §5.3's finding that population-tight whole-county plans
-carry 57–67 cut edges would suggest, but across the rectangle population spread
-and cut edges are barely associated (audit record). The matched comparison is a
-sampler held to the enacted plan's tolerance, whose plans would be less compact
-on their own; these draws cannot stand in for it, since their 454
-population-tight draws hold one zero-seat plan. Whether, and on what, to
-condition is a value choice for the owner (D-041).
+Pooled, zero seats are commoner among the draws no more compact than the enacted
+plan, on either measure. On cut edges 4.52% of the 3,341 with 51 or more give 0
+seats, against 1.01% of the 24,223 with fewer; on Polsby-Popper 1.99% of the 14,139
+at or below its score do, against 0.85% of the 13,425 above, and chain 2 reverses
+that. The cut-edge contrast's direction is sound by the record's tests: none of the
+7,850 draws at 40–42 cut edges gives 0 seats, and an autocorrelation-preserving
+test gives p = 0.0003 on the full rectangle. Its magnitude is not: 89 of the 151
+zero-seat draws at 51 or more are one excursion of chain 6, early in its first 500
+draws. Once each chain's first 500 are dropped the shares are 2.16% and 1.02%, with
+a chain-level 95% interval for the difference of +0.3 to +2.3 points; after longer
+warm-ups, of 750 to 2,000 draws, the ratio is about 1.5 to 1.8 rather than 4.5, and
+the interval includes zero, as it does on the full rectangle (−0.7 to +5.7). The
+contrast holds in all six chains up to a 500-draw cut, in five of six at 750 to
+1,500, and in four of six at 2,000. On Polsby-Popper the chain-level interval
+includes zero at every warm-up. Population spread does not confound the pooled
+cut-edge association: stratified by spread, its Mantel–Haenszel ratio is 4.44
+against a crude 4.49, and 2.03 against 2.11 after the warm-up. But among the 454
+draws as equal as the enacted plan too few give 0 seats to show it either way: 0 of
+the 98 with 51 or more cut edges, and 2 of the 356 below, one plan drawn twice
+(audit record).
+
+Whether to condition the reference on compactness is open. Population equality is
+the first of Iowa's ordered criteria (`CRITERIA.md` §2.1), and the draws do not
+meet the enacted plan's level of it, so matching the reference to it matches on a
+constraint. Compactness is the fourth, and conditioning on it cuts two ways. If the
+enacted plan's shape follows from how it was drawn, conditioning absorbs part of
+what the comparison tests. If it follows from constraints the draws do not meet,
+conditioning moves the reference toward a matched one, but not by restricting it to
+the plan's own level: weighting the draws to a candidate matched profile gives 2.4%
+(the population-tight draws' cut edges), 1.0% (`docs/FEASIBILITY.md` §5.3's 57–67)
+or 0.44% (filtering on population directly), against 4.5% at 51 or more, and the
+zero-seat share is not monotone in cut edges (audit record). These draws cannot tell
+which case holds, nor fix the size or direction of the second. Part of the cut-edge
+gap may follow from the population gap, by an amount these draws cannot measure:
+the 454 draws as equal as the enacted plan average 48.1 cut edges, 21.6% of them at
+51 or more, against 45.5 and 12.0% for the rest, as `docs/FEASIBILITY.md` §5.3's
+finding that population-tight whole-county plans carry 57–67 cut edges would
+suggest, but across the rectangle population spread and cut edges are barely
+associated (audit record). The matched comparison is a sampler held to the enacted
+plan's tolerance, whose plans would be less compact on their own; these draws
+cannot stand in for it, since their 454 population-tight draws hold one zero-seat
+plan. Whether, and on what, to condition, and on which compactness measure, is a
+value choice for the owner (D-041).
 
 The comparison remains **not yet a finding**: 1.43% of draws give 0 seats.
 
@@ -2577,21 +2603,24 @@ approximately, in whole VTDs (D-015).
 | efficiency gap | **differs on Colorado by 0.0007 to 0.027** | **PlanScore's published values use a different formula** |
 
 The efficiency gap PlanScore's code computes, and its files publish, is `(S − ½)
-− 2(V − ½)`, from the seat share and the statewide vote share (`calculate_EG` in
-PlanScore's `planscore/score.py` at 566cda4, the commit both files record as
-having scored them; 3f866f9 rewrites it in vectorized form and computes the
-same). PlanScore's own metric page, which `CRITERIA.md` cites, describes the
-wasted-vote form instead: votes for a loser, and votes for a winner above the
-50%-plus-one threshold, one party's less the other's, over all votes cast.
-PlanScore's own code counted wasted votes, at a half-vote threshold, until
-August 2021, when a commit changed it "to use vote share instead of raw counts"
-(audit record); the page describes that earlier definition. That is how
-`CRITERIA.md` §5.1 defines the metric, and what `evaluate.partisan` computes. In
-PlanScore's orientation the two differ by `τ − S`, the share of votes cast in
+− 2(V − ½)`, from the seat share and the statewide vote share, once any statewide
+share outside 25–75% has been swung into that band (`calculate_EG` in PlanScore's
+`planscore/score.py` at 566cda4, the commit both files record as having scored
+them; 3f866f9 rewrites it in vectorized form and computes the same). PlanScore's
+own metric page, which `CRITERIA.md` cites, describes the wasted-vote form
+instead: votes for a loser, and votes for a winner above the 50%-plus-one
+threshold, one party's less the other's, over all votes cast. PlanScore's own
+code counted wasted votes until August 2021, when commit 24331854 changed it "to
+use vote share instead of raw counts"; it wasted a winner's votes above half the
+district's two-party votes, where the page says 50% plus one. The wasted-vote form
+is how `CRITERIA.md` §5.1 defines the metric, without fixing a threshold, and what
+`evaluate.partisan` computes, by default at the page's 50% plus one. Inside the
+25–75% band, where all eight races here lie (statewide shares from 0.37 to 0.57),
+the two differ in PlanScore's orientation by `τ − S`, the share of votes cast in
 districts the Democrats won less the share of seats they won, plus a
-strict-majority term of at most `k/T`, a few millionths here. So they coincide
-wherever `τ = S`: at equal turnout, and in any one-party sweep, whatever the
-turnout.
+strict-majority term of at most `k/T`, a few millionths here. So there they
+coincide wherever `τ = S`: at equal turnout, and in any one-party sweep, whatever
+the turnout.
 
 Applying the equal-turnout form to this repository's seat counts and vote
 shares reproduces all eight of PlanScore's published values to their four

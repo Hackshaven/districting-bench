@@ -350,14 +350,15 @@ def efficiency_gap(
     positive number means a Democratic advantage. **PlanScore's published
     per-election values also use a different formula**: the equal-turnout form
     ``(S - 1/2) - 2(V - 1/2)``, built from the seat share ``S`` and the statewide
-    vote share ``V`` alone, although PlanScore's metric page describes the
-    wasted-vote form this function computes.
-    In PlanScore's orientation, this function's value negated, less
-    PlanScore's, is ``tau - S``, where ``tau`` is the share of all two-party
+    vote share ``V`` once PlanScore has swung any ``V`` outside [0.25, 0.75] into
+    that band, although PlanScore's metric page describes the wasted-vote form
+    this function computes.
+    Inside that band, in PlanScore's orientation, this function's value negated,
+    less PlanScore's, is ``tau - S``, where ``tau`` is the share of all two-party
     votes cast in districts the Democrats won. That is exact with
     ``threshold="half"``; the default ``"majority"`` adds a term of at most
     ``k/T`` (``k`` districts, ``T`` two-party votes), a few millionths on a
-    congressional plan. So the two agree whenever ``tau = S``: when every
+    congressional plan. So there the two agree whenever ``tau = S``: when every
     district casts the same number of two-party votes, and in any one-party
     sweep, whatever the turnout. On Colorado's enacted plan they differ by
     0.0015 under the 2020 presidential vote, and by 0.027 under the 2016 one,

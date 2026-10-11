@@ -73,12 +73,14 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.text import Text
+from matplotlib.transforms import Bbox
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tools"))
 
 import experiment_2_tradeoffs as X          # noqa: E402
+from evaluate import compactness as C       # noqa: E402
 from generate import convergence as CV      # noqa: E402
 
 OUT = ROOT / "docs" / "figures" / "ia-neutral-seat-distribution.png"
@@ -362,9 +364,9 @@ def prefix_match(rows: list[dict], before: list[dict]) -> tuple[int, int]:
     return sum(a == b for a, b in zip(rows, before)), len(before)
 
 
-def zero_share(seats: list[int]) -> tuple[float | None, int]:
-    """The share of ``seats`` at 0, and how many draws it rests on."""
-    return (seats.count(0) / len(seats) if seats else None), len(seats)
+def share_at(seats: list[int], s: int) -> tuple[float | None, int]:
+    """The share of ``seats`` at ``s``, and how many draws it rests on."""
+    return (seats.count(s) / len(seats) if seats else None), len(seats)
 
 
 def seat_distribution() -> dict:
@@ -434,19 +436,49 @@ def seat_distribution() -> dict:
                 if row["population_spread"] <= ENACTED_SPREAD]
     as_equal_enacted = [(w, row) for w, row, s in as_equal if s == enacted]
 
-    # The enacted plan's compactness, against the draws': ReCom leans compact,
-    # and the enacted outcome is commoner among the draws as uncompact as it.
-    cut = report["compactness"]["cut_edges"]
-
-    def by_cut(pairs):
-        pairs = list(pairs)
-        return (zero_share([s for row, s in pairs if row["cut_edges"] >= cut]),
-                zero_share([s for row, s in pairs if row["cut_edges"] < cut]))
-
+    # The enacted plan's compactness, against the draws'. The draws carry two
+    # measures, and they place the plan differently: ReCom leans compact on the
+    # unit graph, so most draws have fewer cut edges than the plan, while on
+    # mean Polsby-Popper it sits mid-ensemble. CRITERIA.md section 3 asks for
+    # both, with the disagreement shown rather than resolved. Each split
+    # compares the enacted seat count's share among the draws no more compact
+    # than the plan with its share among the rest.
     late = [(row, s) for chain, chain_seats in zip(chains, primary["seats"])
             for row, s in list(zip(chain.rows, chain_seats))[BURN_IN_CHECK:]]
-    at_or_above, below = by_cut(zip(rows, seats))
-    late_above, late_below = by_cut(late)
+    tight = [row for _, row, _ in as_equal]
+
+    def against(column: str, larger_is_less_compact: bool) -> dict:
+        at = report["compactness"][column]
+
+        def no_more_compact(row):
+            return row[column] >= at if larger_is_less_compact else row[column] <= at
+
+        def split(pairs):
+            pairs = list(pairs)
+            return (share_at([s for row, s in pairs if no_more_compact(row)], enacted),
+                    share_at([s for row, s in pairs if not no_more_compact(row)], enacted))
+
+        def more_compact(selected):
+            return (sum(1 for row in selected if not no_more_compact(row)) / len(selected)
+                    if selected else None)
+
+        (whole_no_more, whole_more), (late_no_more, late_more) = (split(zip(rows, seats)),
+                                                                  split(late))
+        return {
+            "enacted": at,
+            "more_compact_share": more_compact(rows),
+            "more_compact_by_chain": [more_compact(chain.rows) for chain in chains],
+            "more_compact_share_as_equal": more_compact(tight),
+            "no_more_compact": whole_no_more,
+            "more_compact": whole_more,
+            "no_more_compact_after_burn_in": late_no_more,
+            "more_compact_after_burn_in": late_more,
+            "by_chain": [(i, *(share for share, _ in split(zip(chain.rows, cs))))
+                         for i, chain, cs in zip(index, chains, primary["seats"])],
+        }
+
+    cut = report["compactness"]["cut_edges"]
+
     def cut_edge_profile(selected):
         edges = [row["cut_edges"] for row in selected]
         if not edges:
@@ -455,19 +487,18 @@ def seat_distribution() -> dict:
                 len(edges))
 
     compactness = {
-        "enacted_cut_edges": cut,
-        "more_compact_share": sum(1 for row in rows if row["cut_edges"] < cut) / len(rows),
-        # population-tight draws against the rest: how much of the compactness
-        # gap follows from the population gap
-        "as_equal_profile": cut_edge_profile([row for _, row, _ in as_equal]),
+        "cut_edges": against("cut_edges", larger_is_less_compact=True),
+        "polsby_popper_mean": against("polsby_popper_mean", larger_is_less_compact=False),
+        # how closely the two measures order the draws, both oriented so that
+        # larger is less compact; CRITERIA.md section 3's bar is about 0.9
+        "rank_correlation": C.spearman([row["cut_edges"] for row in rows],
+                                       [-row["polsby_popper_mean"] for row in rows]),
+        # population-tight draws against the rest, on cut edges: they average
+        # more, but how much of the cut-edge gap follows from the population gap
+        # these draws cannot measure (D-041)
+        "as_equal_profile": cut_edge_profile(tight),
         "rest_profile": cut_edge_profile([row for row in rows
                                           if row["population_spread"] > ENACTED_SPREAD]),
-        "at_or_above": at_or_above,
-        "below": below,
-        "at_or_above_after_burn_in": late_above,
-        "below_after_burn_in": late_below,
-        "per_chain": [(i, *(share for share, _ in by_cut(zip(chain.rows, cs))))
-                      for i, chain, cs in zip(index, chains, primary["seats"])],
     }
 
     district, district_share = closest_district(report)
@@ -551,19 +582,13 @@ def figure_text(d: dict) -> dict:
     rhat = p["seat_count_split_rhat"]
     where = "inside" if RHAT_BAND[0] <= rhat <= RHAT_BAND[1] else "outside"
     per_split = p["seat_count_ess"] / (2 * d["n_chains"])
-    compact = d["compactness"]
-    high, _ = compact["at_or_above"]
-    low, _ = compact["below"]
-    # population is the reason the comparison is not like-for-like; compactness
-    # is context only (D-041), and its comparison needs draws on both sides
-    context = ("Compactness is context, not an adjustment (D-041): the plan is less "
-               f"compact than {100 * compact['more_compact_share']:.0f}% of the draws")
-    if high is not None and low is not None:
-        commoner, move = (("commoner", "raise") if high > low else
-                          ("rarer", "lower") if high < low else ("no commoner", "not change"))
-        context += (f", and {enacted} seats is {commoner} among draws at least as uncompact "
-                    f"as it, so comparing it only with those would {move} the "
-                    f"{enacted}-seat share whether or not it was drawn for that outcome")
+    # an effective sample too small to rely on R-hat, or an R-hat above the
+    # band, each leaves the standard errors open to understating
+    caution = ([f"{per_split:.0f} effective draws per split chain are below the "
+                f"{RHAT_MIN_ESS_PER_SPLIT} Vehtari et al. (2021) ask for before relying on "
+                "R-hat"] if per_split < RHAT_MIN_ESS_PER_SPLIT else [])
+    if caution or rhat > RHAT_BAND[1]:
+        caution.append("these standard errors may understate the uncertainty")
     blocks = [100 * v for b in p["batch_means_mcse"].values() for v in b.values()]
     two = p["batch_means_mcse"].get(2, {})
 
@@ -605,11 +630,7 @@ def figure_text(d: dict) -> dict:
         "share. Whiskers and ±: 2 Monte Carlo standard errors of the pooled share, from "
         f"its effective sample size{block}. Seat count split R-hat {rhat:.3f}, {where} "
         f"CRITERIA §8's {RHAT_BAND[0]:.2f}–{RHAT_BAND[1]:.2f} band"
-        + (f"; {per_split:.0f} effective draws per split chain are below the "
-           f"{RHAT_MIN_ESS_PER_SPLIT} Vehtari et al. (2021) ask for before relying on "
-           "R-hat, so it settles convergence neither way, and these standard errors may "
-           "understate the uncertainty"
-           if per_split < RHAT_MIN_ESS_PER_SPLIT else "")
+        + ("; " + ", and ".join(caution) if caution else "")
         + ". Regenerate: tools/plot_seat_distribution.py, from committed files only.",
         FOOTER_WIDTH)
     return {
@@ -625,13 +646,16 @@ def figure_text(d: dict) -> dict:
         "labels": labels,
         "enacted_x": enacted,
         # wrapped by width like the footer, so longer values cannot push it
-        # off the canvas, with the last line standing on its own
+        # off the canvas, with the last line standing on its own. Population is
+        # the reason the comparison is not like-for-like. Compactness stays off
+        # the figure: where the plan sits depends on the measure, and whether to
+        # match on it is open (D-041)
         "note": "\n".join(textwrap.wrap(
             f"▲ {state}'s enacted plan returns {enacted} D seats, as "
             f"{share_text(p['shares'][enacted])} of these draws do "
             f"({min(chain_range):.1f}–{max(chain_range):.1f}% across chains); its "
             f"{enacted} turns on one district at {100 * d['enacted_closest_share']:.1f}% D. "
-            f"Not like-for-like: the draws are not held to its population equality. {context}.",
+            "Not like-for-like: the draws are not held to its population equality (D-041).",
             NOTE_WIDTH) + ["Not yet a finding."]),
         "footer": footer,
     }
@@ -648,7 +672,8 @@ def draw(d: dict, out: Path = OUT) -> dict:
     offsets = chain_offsets(d["n_chains"])
     placed = {"whiskers": {}, "label_y": {}}
 
-    # tall enough that the note, the longest text, clears the labels under it
+    # tall enough that the three subtitle lines clear one another, and the note
+    # clears the labels under it, in the tallest font this is rendered in
     fig, ax = plt.subplots(figsize=(8.2, 6.8), dpi=200)
     fig.patch.set_facecolor(SURFACE); ax.set_facecolor(SURFACE)
 
@@ -726,14 +751,27 @@ def draw(d: dict, out: Path = OUT) -> dict:
     for i, line in enumerate(footer):
         fig.text(left, 0.008 + 0.024 * (len(footer) - 1 - i), line, color=MUTED,
                  fontsize=9, va="bottom")
-    # every string as rendered, in pixels from the canvas's lower left, so the
-    # tests can hold each one to the canvas whatever the wrap widths are
+    # every string as drawn, in pixels from the canvas's lower left, so the
+    # tests can hold each one to the canvas whatever the wrap widths are. An
+    # annotation matplotlib skips reports a unit box, a clipped string says
+    # so, and tick labels past the axis limits, laid out but never drawn, are
+    # left out
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
+    (x_low, x_high), (y_low, y_high) = ax.get_xlim(), ax.get_ylim()
+    unshown = ({t for t in ax.get_xticklabels() if not x_low <= t.get_position()[0] <= x_high}
+               | {t for t in ax.get_yticklabels() if not y_low <= t.get_position()[1] <= y_high})
     placed["canvas"] = (fig.bbox.width, fig.bbox.height)
-    placed["text_extents"] = [(t.get_text(), tuple(t.get_window_extent(renderer).extents))
-                              for t in fig.findobj(Text)
-                              if t.get_visible() and t.get_text().strip()]
+    placed["texts"] = [
+        (t.get_text(), tuple(t.get_window_extent(renderer).extents),
+         bool(t.get_clip_on() and (t.get_clip_box() is not None
+                                   or t.get_clip_path() is not None)))
+        for t in fig.findobj(Text)
+        if t.get_visible() and t.get_text().strip() and t not in unshown]
+    # the note's white box covers whatever lies under it, not only its text
+    placed["note_box"] = tuple(Bbox.union([
+        note.get_window_extent(renderer),
+        note.get_bbox_patch().get_window_extent(renderer)]).extents)
     fig.savefig(out, facecolor=SURFACE)
     plt.close(fig)
     return placed
@@ -741,6 +779,23 @@ def draw(d: dict, out: Path = OUT) -> dict:
 
 def _pct(value) -> str:
     return "n/a" if value is None else f"{100 * value:.2f}%"
+
+
+def compactness_line(name: str, c: dict, enacted: int) -> str:
+    """Where the enacted plan sits on one compactness measure, and the enacted
+    seat count's share on either side of it."""
+    by_chain = [v for v in c["more_compact_by_chain"] if v is not None]
+    return (
+        f"{name}: enacted plan {c['enacted']:.6g}; {_pct(c['more_compact_share'])} of draws "
+        f"more compact (chains {_pct(min(by_chain))}-{_pct(max(by_chain))}; "
+        f"{_pct(c['more_compact_share_as_equal'])} of those at <= {ENACTED_SPREAD} persons); "
+        f"{enacted} D share {_pct(c['no_more_compact'][0])} of {c['no_more_compact'][1]:,} "
+        f"draws no more compact, {_pct(c['more_compact'][0])} of "
+        f"{c['more_compact'][1]:,} more compact; after dropping {BURN_IN_CHECK} per chain "
+        f"{_pct(c['no_more_compact_after_burn_in'][0])} against "
+        f"{_pct(c['more_compact_after_burn_in'][0])}; by chain (no more / more compact) "
+        + ", ".join(f"{i}: {_pct(a)}/{_pct(b)}" for i, a, b in c["by_chain"])
+    )
 
 
 def summary_lines(d: dict) -> list[str]:
@@ -841,18 +896,15 @@ def summary_lines(d: dict) -> list[str]:
         f"({100 * d['n_as_equal_as_enacted'] / d['n_draws']:.2f}%; seats "
         f"{d['as_equal_counts']}); those at {d['enacted_dem_seats']} D: "
         f"{d['as_equal_enacted_distinct']} distinct, at {d['as_equal_enacted_draws']}",
-        f"cut edges: enacted plan {compact['enacted_cut_edges']}; {d['enacted_dem_seats']} D "
-        f"share {_pct(compact['at_or_above'][0])} of {compact['at_or_above'][1]:,} draws "
-        f"at >= {compact['enacted_cut_edges']}, {_pct(compact['below'][0])} of "
-        f"{compact['below'][1]:,} below; after dropping {BURN_IN_CHECK} per chain "
-        f"{_pct(compact['at_or_above_after_burn_in'][0])} against "
-        f"{_pct(compact['below_after_burn_in'][0])}; by chain (at or above / below) "
-        + ", ".join(f"{i}: {_pct(a)}/{_pct(b)}" for i, a, b in compact["per_chain"]),
-        f"    {_pct(compact['more_compact_share'])} of draws have fewer cut edges than "
-        f"the enacted plan; "
+        *(compactness_line(name, compact[column], d["enacted_dem_seats"])
+          for column, name in (("cut_edges", "cut edges"),
+                               ("polsby_popper_mean", "mean Polsby-Popper"))),
+        f"    rank correlation of the two over the draws, both oriented so that larger is "
+        f"less compact: {compact['rank_correlation']:.4f}",
+        "    cut edges of the draws as equal as the enacted plan: "
         + (f"the {compact['as_equal_profile'][2]} at <= {ENACTED_SPREAD} "
            f"persons average {compact['as_equal_profile'][0]:.1f} cut edges, "
-           f"{_pct(compact['as_equal_profile'][1])} at >= {compact['enacted_cut_edges']}, "
+           f"{_pct(compact['as_equal_profile'][1])} at >= {compact['cut_edges']['enacted']}, "
            f"against {compact['rest_profile'][0]:.1f} and "
            f"{_pct(compact['rest_profile'][1])} for the other {compact['rest_profile'][2]:,}"
            if compact["as_equal_profile"] and compact["rest_profile"] else
