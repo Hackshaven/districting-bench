@@ -198,14 +198,15 @@ own value — is a change of instrument rather than of a threshold, and it belon
 in a round that can measure it independently rather than in this one's report.
 
 At 2 seats the classes genuinely overlap on the partisan metrics too. About half
-of Iowa's neutral draws already give the Democrats two seats (43% of the
-1,820-draw ensemble this was first measured on, 49.5% of v2's per D-039), and
-conditioned on that outcome the plants are indistinguishable from the neutral
-draws that also win two: AUC 0.53 on efficiency gap, 0.57 on mean-median, at
-efficiency-gap percentiles 0.16-0.94 of the full reference, nowhere near a 0.99
-tail. **No percentile-tail detector can reach TPR 0.95 at a 2-seat shift in
-Iowa**, and that is a fact about the state and the magnitude rather than a defect
-in any rule.
+of Iowa's neutral draws already give the Democrats two seats under the 2020
+presidential vote -- 43% of the 1,820-draw ensemble this was first measured on,
+49.5% of the v2 ensemble's D-035 rectangle (D-039) -- and conditioned on that
+outcome the plants are indistinguishable from the neutral draws that also win
+two. Against round 4's 1,664-draw reference above: AUC 0.53 on efficiency gap,
+0.57 on mean-median, at efficiency-gap percentiles 0.16-0.94 of that reference,
+nowhere near a 0.99 tail. **No percentile-tail detector can reach TPR 0.95 at a
+2-seat shift in Iowa**, and that is set by the state's geography, the election,
+and the ensemble's sampler and constraints, not by a defect in any rule.
 
 Baselines: a shift is a difference, so say what from
 ----------------------------------------------------
@@ -253,11 +254,13 @@ returns the 2-seat plan; ``seat_ceiling_at_work_epsilon`` on the result says
 when the search saw a better seat structure and could not legalise it, and
 :func:`achievable_seats` measures the range rather than asserting it.
 
-For calibration against the neutral baseline: a ReCom ensemble at the same
-epsilon gives the Democrats 2 seats in 45% of draws and has a median of 1 (see
-``nulls.py``). A 2-seat "gerrymander" is therefore *not* distinguishable from a
-neutral map by seat count alone in Iowa. Only the 3-seat plan sits outside the
-neutral ensemble's support entirely.
+For calibration against the neutral baseline: the ReCom ensemble ``nulls.py``
+draws at the same epsilon gives the Democrats 2 seats in 45% of draws and has a
+median of 1 (the v2 ensemble gives 49.5%, D-039). A 2-seat "gerrymander" is
+therefore *not* distinguishable from a neutral map by seat count alone in Iowa.
+Only the 3-seat plan sits outside the neutral ensembles' support under the 2020
+presidential vote: none of their draws reaches 3 seats, although this plan shows
+that a legal one exists.
 
 Method
 ------

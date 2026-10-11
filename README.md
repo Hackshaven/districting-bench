@@ -19,28 +19,37 @@ Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
 presidential vote, and 2 seats in about half of its draws** (49.5%, with a Monte
 Carlo standard error of 3 to 4 points; the six chains range from 41% to 58%).
-Under the 2020 Senate vote the same draws reach 3 seats, in 8 of them, so the top
-of that range depends on the election.
+Under the 2020 Senate vote the same draws reach 3 seats, though only in two plans
+early in one chain, so the top of that range depends on the election. It is also
+the sampler's range, not the limit of what is possible: a 3-seat plan meeting the
+same population and contiguity constraints exists under the presidential vote
+(`src/adversarial/gerrymander.py`).
 
 The consequence is a limit, not a score. Detectability is bounded below by the
-width of the neutral distribution, and that width is a property of the state rather
-than of the method. A detection target stated in absolute seats — such as
-`docs/CRITERIA.md` §8's "≥0.95 true-positive rate at a 2-seat shift" — asks a
-detector to separate an outcome from its own null, and is unreachable on a
-four-district state whose null already spans two seats.
+width of the neutral distribution, and that width is set by the state, the
+election and the ensemble, not by the detection method. A detection target stated
+in absolute seats — such as `docs/CRITERIA.md` §8's "≥0.95 true-positive rate at
+a 2-seat shift" — asks a detector to separate an outcome from its own null, and
+is unreachable on a four-district state whose null already spans two seats.
 
 Two cautions travel with these numbers. The seat count's split R-hat is 1.014,
-just outside `docs/CRITERIA.md` §8's 1.00–1.01 band. And v0.1.0 reported the
-2-seat share as 43%, from a 1,820-draw ensemble that was never committed: seven
-chains of 260 draws with no convergence diagnostic. Chains that short cannot
-pin a share this autocorrelated to within ten points, so the two numbers do not
-disagree. The 0–2 range is the same in both.
+just outside `docs/CRITERIA.md` §8's 1.00–1.01 band, and with about 286 effective
+draws the diagnostic cannot resolve that band: a simulated chain that is
+stationary at the same effective size usually reads above it
+(`docs/first-result/INSTRUMENT-AUDIT.md`). And v0.1.0 reported the 2-seat share
+as 43%, from a 1,820-draw ensemble that was never committed: seven chains of 260
+draws with no convergence diagnostic. Estimated three ways from the committed
+chains, an estimate that size carries a standard error of 9 to 12 points, so the
+two numbers do not disagree. The 0–2 range is the same in both.
 
 Iowa's enacted plan returns 0 D seats, as 1.4% of these draws do (0.4–2.5% across
 the six chains), and its 0 turns on one district at 49.8% Democratic. That
-comparison is **not yet a finding**: the draws are not held to the 94-person
-population equality the enacted plan meets — only 454 of the 27,564 are that
-equal — so it is not like-for-like. See `docs/progress.md`.
+comparison is **not yet a finding**, because it is not like-for-like. The draws
+are not held to the 94-person population equality the enacted plan meets: only
+454 of the 27,564 are that equal. And ReCom leans compact: among draws at least
+as uncompact as the enacted plan (51 or more cut edges), 4.5% give 0 seats, or
+2.2% once each chain's first 500 draws are dropped, against 1.0% of the more
+compact rest. See `docs/progress.md`.
 
 ---
 
@@ -142,7 +151,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 590 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 626 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -184,16 +193,19 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 736 passed, 5 skipped
+PYTHONPATH=src pytest tests -q         # 772 passed, 5 skipped (derived; see below)
 python tools/check_firewall.py         # must print: clean
 ```
 
-That count is derived, not re-measured: the README recorded 719 with the data at
-v0.1.0, and the 17 tests added since read only committed files.
+The 772 is derived, not measured: this file recorded 719 with the data at
+v0.1.0; the 53 tests added since need neither the data nor the network; and no
+code an earlier test runs has changed except docstrings.
 
 **Without the election returns you can still generate.** The neutral half needs
 population, geometry and adjacency only — that is the firewall, not a
-limitation. Every partisan metric and all three experiments need VEST.
+limitation. Every partisan metric and all three experiments need VEST. The
+first-result figure and the PlanScore cross-check below do not: they read only
+committed files, and PlanScore's.
 
 ### Reproducing the results
 
@@ -209,9 +221,18 @@ python tools/phase_2_report.py
 python tools/plot_experiment_1.py --ensemble v2   # -> docs/figures/exp1-*.png
 python tools/plot_experiment_2.py --ensemble v2   # -> docs/figures/exp2-*.png
 python tools/plot_experiment_3.py                # -> docs/figures/exp3-gameability.png
-python tools/plot_seat_distribution.py           # -> docs/figures/ia-neutral-seat-distribution.png
+python tools/plot_seat_distribution.py           # -> docs/figures/ia-neutral-seat-distribution.png; no data needed
+```
 
-python tools/check_planscore.py     # cross-check against PlanScore; needs the network
+One check reaches outside the repository: it fetches PlanScore's scores for
+both enacted plans (two files pinned by sha256), recomputes them with
+`evaluate.partisan`, and exits 0 only if every published efficiency gap and
+every converted definition reproduces. It rewrites its record only then.
+PlanScore titles the Iowa plan a draft; D-040 and `docs/progress.md` say why it
+is the enacted one.
+
+```bash
+python tools/check_planscore.py   # -> docs/cross-checks/planscore.json; needs the network, not the data
 ```
 
 ---

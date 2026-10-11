@@ -1105,15 +1105,20 @@ Each seat count therefore has a level, `|2V − ½ − s/k|`, and a draw sits of
 own level by its turnout imbalance. `tools/plot_seat_distribution.py` assigns
 each draw to its level only under two checks, and refuses the whole sample if
 either fails:
-- a draw read as a sweep (0 or `k` seats) must sit within the `k/2T` to `k/T`
-  that the strict-majority threshold allows;
+- a draw read as a sweep (0 or `k` seats) must sit above its level by exactly
+  what the strict-majority threshold allows: `k − j/2` votes, where `j` counts
+  the districts with an odd total and so has the parity of the statewide total
+  `T`. That is 2.5 or 3.5 votes under the 2020 presidential vote, and 2, 3 or 4
+  under the Senate vote;
 - every other draw must sit within half of the half-gap of its level.
 
 *Alternatives:*
-- **Recount from plans and returns.** Rejected: the plans are not committed (the
+- **Recount from plans and returns.** Not done: the plans are not committed (the
   draws file holds metrics only) and would have to be regenerated from their
-  seeds, and the returns cannot be redistributed, so no reader could check the
-  result.
+  seeds, and the returns cannot be redistributed, so only a reader who has
+  fetched VEST could check the result, as for every experiment. A one-time
+  recount of one chain would turn this reading into a verified count, and is
+  worth doing wherever the data are built.
 - **Keep the 1,820-draw figure.** Rejected: no reader can regenerate it (D-036),
   and its sample is the least converged Iowa ensemble the repository quotes.
 - **Add a seats column to the draws file.** Rejected: that is a new measurement,
@@ -1126,11 +1131,13 @@ either fails:
   read as 2 seats without complaint.
 
 *Why it is a measurement and not a guess:* the identity is exact and its only
-free term is turnout. Sweeps are checked to the vote, so the 0-seat count is
-verified outright. Every other draw sits at most 0.0143 from its level, about a
-third of the 0.0413 half-gap. Misreading a 1-seat plan as 2 would take a
-Democratic district casting over 31% of the state's two-party vote against 25% at
-equal turnout, four times the largest imbalance in the data. The two enacted
+free term is turnout. Sweeps are checked to the half vote: all 395 zero-seat
+draws sit 2.5 or 3.5 votes above their level (216 and 179 of them), the only two
+offsets an odd statewide total allows, so the 0-seat count is verified outright.
+Every other draw sits at most 0.0143 from its level, about a third of the 0.0413
+half-gap. Misreading a 1-seat plan as 2 would take a Democratic district casting
+over 31% of the state's two-party vote against 25% at equal turnout, four times
+the largest imbalance in the data. The two enacted
 plans in the Phase 2 report, counted directly from the returns, read back
 correctly, but that is weak support: Iowa's is a sweep, exact whatever the
 turnout, and Colorado's sits far from Colorado's closest levels. Under the 2020
@@ -1140,10 +1147,11 @@ against a half-gap of 0.0570.
 *Limits:* the method works only when every draw's turnout imbalance stays inside
 the margin. How close the folded levels sit is a property of the vote share, the
 district count, and the decision to store |EG|. On Colorado the closest levels
-are 0.028 apart, and 125 of the 20,000 v2 draws sit beyond that half-gap, so the
-plotter's own checks would refuse Colorado. Nothing uses the method there.
-Storing the signed gap, or the seat count, in the next measurement would remove
-the need for any of this.
+are 0.028 apart. Of the 20,000 v2 draws, 125 sit farther than that half-gap from
+every level, and 9,857 farther than the margin the plotter applies, half the
+half-gap, so the plotter refuses Colorado (`tests/test_seat_distribution.py`
+pins both counts). Nothing uses the method there. Storing the signed gap, or
+the seat count, in the next measurement would remove the need for any of this.
 
 *Earlier entries:* D-012 and D-013 quote the 1,820-draw shares (2 seats at
 43.0%). Their conclusions rest on the 0–2 span, which stands under the
@@ -1152,26 +1160,30 @@ here, and the entries are left as written.
 
 ## D-040 — PlanScore's efficiency gap is a different formula; this repository keeps CRITERIA.md's
 
-**Date:** 2026-10-11 · **Phase:** post-release
+**Date:** 2026-10-11 · **Phase:** post-release · **VALUE** (whether to report both forms)
 
 `prompt.md` asks for the metric implementations to be cross-checked against
-PlanScore. On identical district totals three metrics agree, up to sign and
-scale, and the efficiency gap does not. PlanScore computes the equal-turnout form
-`(S − ½) − 2(V − ½)`, while `evaluate.partisan` counts wasted votes
-(`docs/progress.md`, "Cross-check against PlanScore").
+PlanScore. On the same district totals, rounded to whole votes, three metrics
+agree up to sign and scale, and the efficiency gap does not. PlanScore computes
+the equal-turnout form `(S − ½) − 2(V − ½)`, while `evaluate.partisan` counts
+wasted votes (`docs/progress.md`, "Cross-check against PlanScore"). In
+PlanScore's orientation the two differ by `τ − S`, plus a strict-majority term
+of at most `k/T`, so they agree only where `τ = S`: at equal turnout, and in any
+one-party sweep.
 
 *Chosen:* keep the wasted-vote form, correct the docstring that called the two
-the same up to sign, and record how far apart they are on a real plan.
+the same up to sign, and record how far apart they are on a real plan. Whether
+to report both forms is left open below, for the owner.
 
 *Alternatives:*
 - **Switch to PlanScore's form.** Rejected: `CRITERIA.md` §5.1 defines the
   efficiency gap by wasted votes, and only the owner amends it. Switching would
   also move every efficiency gap this repository has published, in the Phase 2
   report and in all three experiments.
-- **Report both forms side by side.** Not done here. It is what `prompt.md`'s
-  "disagreements highlighted rather than resolved" points toward. But it adds a
-  metric to the report and to every experiment's columns, so it is the owner's
-  call.
+- **Report both forms side by side.** Not done here, and the **VALUE** part of
+  this entry. It is what `prompt.md`'s "disagreements highlighted rather than
+  resolved" points toward. But it adds a metric to the report and to every
+  experiment's columns, so it is the owner's call.
 - **Commit PlanScore's files so the check runs offline.** Rejected: they hold
   district-level election returns under no stated licence, and `CRITERIA.md`
   §9.1 commits nothing under an unstated licence. The script fetches the files
@@ -1179,7 +1191,11 @@ the same up to sign, and record how far apart they are on a real plan.
   passing as the same input. The cost is that the check needs the network, and
   needs PlanScore's storage to stay up.
 
-*Not executed:* PlanScore's code. Its other three definitions were checked once,
-by running its functions on the same totals. That run is recorded in the write-up
-rather than built into the script, so nothing in this repository runs code
-fetched from elsewhere.
+*How the check is built:* PlanScore's four definitions are transcribed into
+`tools/check_planscore.py` from `planscore/score.py` at 566cda4, the commit both
+pinned files record as having scored them; the four functions read the same at
+3f866f9. Every run checks each conversion against the transcription, the
+efficiency gap against PlanScore's published values, and the identity above
+with `τ` computed from the district totals, so a defect in the wasted-vote count
+fails rather than passing as a difference of definition. The transcription was
+made by reading PlanScore's code; nothing in this repository runs it.
