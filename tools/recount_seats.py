@@ -49,8 +49,9 @@ version; the counts file's hash, if zlib compresses the same rows to different
 bytes; the hash of ``data/processed/ia_units.gpkg`` on any other build of
 it, since a GeoPackage stores when it was written; under Python 3.12 or later, a
 last-bit difference in mean Polsby-Popper (:data:`FLOAT_TOLERANCE`); and
-``returns_source``, which is null unless the files unpacked in
-``data/raw/vest/`` are VEST's version 49 (:func:`returns_source`). The plotter
+``returns_source``, which is null unless the ``.dbf`` and ``.shp`` unpacked in
+``data/raw/vest/`` are VEST's version 49, and the zip, if kept, is too
+(:func:`returns_source`). The plotter
 refuses a record that does not name that dataset and version, and
 ``tests/test_seat_distribution.py`` and ``tests/test_recount_seats.py`` require
 the committed record to name that file, so to check the committed counts rather
@@ -77,7 +78,7 @@ with these counts, and the record describes what it reads: the draws file (its
 SHA-256, and its sidecar's chains, seeds and row counts), the counts file (its
 SHA-256 and row count), the ensemble's configuration, the two contests and their
 certified totals, and the VEST dataset and version the figure credits as the
-returns counted.
+returns counted. It also refuses if one plan key names draws that differ.
 
 It needs the Iowa data built (``tools/fetch_raw.sh ia``, VEST's ``ia_2020.zip``
 unpacked in ``data/raw/vest/``, ``tools/prepare_data.py``) and gerrychain as

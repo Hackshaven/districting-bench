@@ -34,21 +34,20 @@ from the returns, which the repository does not redistribute; the counts are
 committed as ``docs/first-result/ia-seats-v2.csv.gz``, with a record of what the
 recount read. :func:`seat_distribution` reads every draw's seats as below and
 refuses unless the reading agrees with the count on every draw under both
-contests, and unless the record names the draws file read here and the
-returns, dataset and version, that the footer credits, so every bar, dot and
-whisker is what the counts give. The reading stays because it is how the draws file is read, and the count
-is how it is checked. The recount also keys
-each draw's plan, and distinct plans are counted by those keys: rows of the
-draws file cannot count them, because a plan with its districts renumbered can
-move its mean Polsby-Popper in the last bit, and two plans can share every
-metric. With wasted votes counted
-against half of each district's votes the gap is exactly ``2V - 1/2 - tau``,
-where ``V`` is the statewide two-party Democratic share and ``tau`` the share of
-two-party votes cast in districts the Democrats win; ``tau`` is the seat share
-``s/k`` when turnout is equal. So each seat count has a level,
-``|2V - 1/2 - s/k|``, and a draw sits off its own level by its turnout imbalance.
-Folding the sign away brings the levels closer than ``1/k``: on Iowa the 1- and
-2-seat levels, which hold almost every draw, are 0.083 apart.
+contests, and unless the record names the draws file read here and the returns,
+dataset and version, that the footer credits, so every bar, dot and whisker is
+what the counts give. The reading stays because it is how the draws file is
+read, and the count is how it is checked. The recount also keys each draw's
+plan, and distinct plans are counted by those keys: rows of the draws file
+cannot count them, because a plan with its districts renumbered can move its
+mean Polsby-Popper in the last bit, and two plans can share every metric. With
+wasted votes counted against half of each district's votes the gap is exactly
+``2V - 1/2 - tau``, where ``V`` is the statewide two-party Democratic share and
+``tau`` the share of two-party votes cast in districts the Democrats win;
+``tau`` is the seat share ``s/k`` when turnout is equal. So each seat count has
+a level, ``|2V - 1/2 - s/k|``, and a draw sits off its own level by its turnout
+imbalance. Folding the sign away brings the levels closer than ``1/k``: on Iowa
+the 1- and 2-seat levels, which hold almost every draw, are 0.083 apart.
 
 :func:`recover_seats` therefore checks two things, and it is the checks, not
 nearness, that make the reading a measurement:
@@ -133,8 +132,9 @@ RECOUNT = ROOT / "docs" / "first-result" / "ia-seats-v2.csv.gz"
 #: file beside it, byte for byte.
 RECOUNT_RECORD = ROOT / "docs" / "first-result" / "ia-seats-v2.json"
 #: The dataset and version the footer credits. The recount's record must name
-#: both as the returns it counted from (D-044); the tests hold the licence the
-#: footer names to the record's.
+#: both as the returns it counted from (D-044). The licence the footer names is
+#: the one VEST states for that version; the tests hold the footer's link and the
+#: record's to one value.
 RETURNS_DATASET, RETURNS_VERSION = "doi:10.7910/DVN/K7760H", "49.0"
 #: The draws file's integer metrics besides competitive districts, which a plan
 #: key's draws must share.
@@ -508,8 +508,8 @@ def check_recount_record(record, n_counted: int, spec, draws: Path, counts: Path
     source = record.get("returns_source")
     if not (isinstance(source, dict) and source.get("dataset") == RETURNS_DATASET
             and source.get("version") == RETURNS_VERSION):
-        wrong.append(f"it does not name {RETURNS_DATASET}, version {RETURNS_VERSION}, "
-                     "which the footer credits, as the returns it counted from")
+        wrong.append(f"it does not name the returns the footer credits, {RETURNS_DATASET} "
+                     f"version {RETURNS_VERSION}, as the returns it counted from")
     if wrong:
         raise ValueError(f"{RECOUNT_RECORD.name} does not describe the count read "
                          "here: " + "; ".join(wrong))
@@ -905,13 +905,14 @@ def figure_text(d: dict) -> dict:
     # then VEST's credit, on lines of its own, as a source line. The figure
     # travels without ATTRIBUTION.md, so it names the version counted, the
     # dataset as a link a browser takes, and the licence's link as well
-    # (D-044); no-break spaces keep "licensed" with the licence's name, so
-    # the licence cannot start a line and read as the figure's own
+    # (D-044). The licence follows "Election returns" directly, with
+    # no-break spaces keeping its name whole, so no line of the credit reads
+    # as the figure's own terms
     footer += textwrap.wrap(
-        "Election returns: Voting and Election Science Team (VEST), 2020, version "
-        f"{RETURNS_VERSION.removesuffix('.0')}, "
-        f"doi.org/{RETURNS_DATASET.removeprefix('doi:')}; "
-        "licensed\u00a0CC\u00a0BY\u00a04.0, creativecommons.org/licenses/by/4.0. "
+        "Election returns, licensed\u00a0CC\u00a0BY\u00a04.0 "
+        "(creativecommons.org/licenses/by/4.0): Voting and Election Science Team "
+        f"(VEST), 2020, version {RETURNS_VERSION.removesuffix('.0')}, "
+        f"doi.org/{RETURNS_DATASET.removeprefix('doi:')}. "
         "Each draw's seats are counted from them (D-043,\u00a0D-044).",
         FOOTER_WIDTH, break_on_hyphens=False)
     return {
@@ -1058,9 +1059,12 @@ def draw(d: dict, out: Path = OUT) -> dict:
                                    or t.get_clip_path() is not None)))
         for t in fig.findobj(Text)
         if t.get_visible() and t.get_text().strip() and t not in unshown]
-    # the strings drawn on the surface's colour, which no gridline runs through
-    placed["boxed"] = {t.get_text() for t in fig.findobj(Text)
-                       if t.get_visible() and t.get_bbox_patch() is not None}
+    # the strings drawn on a box, with the box's colour and the string's layer:
+    # each box must hide the gridlines under it, and nothing else
+    placed["boxed"] = [(t.get_text(), tuple(t.get_bbox_patch().get_facecolor()),
+                        t.get_zorder())
+                       for t in fig.findobj(Text)
+                       if t.get_visible() and t.get_bbox_patch() is not None]
     # the note's white box covers whatever lies under it, not only its text
     placed["note_box"] = tuple(Bbox.union([
         note.get_window_extent(renderer),

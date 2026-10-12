@@ -28,6 +28,10 @@ import json
 import sys
 from pathlib import Path
 
+import matplotlib.axes
+import matplotlib.colors
+import matplotlib.image
+import matplotlib.text
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -477,7 +481,7 @@ def test_the_count_s_record_names_the_draws_and_counts_read_here(tmp_path, monke
             (lambda r: r["returns_source"].update(dataset="doi:10.0/other"),
              "the returns it counted from"),
             (lambda r: r["returns_source"].update(version="50.0"),
-             "version 49.0, which the footer credits")):
+             "K7760H version 49.0, as the returns")):
         changed = copy.deepcopy(record)
         change(changed)
         with pytest.raises(ValueError, match=why):
@@ -662,11 +666,13 @@ def test_the_figure_text_is_pinned(dist):
     # counted, the dataset's DOI and the licence's link, because the figure
     # travels without ATTRIBUTION.md (D-044); no-break spaces keep "licensed"
     # with the licence's name
-    credit = ("Election returns: Voting and Election Science Team (VEST), 2020, version 49, "
-              "doi.org/10.7910/DVN/K7760H; licensed\u00a0CC\u00a0BY\u00a04.0, "
-              "creativecommons.org/licenses/by/4.0. Each draw's seats are counted from "
-              "them (D-043,\u00a0D-044).")
-    first = [i for i, line in enumerate(text["footer"]) if line.startswith("Election returns:")]
+    # the licence's link is the record's, as the record's pin above holds it
+    link = LICENCE_URL.removeprefix("https://").rstrip("/")
+    credit = (f"Election returns, licensed\u00a0CC\u00a0BY\u00a04.0 ({link}): "
+              "Voting and Election Science Team (VEST), 2020, version 49, "
+              "doi.org/10.7910/DVN/K7760H. Each draw's seats are counted from them "
+              "(D-043,\u00a0D-044).")
+    first = [i for i, line in enumerate(text["footer"]) if line.startswith("Election returns")]
     assert len(first) == 1
     assert " ".join(text["footer"][first[0]:]) == credit
     assert text["footer"][first[0] - 1].endswith("from committed files only.")
@@ -763,12 +769,32 @@ def test_the_figure_draws_what_the_text_says(dist, tmp_path):
     assert placed["marker_x"] == dist["enacted_dem_seats"]
     # the note sits right of every bar a draw reached, never on one
     assert placed["note_x"] > 2 + S.WIDTH / 2
-    # and it, and the labels over every bar a draw reached, sit on the
-    # surface's colour, so no gridline runs through them
+    # and it, and the labels over every bar a draw reached, sit on opaque
+    # boxes of the surface's colour, drawn above the gridlines, which sit
+    # below every patch and line, so no gridline runs through them
     text = S.figure_text(dist)
     reached = [s for s in range(K + 1) if p["counts"][s]]
-    assert {text["note"], *(t for s in reached for t in text["labels"][s])} <= placed["boxed"]
+    boxed = {string: (colour, layer) for string, colour, layer in placed["boxed"]}
+    for string in (text["note"], *(t for s in reached for t in text["labels"][s])):
+        colour, layer = boxed[string]
+        assert colour == matplotlib.colors.to_rgba(S.SURFACE), string
+        assert layer > 1, string
     assert_every_string_is_drawn_whole(dist, placed)
+
+
+def test_the_boxes_hide_only_gridlines(dist, tmp_path, monkeypatch):
+    # With no gridlines drawn, the boxes under the labels and the note have
+    # nothing to hide: the figure is the same, pixel for pixel, with the boxes
+    # clear. A box that reaches a label, a dot or a whisker would show.
+    monkeypatch.setattr(matplotlib.axes.Axes, "grid", lambda self, *a, **k: None)
+    S.draw(dist, tmp_path / "boxes.png")
+    set_bbox = matplotlib.text.Text.set_bbox
+    monkeypatch.setattr(matplotlib.text.Text, "set_bbox", lambda self, props: set_bbox(
+        self, None if props is None else props | {"facecolor": "none"}))
+    S.draw(dist, tmp_path / "clear.png")
+    boxes, clear = (matplotlib.image.imread(tmp_path / f"{name}.png")
+                    for name in ("boxes", "clear"))
+    assert boxes.shape == clear.shape and (boxes == clear).all()
 
 
 def test_an_outcome_seen_in_one_chain_draws_without_a_whisker(dist, tmp_path):

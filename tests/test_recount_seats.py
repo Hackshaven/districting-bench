@@ -316,6 +316,9 @@ def test_the_committed_record_is_what_the_script_would_write_from_its_constants(
         c: list(t) for c, t in R.CERTIFIED.items()}
     assert record["integer_columns"] == sorted(R.INTEGER_COLUMNS)
     assert record["float_tolerance"] == R.FLOAT_TOLERANCE
+    # and the files it names, though not their hashes, which are the data's
+    assert list(record["inputs_sha256"]) == [R.shown(p) for p in (*R.NEUTRAL, R.ELECTIONS)]
+    assert set(record["vest"]) <= {R.shown(p) for p in R.VEST}
 
 
 def test_a_write_that_fails_leaves_both_files_as_they_were(tmp_path, monkeypatch):

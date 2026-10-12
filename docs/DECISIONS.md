@@ -1558,12 +1558,11 @@ owner to confirm the decisions D-042 and D-043 quote.
 the seat counts with a VEST credit and license link. I confirm the decisions." So
 the counts are committed with VEST's credit and a link to the licence VEST states
 for its dataset, CC BY 4.0, and the four decisions D-042 and D-043 quote stand as
-recorded there. The answer chose a credit and a link; it did not say whether the
-counts, or the figure drawn from them, are adapted material in that licence's
-sense, which decides what notice each owes. That is for counsel (below); the
-notice and the README say only that the counts are made from VEST's returns. The
-author carried the credit and the link to where the counts and what is drawn from
-them are read:
+recorded there. The answer chose a credit and a link. It did not say whether CC
+BY 4.0's conditions reach the counts, or the figure drawn from them, at all, and
+if so what notice each owes; that is for counsel (below). The notice and the
+README say only that the counts are made from VEST's returns. The author carried
+the credit and the link to where the counts and what is drawn from them are read:
 
 - `docs/first-result/ATTRIBUTION.md` gives VEST's citation, a link to version
   49, the licence and its link, where VEST states the licence, what the counts
@@ -1596,6 +1595,13 @@ has no option that does this, so the steps are recorded here, and
 write step takes from a constant, `returns_source` among them, to the script's
 constants.
 
+The README's "Getting the data" and `tools/fetch_raw.sh` gave a click-through
+that a script cannot accept as why the returns are downloaded by hand. The
+author wrote that reason (46b5065), and it is not so: Dataverse's API served
+version 49's files to a script on 2026-10-12 with no step to accept. Both now
+say only that the repository does not fetch them; whether it should is the
+owner's.
+
 *Alternatives:* committing the counts without a credit, or withdrawing them so
 that only the reading stands. The owner chose neither.
 
@@ -1605,13 +1611,9 @@ licence, cannot be redistributed, or cannot be fetched by a script:
   48.0, and gives the missing licence as why no election data is committed; its
   Sources entry for VEST, "no licence declared"; and its table of sources, which
   says the returns cannot be fetched by script;
-- the README's "Getting the data" and `tools/fetch_raw.sh`, which say the same.
-  Dataverse's API served version 49's files to a script on 2026-10-12 with no step
-  to accept, so whether to fetch them by script, or keep the download by hand for
-  another reason, is the owner's;
-- `CITATION.cff`, which says no licence is declared on the deposit and names no
-  version;
-- `.github/workflows/release.yml`, whose notes on each GitHub release say the
+- before the next version bump, which reads both: `CITATION.cff`, which says no
+  licence is declared on the deposit and names no version, and
+  `.github/workflows/release.yml`, whose notes on each GitHub release say the
   returns are not redistributable. v0.1.0's DOI record took its description and
   licence from `CITATION.cff`, and holds the workflow only as a file in the
   archive;
@@ -1628,30 +1630,39 @@ election-law reader on §9.1 (D-043):
   plan's four district vote totals, computed from VEST's returns, since before
   v0.1.0, so v0.1.0's archive holds them too, though §9.1 says no election data is
   committed.
+- **Before merge** too, since it governs committing: whether counts committed
+  while their own licence is undecided fit `CLAUDE.md`'s rule that nothing is
+  committed under an unstated licence (§9.1). The owner answers it, or defers it.
 - **Before the next version bump**, which mints a DOI: which licence, if any, the
-  repository offers the counts under, and the figure drawn from them. `LICENSE`,
-  GitHub's licence label and `CITATION.cff`'s `license: Apache-2.0` declare
-  Apache 2.0 for the whole repository, counts included, and v0.1.0's DOI record
-  took its licence from `CITATION.cff`. `CLAUDE.md` says nothing is committed
-  under an unstated licence (§9.1); whether counts committed while their own
-  licence is undecided fit that rule is the owner's call. With it, whether that record and the next name VEST's dataset
-  as a source; v0.1.0's names none.
-- **When, the owner decides**; the Scientific Data Steward agent would answer each
-  before merge:
-  - whether the counts, and the figure drawn from them, are adapted material
-    under CC BY 4.0, and so whether each needs a notice at all; and if the figure
-    does, whether its footer, which carries no title, disclaimer or pointer to the
-    notice, is enough for a figure that travels alone;
+  repository offers the counts, the figure drawn from them, and the other files
+  that hold values computed from VEST's returns under. `LICENSE`, GitHub's
+  licence label and `CITATION.cff`'s `license: Apache-2.0` declare Apache 2.0
+  for the whole repository, all of these included, and v0.1.0's DOI record took
+  its licence from `CITATION.cff`. With it, whether that record and the next name
+  VEST's dataset as a source: v0.1.0's `CITATION.cff` listed VEST among its
+  references, and its DOI record still names no source, so `CITATION.cff` alone
+  did not carry it; a record's metadata can be changed in place.
+- **When, the owner decides**; the Scientific Data Steward agent would have the
+  owner answer each before merge:
+  - whether CC BY 4.0's conditions reach the counts and the figure drawn from them
+    at all, and if so what notice each owes, and whether the figure's footer,
+    which carries no title, disclaimer or pointer to the notice, is enough for a
+    figure that travels alone;
   - whether the other committed files that hold values computed from VEST's
-    returns need the same credit: the experiments' draws files, results and
-    figures, the Phase 2 report, the PlanScore cross-check, and the test's
-    district vote totals. Which VEST version they were computed from was never
-    recorded (§9.1), so a credit to them cannot name one;
+    returns need the same credit, among them: the experiments' draws files,
+    results and figures, the Phase 2 report, the PlanScore cross-check, numbers
+    the README and `docs/progress.md` quote and the tests that pin them, and the
+    test's district vote totals. Which VEST version they were computed from was
+    never recorded (§9.1), so a credit to them cannot name one. The PlanScore
+    cross-check also holds values computed from PlanScore's files, whose
+    repository states no licence (`docs/cross-checks/INSTRUMENT-AUDIT.md`);
   - whether this branch's earlier commits that carry the counts without the
     notice, 10564b0, 3054a64 and 7c335ff, need anything. They are public already,
     on the branch and on GitHub's ref for this pull request, which outlives the
     branch; a merge commit decides only whether `main`'s history carries them
-    (D-042).
+    (D-042);
+  - whether the repository should fetch VEST's returns by script, or keep the
+    download by hand. This holds nothing.
 
 *Corrected in review:* the first version of this entry left `docs/CRITERIA.md`'s
 Sources entry and table of sources, `tools/fetch_raw.sh` and D-038 out of its
@@ -1664,5 +1675,10 @@ metrics, though `tests/test_partisan.py` holds district vote totals; left out of
 the licence question the Apache 2.0 that `LICENSE` and `CITATION.cff` declare;
 said the release notes are archived with every DOI; did not say which open
 questions hold the merge; and asked only whether the figure's footer is notice
-enough, not whether the figure needs one. The Scientific Data Steward agent's
-reviews showed each.
+enough, not whether the figure needs one. The third asked the licence question
+of the counts and the figure alone; placed `CLAUDE.md`'s commit rule at the
+version bump, though it governs committing; listed the other files as if the
+list were complete; stated what the licence makes of the facts while sending
+that question to counsel; and kept as the owner's a reason for the download by
+hand that the author wrote and that is not so. The Scientific Data Steward
+agent's reviews showed each.

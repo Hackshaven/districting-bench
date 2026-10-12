@@ -10,11 +10,10 @@
 # Bureau asks for citation and holds the TIGER/Line trademark, which are requests
 # rather than licence conditions; see docs/CRITERIA.md.
 #
-# NOT FETCHED, AND THIS SCRIPT CANNOT FIX IT: the precinct-level election
-# returns. Both preparers read data/raw/vest/ia_2020.shp and
-# data/raw/vest_co/co_2020.shp, which come from VEST on the Harvard Dataverse
-# behind a click-through agreement that curl cannot accept on your behalf. See
-# the "elections" section printed at the end, and README.md.
+# NOT FETCHED: the precinct-level election returns. Both preparers read
+# data/raw/vest/ia_2020.shp and data/raw/vest_co/co_2020.shp, which come from
+# VEST on the Harvard Dataverse; this script does not download them. See the
+# "elections" section printed at the end, and README.md.
 #
 # Usage:  tools/fetch_raw.sh [ia|co|all]     (default: all)
 # Run from the repository root. Downloads ~700 MB into data/raw/.
@@ -87,11 +86,11 @@ done
 if [ "$missing" = 1 ]; then
   cat <<'MSG'
 
-The election returns are not fetchable by script.
+The election returns are not fetched by this script.
 
 VEST 2020 precinct boundaries and returns are published on the Harvard
-Dataverse under a click-through agreement, so they must be downloaded by hand.
-One dataset holds every state as a separate shapefile:
+Dataverse; download them by hand. One dataset holds every state as a separate
+shapefile:
 
   VEST, "2020 Precinct-Level Election Results"
   https://doi.org/10.7910/DVN/K7760H
