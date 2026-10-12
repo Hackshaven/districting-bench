@@ -2487,17 +2487,19 @@ reads: its SHA-256, configuration, chains, contests and certified totals.
 
 The returns are VEST's Iowa file as Harvard Dataverse served it on 2026-10-11:
 dataset version 49, uploaded 2026-10-03, whose attribute table holds the same
-values as version 48's (D-043). Every committed |efficiency gap| and
-|mean-median|, under both contests, reproducing exactly on every plan the chains
-visit ties the count to the district totals the draws were measured with.
-|Efficiency gap| alone could not: it does not move when an even number of votes
-shifts between districts the same party wins, or when the parties trade votes
-across two counties, wherever no district changes hands. Both metrics are
-unsigned, so which party is which is fixed separately: the recount refuses unless
-each contest's statewide two-party totals equal the certified ones. The code does
-not check the county totals themselves; the redistricting scientist agent compared
-all 99 with the Secretary of State's canvass under both contests and found none
-different, which the GIS QA Engineer has not confirmed.
+values as version 48's (D-043). VEST licenses it under CC BY 4.0, and the counts
+carry VEST's credit and the licence link (`docs/first-result/ATTRIBUTION.md`,
+D-044). Every committed |efficiency gap| and |mean-median|, under both contests,
+reproducing exactly on every plan the chains visit ties the count to the district
+totals the draws were measured with. |Efficiency gap| alone could not: it does not
+move when an even number of votes shifts between districts the same party wins, or
+when the parties trade votes across two counties, wherever no district changes
+hands. Both metrics are unsigned, so which party is which is fixed separately: the
+recount refuses unless each contest's statewide two-party totals equal the
+certified ones. The code does not check the county totals themselves; the
+redistricting scientist agent compared all 99 with the Secretary of State's
+canvass under both contests and found none different, which the GIS QA Engineer
+has not confirmed.
 
 **Distinct plans, counted rather than bounded.** Earlier versions of this section
 counted distinct rows of the committed metrics and called them a lower bound on

@@ -94,7 +94,9 @@
     "file": "ia_2020.zip",
     "md5": "500252facae6107b93128406ebf5177b",
     "dbf_sha256": "c37230a71af50a83735ef80e1361447d23307175f7fcc22842f17706fbc16080",
-    "shp_sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a"
+    "shp_sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a",
+    "credit": "Voting and Election Science Team, 2020, \"2020 Precinct-Level Election Results\", https://doi.org/10.7910/DVN/K7760H, Harvard Dataverse, V49",
+    "license": "CC BY 4.0, https://creativecommons.org/licenses/by/4.0/"
   },
   "vest": {
     "data/raw/vest/ia_2020.zip": {

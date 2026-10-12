@@ -13,7 +13,7 @@ map adoption.**
 
 ## First result
 
-![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats and from 0.4% to 2.5% at 0. Iowa's enacted plan is marked at 0 seats; the figure's note says its 0 turns on one district at 49.8% Democratic, that the comparison is not like-for-like because the draws are not held to the plan's 94-person population spread, and that it is not yet a finding. The footer says each draw's seats are counted from the returns (D-043).](docs/figures/ia-neutral-seat-distribution.png)
+![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats and from 0.4% to 2.5% at 0. Iowa's enacted plan is marked at 0 seats; the figure's note says its 0 turns on one district at 49.8% Democratic, that the comparison is not like-for-like because the draws are not held to the plan's 94-person population spread, and that it is not yet a finding. The footer says each draw's seats are counted from VEST's 2020 returns, licensed CC BY 4.0 (D-043, D-044).](docs/figures/ia-neutral-seat-distribution.png)
 
 Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
@@ -444,7 +444,15 @@ validated, not for litigation, advocacy, or map adoption.**
 Apache License 2.0 — see `LICENSE`.
 
 This covers the code and documentation in this repository. It does **not** cover
-the input data, none of which is redistributed here. Census inputs are public
-domain (17 U.S.C. §105); the election returns carry no declared licence at all,
-which is why `data/` is gitignored and `tools/fetch_raw.sh` sends you to the
-source. See `docs/CRITERIA.md` §9.1.
+the input data, which are not redistributed here: `data/` is gitignored, and
+`tools/fetch_raw.sh` sends you to the sources. Census inputs are public domain
+(17 U.S.C. §105). The election returns are the Voting and Election Science
+Team's *2020 Precinct-Level Election Results*
+(<https://doi.org/10.7910/DVN/K7760H>), which VEST licenses under CC BY 4.0
+(<https://creativecommons.org/licenses/by/4.0/>).
+
+One committed file is adapted from them: `docs/first-result/ia-seats-v2.csv.gz`,
+the seat counts of every committed Iowa draw. `docs/first-result/ATTRIBUTION.md`
+gives VEST's credit, the licence link and what was changed (D-044), and the
+first-result figure credits VEST in its footer. The data policy in
+`docs/CRITERIA.md` §9.1 was written before VEST's licence was read (D-043).

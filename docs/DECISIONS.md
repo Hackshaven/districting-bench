@@ -1344,6 +1344,8 @@ on population equality matching "on a constraint", which read the enacted plan's
 
 **Date:** 2026-10-11 · **Phase:** post-release
 
+*Since:* the owner confirmed both decisions below on 2026-10-12 (D-044).
+
 The decision log's rule is that entries aren't rewritten, and a reversal is a new
 entry (`CLAUDE.md`, and this file's preamble). D-039 and D-041 were written in the
 change that became pull request #7, which has not merged, and both were corrected
@@ -1389,6 +1391,10 @@ four.
 ## D-043 — Every committed Iowa draw's seats are counted from the returns, and the reading agrees
 
 **Date:** 2026-10-11 · **Phase:** post-release
+
+*Since:* the owner confirmed both decisions below and answered the licence
+question it leaves for merge: the counts carry VEST's credit and the licence link
+(D-044).
 
 D-039 reads each draw's Democratic seats off its committed |efficiency gap|,
 because the draws file holds metrics, not plans. Its fourth audit showed that the
@@ -1538,3 +1544,43 @@ counts; and named one owner's decision of two. The fifth agent audit in
 The second version called the licence statements stale, when version 48's own
 record already stated CC BY 4.0, and its list of them was incomplete; the
 Pre-Submission Peer Reviewer agent's second review showed both.
+
+## D-044 — The seat counts carry VEST's credit and its licence link
+
+**Date:** 2026-10-12 · **Phase:** post-release
+
+D-043 left two questions for the owner, to answer before merge: whether the
+committed seat counts need VEST's credit and a licence link under CC BY 4.0, and
+whether they are election data under `docs/CRITERIA.md` §9.1. It also asked the
+owner to confirm the decisions D-042 and D-043 quote.
+
+*Chosen, by the owner,* on 2026-10-12, in conversation with the author: "Commit
+the seat counts with a VEST credit and license link. I confirm the decisions." So
+the counts are committed as material adapted from VEST's dataset, which VEST
+licenses under CC BY 4.0, and the four decisions D-042 and D-043 quote stand as
+recorded there. The author carried the credit and the link to where the counts
+and what is drawn from them are read:
+
+- `docs/first-result/ATTRIBUTION.md` gives VEST's citation, the licence and its
+  link, what was changed (the precinct returns summed to counties, then seats
+  counted per draw; no vote count kept), and VEST's disclaimer of warranties;
+- the recount's record, `docs/first-result/ia-seats-v2.json`, carries the
+  citation and the licence link in `returns_source`. The recount's own write
+  step wrote it from the committed counts and the last full run's float
+  differences (all 0.0), without regenerating the draws again: three full runs
+  have written the counts byte for byte the same, and a credit changes nothing
+  they measure;
+- the first-result figure's footer credits VEST and names the licence, because
+  the figure travels without the README;
+- the README's licence section names VEST's licence, the adapted file and the
+  attribution, where it said the returns carry no declared licence.
+
+*Alternatives:* committing the counts without a credit, or withdrawing them so
+that only the reading stands. The owner chose neither.
+
+*Still the owner's:* `docs/CRITERIA.md` §9.1, which still says no licence is
+declared, and the other statements D-043 lists (`CITATION.cff`, the release notes
+in `.github/workflows/release.yml`, the comments in `.github/workflows/tests.yml`,
+`tests/dataguard.py` and `tests/test_experiment_3_plans.py`, and D-039's "the
+returns cannot be redistributed"), and which licence, if any, the repository
+offers its own adaptation, the counts, under.

@@ -80,7 +80,9 @@ unpacked in ``data/raw/vest/``, ``tools/prepare_data.py``) and gerrychain as
 seeds, and the run then fails. No plan is kept: each is measured, counted, keyed
 and dropped. No vote count from the returns is written: the files hold seat
 counts, and the record holds the certified statewide totals the returns are
-checked against.
+checked against. The counts are adapted from VEST's dataset, which VEST licenses
+under CC BY 4.0; the record carries VEST's credit and the licence link, and
+``docs/first-result/ATTRIBUTION.md`` gives both, with what was changed (D-044).
 
 These are the committed draws regenerated, not new ones: the sampler is asked
 for each chain's committed draws and no more, and a draw that does not
@@ -128,14 +130,19 @@ VEST = tuple(ROOT / "data" / "raw" / "vest" / f"ia_2020.{ext}"
              for ext in ("zip", "dbf", "shp"))
 #: The file the committed count was made from (D-043): VEST's 2020 precinct
 #: returns on the Harvard Dataverse, with the MD5 Dataverse publishes for the
-#: zip and the SHA-256 of the two members tools/prepare_data.py reads. The
-#: record names it only when those members are the files read here
-#: (:func:`returns_source`).
+#: zip and the SHA-256 of the two members tools/prepare_data.py reads, and the
+#: credit and licence the counts carry as material adapted from it (D-044;
+#: docs/first-result/ATTRIBUTION.md). The record names it only when those
+#: members are the files read here (:func:`returns_source`).
 VEST_SOURCE = {"dataset": "doi:10.7910/DVN/K7760H", "version": "49.0",
                "file_id": 14304797, "file": "ia_2020.zip",
                "md5": "500252facae6107b93128406ebf5177b",
                "dbf_sha256": "c37230a71af50a83735ef80e1361447d23307175f7fcc22842f17706fbc16080",
-               "shp_sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a"}
+               "shp_sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a",
+               "credit": "Voting and Election Science Team, 2020, \"2020 Precinct-Level "
+                         "Election Results\", https://doi.org/10.7910/DVN/K7760H, "
+                         "Harvard Dataverse, V49",
+               "license": "CC BY 4.0, https://creativecommons.org/licenses/by/4.0/"}
 
 #: Iowa's certified 2020 two-party totals, ``(D, R)``, as tools/prepare_data.py
 #: and tests/test_elections.py assert them. The unsigned metrics the draws file

@@ -444,12 +444,23 @@ def test_the_count_s_record_names_the_draws_and_counts_read_here(tmp_path, monke
     assert (record["python"], record["gerrychain"]) == ("3.11.17", "1.0.0")
     # under Python 3.11, as the README pins it, every committed row reproduced
     assert set(record["largest_float_difference"].values()) == {0.0}
-    # the returns: VEST's version 49 file, which D-043 names, by the files read
+    # the returns: VEST's version 49 file, which D-043 names, by the files read,
+    # with the credit and licence link the counts carry as adapted material (D-044)
+    credit = ('Voting and Election Science Team, 2020, "2020 Precinct-Level Election '
+              'Results", https://doi.org/10.7910/DVN/K7760H, Harvard Dataverse, V49')
+    licence = "https://creativecommons.org/licenses/by/4.0/"
     assert record["returns_source"] == {
         "dataset": "doi:10.7910/DVN/K7760H", "version": "49.0", "file_id": 14304797,
         "file": "ia_2020.zip", "md5": "500252facae6107b93128406ebf5177b",
         "dbf_sha256": "c37230a71af50a83735ef80e1361447d23307175f7fcc22842f17706fbc16080",
-        "shp_sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a"}
+        "shp_sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a",
+        "credit": credit, "license": f"CC BY 4.0, {licence}"}
+    # and beside the counts, the same credit, the licence and its link
+    notice = " ".join((S.RECOUNT.parent / "ATTRIBUTION.md").read_text().split())
+    for part in ('Voting and Election Science Team, 2020, "2020 Precinct-Level Election '
+                 'Results"', "https://doi.org/10.7910/DVN/K7760H", "Harvard Dataverse, V49",
+                 "CC BY 4.0", licence, "WITHOUT WARRANTY OF ANY KIND"):
+        assert part in notice
     for change, why in (
             (lambda r: r.update(draws_sha256="0" * 64), "a draws file other than"),
             (lambda r: r.update(counts_sha256="0" * 64), "a counts file other than"),
@@ -616,7 +627,8 @@ def test_the_figure_text_is_pinned(dist):
                    "reach it in 3 more plans.",
                    "2-seat share's standard error at 3.3–3.9 pts",
                    "R-hat 1.014, above CRITERIA §8's 1.00–1.01 band",
-                   "Seats are counted from the returns (D-043). Dots"):
+                   "Seats are counted from VEST's 2020 returns, CC BY 4.0 (D-043, "
+                   "D-044). Dots"):
         assert phrase in footer
     assert all(len(line) <= S.FOOTER_WIDTH for line in text["footer"])
 

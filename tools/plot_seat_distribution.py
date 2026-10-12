@@ -878,7 +878,8 @@ def figure_text(d: dict) -> dict:
     footer = textwrap.wrap(
         f"Range in these draws: {min(span)}–{max(span)} D seats of {k}"
         + (f"; none reached {' or '.join(map(str, missing))}." if missing else ".") + reach
-        + " Seats are counted from the returns (D-043). Dots: each chain's share. "
+        + " Seats are counted from VEST's 2020 returns, CC BY 4.0 (D-043, D-044). "
+        "Dots: each chain's share. "
         "Whiskers and ±: 2 Monte Carlo standard errors of the pooled share, from "
         f"its effective sample size{block}. Seat\u00a0count split R-hat {rhat:.3f}, {where} "
         f"CRITERIA §8's {RHAT_BAND[0]:.2f}–{RHAT_BAND[1]:.2f} band"
