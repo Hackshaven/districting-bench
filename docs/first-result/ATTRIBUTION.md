@@ -84,8 +84,8 @@ The figure drawn from these counts,
 `docs/figures/ia-neutral-seat-distribution.png`, credits VEST, the version
 counted, the dataset's DOI and the licence and its link in its footer. This
 repository's Apache License 2.0 covers its code and documentation; it is not the
-licence of VEST's data. The repository's owner has not yet decided which
-licence, if any, the repository offers the counts under, or the figure drawn
-from them, though `LICENSE` and `CITATION.cff` declare Apache 2.0 for the
-repository as a whole. The repository's owner chose to commit the counts with
-this credit and licence link (D-044).
+licence of VEST's data. The repository offers the counts, and the figure drawn
+from them, under CC BY 4.0 too: reusing them credits this repository and keeps
+VEST's credit above. `LICENSE` and `CITATION.cff` still declare Apache 2.0 for
+the repository as a whole; `CITATION.cff` changes at the next version bump. The
+repository's owner chose this credit, the licence link and the licence (D-044).

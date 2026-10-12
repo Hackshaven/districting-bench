@@ -469,29 +469,31 @@ validated, not for litigation, advocacy, or map adoption.**
 
 Apache License 2.0 — see `LICENSE`.
 
-This covers the code and documentation in this repository; whether it covers the
-files that hold values computed from VEST's returns is not settled (below). It
-does **not** cover the input data, which are not redistributed here: `data/` is
-gitignored, and `tools/fetch_raw.sh` sends you to the sources. Census inputs are
-public domain (17 U.S.C. §105). The election returns are the Voting and Election
-Science Team's *2020 Precinct-Level Election Results*
-(<https://doi.org/10.7910/DVN/K7760H>), which VEST licenses under CC BY 4.0
-(<https://creativecommons.org/licenses/by/4.0/>).
+This covers the code and documentation in this repository, except the seat
+counts and the figure drawn from them, which it offers under CC BY 4.0 (below);
+whether it covers the other files that hold values computed from VEST's returns
+is not settled. It does **not** cover the input data, which are not
+redistributed here: `data/` is gitignored, and `tools/fetch_raw.sh` sends you to
+the sources. Census inputs are public domain (17 U.S.C. §105). The election
+returns are the Voting and Election Science Team's *2020 Precinct-Level Election
+Results* (<https://doi.org/10.7910/DVN/K7760H>), which VEST licenses under CC BY
+4.0 (<https://creativecommons.org/licenses/by/4.0/>).
 
 `docs/first-result/ia-seats-v2.csv.gz`, the seat counts of every committed Iowa
 draw, is made from version 49 of that dataset and committed with VEST's credit
 and licence link: `docs/first-result/ATTRIBUTION.md` gives the credit, the
 licence link, what was changed and the file's columns (D-044), and the
-first-result figure credits VEST in its footer. The repository's owner has not
-yet decided which licence, if any, the repository offers the counts under, or the
-figure drawn from them, though `LICENSE` and `CITATION.cff` declare Apache 2.0 for the
-repository as a whole. Other committed files hold values computed from the same
-returns and carry no such credit, among them: metrics in the experiments' draws
-files, results and figures, the Phase 2 report and the PlanScore cross-check;
-numbers this README and `docs/progress.md` quote, and the tests that pin them;
-and the enacted plan's district vote totals in `tests/test_partisan.py`, which
-v0.1.0's archive also holds. Whether they need a credit, and under which licence
-the repository offers them, is open (D-044).
+first-result figure credits VEST in its footer. The repository offers the
+counts, and the figure drawn from them, under CC BY 4.0, keeping VEST's credit;
+reusing them credits this repository too (D-044). `LICENSE` and `CITATION.cff`
+still declare Apache 2.0 for the repository as a whole; `CITATION.cff` changes
+at the next version bump. Other committed files hold values computed from the
+same returns and carry no such credit, among them: metrics in the experiments'
+draws files, results and figures, the Phase 2 report and the PlanScore
+cross-check; numbers this README and `docs/progress.md` quote, and the tests
+that pin them; and the enacted plan's district vote totals in
+`tests/test_partisan.py`, which v0.1.0's archive also holds. Whether they need a
+credit, and under which licence the repository offers them, is open (D-044).
 
 `docs/CRITERIA.md` §9.1 and the VEST entry in `CITATION.cff` say VEST declares no
 licence, and §9.1 says the version used was not recorded. Both licence statements

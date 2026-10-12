@@ -1392,9 +1392,9 @@ four.
 
 **Date:** 2026-10-11 · **Phase:** post-release
 
-*Since:* the owner confirmed both decisions below and answered the licence
-question it leaves for merge: the counts carry VEST's credit and the licence link
-(D-044).
+*Since:* the owner confirmed both decisions below and answered both questions it
+leaves for merge: the counts carry VEST's credit and the licence link, and they
+are not election data in §9.1's sense (D-044).
 
 D-039 reads each draw's Democratic seats off its committed |efficiency gap|,
 because the draws file holds metrics, not plans. Its fourth audit showed that the
@@ -1578,10 +1578,11 @@ the credit and the link to where the counts and what is drawn from them are read
   without the README or the notice, and the plotter refuses a record that does not
   name the dataset and version the footer credits;
 - the README's licence section names VEST's licence, the counts and the notice,
-  where it said the returns carry no declared licence. It also says the counts'
-  own licence is undecided while `LICENSE` and `CITATION.cff` declare Apache 2.0
-  for the whole repository, and that other committed files hold values computed
-  from the same returns without a credit.
+  where it said the returns carry no declared licence. It also says the
+  repository offers the counts and the figure under CC BY 4.0 while `LICENSE`
+  and `CITATION.cff` still declare Apache 2.0 for the whole repository, and that
+  other committed files hold values computed from the same returns without a
+  credit.
 
 The recount's write step wrote the record twice for this entry, from the
 committed counts, without regenerating the draws: a short script read the counts
@@ -1622,40 +1623,50 @@ licence, cannot be redistributed, or cannot be fetched by a script:
 - D-039 above, "the returns cannot be redistributed", unmerged;
 - on `main`, as history: D-037, D-038 and `docs/progress.md`'s note on the suite.
 
-*Open, for the owner*, with counsel where the question is one of law and the
-election-law reader on §9.1 (D-043):
-- **Before merge**, as D-043 set it: whether the counts are election data under
-  §9.1, which the owner's answer did not address. The owner answers it, or lifts
-  the condition. Bearing on it: `tests/test_partisan.py` has pinned the enacted
-  plan's four district vote totals, computed from VEST's returns, since before
-  v0.1.0, so v0.1.0's archive holds them too, though §9.1 says no election data is
-  committed.
-- **Before merge** too, since it governs committing: whether counts committed
-  while their own licence is undecided fit `CLAUDE.md`'s rule that nothing is
-  committed under an unstated licence (§9.1). The owner answers it, or defers it.
-- **Before the next version bump**, which mints a DOI: which licence, if any, the
-  repository offers the counts, the figure drawn from them, and the other files
-  that hold values computed from VEST's returns under. `LICENSE`, GitHub's
-  licence label and `CITATION.cff`'s `license: Apache-2.0` declare Apache 2.0
-  for the whole repository, all of these included, and v0.1.0's DOI record took
-  its licence from `CITATION.cff`. With it, whether that record and the next name
-  VEST's dataset as a source: v0.1.0's `CITATION.cff` listed VEST among its
-  references, and its DOI record still names no source, so `CITATION.cff` alone
-  did not carry it; a record's metadata can be changed in place.
+*Answered by the owner* on 2026-10-12, in conversation with the author, to the
+two questions that held the merge:
+- Asked "CRITERIA §9.1 says no election data is committed. Are the per-draw seat
+  counts election data in that sense?", the owner chose "No; amend §9.1", whose
+  description read: "They're seat tallies for computer-drawn plans, not returns,
+  and VEST's CC BY 4.0 allows them with the credit now in place. I draft §9.1's
+  new text for your approval and record your answer in D-044." So the counts are
+  not election data in §9.1's sense. §9.1 is amended in the owner's words: the
+  author drafts the text, and the owner approves it.
+- Asked "Which licence should the repository offer the seat counts and the
+  first-result figure under?", the owner chose "CC BY 4.0, like VEST", whose
+  description read: "Code stays Apache 2.0, and the counts and figure are CC BY
+  4.0 with VEST's credit. I state it in the attribution file, the README and
+  D-044. CITATION.cff and the release notes change at the version bump." So the
+  counts and the figure drawn from them are offered under CC BY 4.0, keeping
+  VEST's credit, and are not committed under an unstated licence;
+  `docs/first-result/ATTRIBUTION.md` and the README say so.
+
+*Open, for the owner*, with counsel where the question is one of law:
+- **Before merge**: approving the amended text of §9.1, its Sources entry and its
+  table of sources, which the author drafts.
+- **Before the next version bump**, which mints a DOI: `CITATION.cff`, whose
+  `license: Apache-2.0` declares Apache 2.0 for the whole repository, counts and
+  figure included, and the release notes in `.github/workflows/release.yml`.
+  v0.1.0's DOI record took its licence from `CITATION.cff`. With them, whether
+  that record and the next name VEST's dataset as a source: v0.1.0's
+  `CITATION.cff` listed VEST among its references, and its DOI record still names
+  no source, so `CITATION.cff` alone did not carry it; a record's metadata can be
+  changed in place.
 - **When, the owner decides**; the Scientific Data Steward agent would have the
   owner answer each before merge:
   - whether CC BY 4.0's conditions reach the counts and the figure drawn from them
-    at all, and if so what notice each owes, and whether the figure's footer,
-    which carries no title, disclaimer or pointer to the notice, is enough for a
-    figure that travels alone;
+    at all, and if so whether the notice and the figure's footer, which carries no
+    title, disclaimer or pointer to the notice, are enough. The repository now
+    offers both under that licence with VEST's credit whatever the answer;
   - whether the other committed files that hold values computed from VEST's
-    returns need the same credit, among them: the experiments' draws files,
-    results and figures, the Phase 2 report, the PlanScore cross-check, numbers
-    the README and `docs/progress.md` quote and the tests that pin them, and the
-    test's district vote totals. Which VEST version they were computed from was
-    never recorded (§9.1), so a credit to them cannot name one. The PlanScore
-    cross-check also holds values computed from PlanScore's files, whose
-    repository states no licence (`docs/cross-checks/INSTRUMENT-AUDIT.md`);
+    returns need the same credit, and under which licence the repository offers
+    them, among them: the experiments' draws files, results and figures, the
+    Phase 2 report, the PlanScore cross-check, numbers the README and
+    `docs/progress.md` quote and the tests that pin them, and the test's district
+    vote totals. Which VEST version they were computed from was never recorded
+    (§9.1), so a credit to them cannot name one. The PlanScore cross-check also
+    holds values computed from PlanScore's files, whose repository states no
+    licence (`docs/cross-checks/INSTRUMENT-AUDIT.md`);
   - whether this branch's earlier commits that carry the counts without the
     notice, 10564b0, 3054a64 and 7c335ff, need anything. They are public already,
     on the branch and on GitHub's ref for this pull request, which outlives the
