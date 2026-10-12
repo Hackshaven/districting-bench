@@ -1607,11 +1607,9 @@ owner's.
 that only the reading stands. The owner chose neither.
 
 *Still the owner's to amend*, as statements that say the returns carry no
-licence, cannot be redistributed, or cannot be fetched by a script:
-- `docs/CRITERIA.md`: §9.1, which says no licence is declared, records version
-  48.0, and gives the missing licence as why no election data is committed; its
-  Sources entry for VEST, "no licence declared"; and its table of sources, which
-  says the returns cannot be fetched by script;
+licence, cannot be redistributed, or cannot be fetched by a script
+(`docs/CRITERIA.md`'s §9.1, table of sources and Sources entry are amended, as
+above):
 - before the next version bump, which reads both: `CITATION.cff`, which says no
   licence is declared on the deposit and names no version, and
   `.github/workflows/release.yml`, whose notes on each GitHub release say the
@@ -1630,8 +1628,9 @@ two questions that held the merge:
   description read: "They're seat tallies for computer-drawn plans, not returns,
   and VEST's CC BY 4.0 allows them with the credit now in place. I draft §9.1's
   new text for your approval and record your answer in D-044." So the counts are
-  not election data in §9.1's sense. §9.1 is amended in the owner's words: the
-  author drafts the text, and the owner approves it.
+  not election data in §9.1's sense. Shown the author's draft of §9.1, its table
+  of sources and its Sources entry, the owner chose "Approve as drafted", and the
+  text is applied in a commit of its own.
 - Asked "Which licence should the repository offer the seat counts and the
   first-result figure under?", the owner chose "CC BY 4.0, like VEST", whose
   description read: "Code stays Apache 2.0, and the counts and figure are CC BY
@@ -1642,8 +1641,6 @@ two questions that held the merge:
   `docs/first-result/ATTRIBUTION.md` and the README say so.
 
 *Open, for the owner*, with counsel where the question is one of law:
-- **Before merge**: approving the amended text of §9.1, its Sources entry and its
-  table of sources, which the author drafts.
 - **Before the next version bump**, which mints a DOI: `CITATION.cff`, whose
   `license: Apache-2.0` declares Apache 2.0 for the whole repository, counts and
   figure included, and the release notes in `.github/workflows/release.yml`.

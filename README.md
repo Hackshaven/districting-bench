@@ -495,10 +495,8 @@ that pin them; and the enacted plan's district vote totals in
 `tests/test_partisan.py`, which v0.1.0's archive also holds. Whether they need a
 credit, and under which licence the repository offers them, is open (D-044).
 
-`docs/CRITERIA.md` §9.1 and the VEST entry in `CITATION.cff` say VEST declares no
-licence, and §9.1 says the version used was not recorded. Both licence statements
-rest on the dataset's licence field on Dataverse, which is empty; VEST's Terms of
-Use state CC BY 4.0, as version 48's already did when §9.1 was written, and the
-counts were made from version 49 (D-043); which version the draws and the other
-results were measured with is still not recorded. Only the repository's owner
-amends §9.1.
+`docs/CRITERIA.md` §9.1 records VEST's licence and what the repository commits
+(D-044). The VEST entry in `CITATION.cff` still says VEST declares no licence,
+resting on the dataset's licence field on Dataverse, which is empty; it changes
+at the next version bump. Which VEST version the draws and the other results
+were measured with is still not recorded (§9.1).
