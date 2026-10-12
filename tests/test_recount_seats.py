@@ -309,6 +309,8 @@ def test_the_committed_record_is_what_the_script_would_write_from_its_constants(
     record = json.loads(R.sidecar_path(R.OUT).read_text(encoding="utf-8"))
     assert record["returns_source"] == R.VEST_SOURCE
     assert record["generated_by"] == "tools/recount_seats.py"
+    assert record["draws"] == R.shown(R.X.draws_path("ia", R.ENSEMBLE))
+    assert record["config_digest"] == R.X.config_digest(R.X.ensemble_spec(R.STATE, R.ENSEMBLE))
     assert record["contests"] == list(R.CONTESTS)
     assert record["certified_two_party_totals"] == {
         c: list(t) for c, t in R.CERTIFIED.items()}
@@ -393,6 +395,9 @@ def test_main_writes_only_when_every_draw_reproduces(monkeypatch, tmp_path, caps
                                  "n_rows": {3: 2, 5: 1, 7: 1}.get(c["index"], 0)}
                                 for c in listed]
     assert record["config_digest"] == R.X.config_digest(spec)
+    # the draws counted, named as the repository names them, and by their bytes
+    assert record["draws"] == "docs/experiment-2/ia-draws-v2.csv.gz"
+    assert record["draws_sha256"] == R.digest(R.X.draws_path("ia", "v2"))
     assert record["counts_sha256"] == R.digest(out)
     assert record["certified_two_party_totals"] == {
         c: list(t) for c, t in R.CERTIFIED.items()}

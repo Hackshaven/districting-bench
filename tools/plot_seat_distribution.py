@@ -35,8 +35,8 @@ committed as ``docs/first-result/ia-seats-v2.csv.gz``, with a record of what the
 recount read. :func:`seat_distribution` reads every draw's seats as below and
 refuses unless the reading agrees with the count on every draw under both
 contests, and unless the record names the draws file read here and the
-returns the footer credits, so every bar, dot and whisker is what the counts
-give. The reading stays because it is how the draws file is read, and the count
+returns, dataset and version, that the footer credits, so every bar, dot and
+whisker is what the counts give. The reading stays because it is how the draws file is read, and the count
 is how it is checked. The recount also keys
 each draw's plan, and distinct plans are counted by those keys: rows of the
 draws file cannot count them, because a plan with its districts renumbered can
@@ -86,8 +86,8 @@ size on the rectangle. Block means over every committed draw, which see
 dependence longer than the rectangle can, give a larger standard error, and the
 footer quotes that one too.
 
-**The committed PNG was rendered in Inter.** The machine it was made on sets
-matplotlib's ``font.family`` to Inter, without hinting, through ``MATPLOTLIBRC``;
+**The committed PNG was rendered in Inter 4.000.** The machine it was made on
+sets matplotlib's ``font.family`` to Inter, without hinting, through ``MATPLOTLIBRC``;
 nothing in the repository sets it. In matplotlib's stock DejaVu Sans, which CI
 uses, the text, the numbers and the line breaks are the same, since the wrap
 counts characters, but the image's bytes are not.
@@ -132,9 +132,10 @@ RECOUNT = ROOT / "docs" / "first-result" / "ia-seats-v2.csv.gz"
 #: What the recount read: it must name the draws file read here, and the counts
 #: file beside it, byte for byte.
 RECOUNT_RECORD = ROOT / "docs" / "first-result" / "ia-seats-v2.json"
-#: The dataset the footer credits. The recount's record must name it as the
-#: returns it counted from, so the credit is held to the record (D-044).
-RETURNS_DATASET = "doi:10.7910/DVN/K7760H"
+#: The dataset and version the footer credits. The recount's record must name
+#: both as the returns it counted from (D-044); the tests hold the licence the
+#: footer names to the record's.
+RETURNS_DATASET, RETURNS_VERSION = "doi:10.7910/DVN/K7760H", "49.0"
 #: The draws file's integer metrics besides competitive districts, which a plan
 #: key's draws must share.
 INTEGER_METRICS = ("county_splits", "cut_edges", "population_spread")
@@ -505,9 +506,10 @@ def check_recount_record(record, n_counted: int, spec, draws: Path, counts: Path
     if record.get("certified_two_party_totals") != {c: list(t) for c, t in TWO_PARTY.items()}:
         wrong.append("its certified totals are not the ones asserted here")
     source = record.get("returns_source")
-    if not (isinstance(source, dict) and source.get("dataset") == RETURNS_DATASET):
-        wrong.append(f"it does not name {RETURNS_DATASET}, which the footer credits, "
-                     "as the returns it counted from")
+    if not (isinstance(source, dict) and source.get("dataset") == RETURNS_DATASET
+            and source.get("version") == RETURNS_VERSION):
+        wrong.append(f"it does not name {RETURNS_DATASET}, version {RETURNS_VERSION}, "
+                     "which the footer credits, as the returns it counted from")
     if wrong:
         raise ValueError(f"{RECOUNT_RECORD.name} does not describe the count read "
                          "here: " + "; ".join(wrong))
@@ -901,14 +903,16 @@ def figure_text(d: dict) -> dict:
         + ". Regenerate: tools/plot_seat_distribution.py, from committed files only.",
         FOOTER_WIDTH, break_on_hyphens=False)
     # then VEST's credit, on lines of its own, as a source line. The figure
-    # travels without ATTRIBUTION.md, so it names the dataset and the
-    # licence's link as well (D-044); no-break spaces keep the licence's name
-    # and the references whole
+    # travels without ATTRIBUTION.md, so it names the version counted, the
+    # dataset as a link a browser takes, and the licence's link as well
+    # (D-044); no-break spaces keep "licensed" with the licence's name, so
+    # the licence cannot start a line and read as the figure's own
     footer += textwrap.wrap(
-        "Election returns: Voting and Election Science Team (VEST), 2020, "
-        f"{RETURNS_DATASET}, licensed CC\u00a0BY\u00a04.0, "
-        "creativecommons.org/licenses/by/4.0; each draw's seats are counted from them "
-        "(D-043,\u00a0D-044).",
+        "Election returns: Voting and Election Science Team (VEST), 2020, version "
+        f"{RETURNS_VERSION.removesuffix('.0')}, "
+        f"doi.org/{RETURNS_DATASET.removeprefix('doi:')}; "
+        "licensed\u00a0CC\u00a0BY\u00a04.0, creativecommons.org/licenses/by/4.0. "
+        "Each draw's seats are counted from them (D-043,\u00a0D-044).",
         FOOTER_WIDTH, break_on_hyphens=False)
     return {
         "title": f"Seats in a neutral ReCom ensemble for {state}",
@@ -951,8 +955,8 @@ def draw(d: dict, out: Path = OUT) -> dict:
     offsets = chain_offsets(d["n_chains"])
     placed = {"whiskers": {}, "label_y": {}}
 
-    # tall enough that the three subtitle lines clear one another, and the note
-    # clears the labels under it, in the tallest font this is rendered in
+    # tall enough that the note clears the labels under it, in the tallest font
+    # this is rendered in
     fig, ax = plt.subplots(figsize=(8.2, 6.8), dpi=200)
     fig.patch.set_facecolor(SURFACE); ax.set_facecolor(SURFACE)
 
@@ -978,15 +982,18 @@ def draw(d: dict, out: Path = OUT) -> dict:
         ax.scatter([x + o for o in offsets], chain_pct[x], s=16, color=SURFACE,
                    edgecolors=INK, linewidths=1.1, zorder=5, clip_on=False)
         # labels centred over the bar, above everything drawn there, with
-        # offsets in points so they cannot collide however tall the axis is
+        # offsets in points so they cannot collide however tall the axis is,
+        # each on the surface's colour, so no gridline runs through them
         top = max([pct[x] + err] + chain_pct[x])
         placed["label_y"][x] = top
         ax.annotate(muted, xy=(x, top), xytext=(0, 5), textcoords="offset points",
                     ha="center", va="bottom", color=MUTED, fontsize=8.5,
-                    linespacing=1.2, zorder=6)
+                    linespacing=1.2, zorder=6,
+                    bbox=dict(facecolor=SURFACE, edgecolor="none", pad=1))
         ax.annotate(bold, xy=(x, top), xytext=(0, 29), textcoords="offset points",
                     ha="center", va="bottom", color=INK, fontsize=11,
-                    fontweight="bold", zorder=6)
+                    fontweight="bold", zorder=6,
+                    bbox=dict(facecolor=SURFACE, edgecolor="none", pad=1))
 
     # the enacted plan is a point on this axis: a mark under its seat count, and
     # the caveats in words, keyed by the same mark and set to the right of the
@@ -1004,9 +1011,13 @@ def draw(d: dict, out: Path = OUT) -> dict:
 
     ax.set_title(text["title"], color=INK, fontsize=13.5, fontweight="bold",
                  loc="left", pad=52)
+    # the subtitle's lines in points above the axes, like the labels, so the
+    # footer's length, which sets the axes' height, cannot crowd them
     for i, line in enumerate(text["subtitle"]):
-        ax.text(0, 1.02 + 0.05 * (len(text["subtitle"]) - 1 - i), line,
-                transform=ax.transAxes, color=MUTED, fontsize=9.5, va="bottom")
+        ax.annotate(line, xy=(0, 1), xycoords="axes fraction",
+                    xytext=(0, 5 + 12.5 * (len(text["subtitle"]) - 1 - i)),
+                    textcoords="offset points", color=MUTED, fontsize=9.5,
+                    va="bottom")
 
     ax.set_xlabel(f"Democratic seats won (of {k})", color=MUTED, fontsize=10,
                   labelpad=24)
@@ -1047,6 +1058,9 @@ def draw(d: dict, out: Path = OUT) -> dict:
                                    or t.get_clip_path() is not None)))
         for t in fig.findobj(Text)
         if t.get_visible() and t.get_text().strip() and t not in unshown]
+    # the strings drawn on the surface's colour, which no gridline runs through
+    placed["boxed"] = {t.get_text() for t in fig.findobj(Text)
+                       if t.get_visible() and t.get_bbox_patch() is not None}
     # the note's white box covers whatever lies under it, not only its text
     placed["note_box"] = tuple(Bbox.union([
         note.get_window_extent(renderer),

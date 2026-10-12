@@ -13,7 +13,7 @@ map adoption.**
 
 ## First result
 
-![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats and from 0.4% to 2.5% at 0. Iowa's enacted plan is marked at 0 seats; the figure's note says its 0 turns on one district at 49.8% Democratic, that the comparison is not like-for-like because the draws are not held to the plan's 94-person population spread, and that it is not yet a finding. The footer credits the election returns to the Voting and Election Science Team (VEST), 2020, with the dataset's DOI and the licence, CC BY 4.0, and its link, and says each draw's seats are counted from them (D-043, D-044).](docs/figures/ia-neutral-seat-distribution.png)
+![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats and from 0.4% to 2.5% at 0. Iowa's enacted plan is marked at 0 seats; the figure's note says its 0 turns on one district at 49.8% Democratic, that the comparison is not like-for-like because the draws are not held to the plan's 94-person population spread, and that it is not yet a finding. The footer's last lines read: "Election returns: Voting and Election Science Team (VEST), 2020, version 49, doi.org/10.7910/DVN/K7760H; licensed CC BY 4.0, creativecommons.org/licenses/by/4.0. Each draw's seats are counted from them (D-043, D-044)."](docs/figures/ia-neutral-seat-distribution.png)
 
 Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
@@ -269,6 +269,11 @@ python tools/plot_seat_distribution.py           # -> docs/figures/ia-neutral-se
                                                  #    (no data needed)
 ```
 
+The committed figure was rendered with matplotlib's font set to Inter. In another
+font, such as matplotlib's stock DejaVu Sans, the plotter writes the same text,
+numbers and line breaks in different bytes, so `git status` shows the PNG as
+changed.
+
 Every seat value in the first result equals a count from the returns.
 Experiment 2's draws file,
 `docs/experiment-2/ia-draws-v2.csv.gz`, records each draw's metrics, not its
@@ -279,9 +284,12 @@ chain's seed, checks that the draw reproduces its committed row, and counts its
 seats from the returns. It runs Experiment 2's sampler again, but asks it only
 for the committed draws, so it counts the same draws rather than drawing new
 ones. The plotter refuses to draw unless its reading of every draw agrees with
-that count, and unless the count's record matches the draws file the plotter
-reads (its SHA-256, configuration, chains, contests and certified totals) and
-names VEST's dataset, which the figure's footer credits, as the returns counted.
+that count, and unless the count's record describes what the plotter reads: the
+draws file (its SHA-256, and its sidecar's chains, seeds and row counts), the
+counts file (its SHA-256 and row count), the ensemble's configuration, the two
+contests and their certified statewide totals, and the VEST dataset and version
+the figure's footer credits as the returns counted. Replace the counts file and
+its record together, as the recount does.
 
 The recount writes only if every draw reproduces and no district is tied;
 otherwise it exits non-zero and writes nothing. Its docstring lists every
@@ -304,16 +312,19 @@ The rows should match exactly; the compressed bytes also depend on your zlib.
 The record differs wherever your setup does:
 
 - `python`: your Python version.
-- `counts_sha256`: wherever your zlib compresses the same rows differently.
+- `counts_sha256`: if your zlib compresses the same rows to different bytes.
 - `inputs_sha256` for `data/processed/ia_units.gpkg`: on every build, because a
   GeoPackage stores the time it was written.
 - `largest_float_difference.polsby_popper_mean`: a last-bit difference rather
   than 0.0 under Python 3.12 or later, which made `sum` of floats compensated on
   most builds.
-- `returns_source`: `null` unless the files unpacked in `data/raw/vest/` are
-  VEST's version 49, and `vest` without the zip's entry if you did not keep it.
+- `returns_source`: `null` unless the `.dbf` and `.shp` unpacked in
+  `data/raw/vest/` are VEST's version 49, and the zip, if you kept it, is too.
+- `vest`: the hashes of the VEST files you have, with no entry for the zip if
+  you did not keep it.
 
-A record whose `returns_source` is `null` fails `tests/test_seat_distribution.py`.
+A record whose `returns_source` is `null` makes the plotter refuse to draw, and
+fails `tests/test_seat_distribution.py` and `tests/test_recount_seats.py`.
 If you ran the recount in place, `git checkout -- docs/first-result/` restores the
 committed files.
 
@@ -374,7 +385,7 @@ four decimal places on Iowa's four, each a sweep.
 3. `tools/check_firewall.py` — the boundary enforcement.
 4. `docs/progress.md` — the full write-up: what was run, what it found, and
    every result that was later retracted and why.
-5. `docs/DECISIONS.md` — D-001…D-041, each non-obvious choice logged when it was
+5. `docs/DECISIONS.md` — D-001…D-044, each non-obvious choice logged when it was
    made rather than reconstructed afterwards.
 
 ---
@@ -445,21 +456,30 @@ validated, not for litigation, advocacy, or map adoption.**
 
 Apache License 2.0 — see `LICENSE`.
 
-This covers the code and documentation in this repository. It does **not** cover
-the input data, which are not redistributed here: `data/` is gitignored, and
-`tools/fetch_raw.sh` sends you to the sources. Census inputs are public domain
-(17 U.S.C. §105). The election returns are the Voting and Election Science
-Team's *2020 Precinct-Level Election Results*
+This covers the code and documentation in this repository; whether it covers the
+files that hold values computed from VEST's returns is not settled (below). It
+does **not** cover the input data, which are not redistributed here: `data/` is
+gitignored, and `tools/fetch_raw.sh` sends you to the sources. Census inputs are
+public domain (17 U.S.C. §105). The election returns are the Voting and Election
+Science Team's *2020 Precinct-Level Election Results*
 (<https://doi.org/10.7910/DVN/K7760H>), which VEST licenses under CC BY 4.0
 (<https://creativecommons.org/licenses/by/4.0/>).
 
 `docs/first-result/ia-seats-v2.csv.gz`, the seat counts of every committed Iowa
-draw, is committed as adapted from them: `docs/first-result/ATTRIBUTION.md` gives
-VEST's credit, the licence link and what was changed (D-044), and the
-first-result figure credits VEST in its footer. Which licence, if any, this
-repository offers the counts under is not yet decided. Other committed files
-hold metrics computed from the same returns, among them the experiments' draws
-files, results and figures, the Phase 2 report and the PlanScore cross-check;
-they carry no such credit, and whether they need one is open (D-044). The data
-policy in `docs/CRITERIA.md` §9.1 was written before VEST's licence was read
-(D-043).
+draw, is made from version 49 of that dataset and committed with VEST's credit
+and licence link: `docs/first-result/ATTRIBUTION.md` gives the credit, the
+licence link, what was changed and the file's columns (D-044), and the
+first-result figure credits VEST in its footer. The repository has not yet
+decided which licence, if any, it offers the counts under, or the figure drawn
+from them, though `LICENSE` and `CITATION.cff` declare Apache 2.0 for the
+repository as a whole. Other committed files hold values computed from the same
+returns and carry no such credit: metrics in the experiments' draws files,
+results and figures, the Phase 2 report and the PlanScore cross-check, and the
+enacted plan's district vote totals in `tests/test_partisan.py`, which v0.1.0's
+archive also holds. Whether they need a credit is open (D-044).
+
+`docs/CRITERIA.md` §9.1 and the VEST entry in `CITATION.cff` still say VEST
+declares no licence, and §9.1 says the version used was not recorded. Both rest
+on the dataset's licence field on Dataverse, which is empty; VEST's Terms of Use,
+read later, state CC BY 4.0, and the counts were made from version 49 (D-043).
+Only the owner amends §9.1.

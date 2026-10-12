@@ -45,15 +45,16 @@ earlier files at that path stay as they were.
 The rows depend on the counts and keys alone; their compressed bytes also depend
 on the zlib library Python uses. The record differs from the committed one
 wherever the run's setup does, and ``git diff`` on it shows where: the Python
-version; the counts file's hash, wherever zlib compresses the same rows
-differently; the hash of ``data/processed/ia_units.gpkg`` on any other build of
+version; the counts file's hash, if zlib compresses the same rows to different
+bytes; the hash of ``data/processed/ia_units.gpkg`` on any other build of
 it, since a GeoPackage stores when it was written; under Python 3.12 or later, a
 last-bit difference in mean Polsby-Popper (:data:`FLOAT_TOLERANCE`); and
 ``returns_source``, which is null unless the files unpacked in
-``data/raw/vest/`` are VEST's version 49 (:func:`returns_source`).
-``tests/test_seat_distribution.py`` requires the committed record to name that
-file, so to check the committed counts rather than replace them, write
-elsewhere with ``--out`` and compare.
+``data/raw/vest/`` are VEST's version 49 (:func:`returns_source`). The plotter
+refuses a record that does not name that dataset and version, and
+``tests/test_seat_distribution.py`` and ``tests/test_recount_seats.py`` require
+the committed record to name that file, so to check the committed counts rather
+than replace them, write elsewhere with ``--out`` and compare.
 
 It refuses, printing one ``refused:`` line, if ``--out`` does not end in
 ``.csv.gz`` or a file it reads under ``data/processed`` is missing. It fails,
@@ -72,8 +73,11 @@ printing a ``FAIL:`` line for each problem (at most five per chain), if:
 
 ``tools/plot_seat_distribution.py`` reads each draw's seats off its
 |efficiency gap| as D-039 does, and refuses to draw unless every reading agrees
-with these counts and the record matches the draws file it reads: its SHA-256,
-configuration, chains, row count, contests and certified totals.
+with these counts, and the record describes what it reads: the draws file (its
+SHA-256, and its sidecar's chains, seeds and row counts), the counts file (its
+SHA-256 and row count), the ensemble's configuration, the two contests and their
+certified totals, and the VEST dataset and version the figure credits as the
+returns counted.
 
 It needs the Iowa data built (``tools/fetch_raw.sh ia``, VEST's ``ia_2020.zip``
 unpacked in ``data/raw/vest/``, ``tools/prepare_data.py``) and gerrychain as
@@ -81,8 +85,8 @@ unpacked in ``data/raw/vest/``, ``tools/prepare_data.py``) and gerrychain as
 seeds, and the run then fails. No plan is kept: each is measured, counted, keyed
 and dropped. No vote count from the returns is written: the files hold seat
 counts, and the record holds the certified statewide totals the returns are
-checked against. Counts made from VEST's returns are adapted from a dataset VEST
-licenses under CC BY 4.0. When the files read are VEST's version 49, the record's
+checked against. The counts are made from VEST's returns, which VEST licenses
+under CC BY 4.0. When the files read are VEST's version 49, the record's
 ``returns_source`` carries VEST's credit, the licence and its link, and points to
 ``docs/first-result/ATTRIBUTION.md``, which gives them with what was changed
 (D-044); otherwise ``returns_source`` is null, and the plotter refuses the record.
@@ -134,7 +138,7 @@ VEST = tuple(ROOT / "data" / "raw" / "vest" / f"ia_2020.{ext}"
 #: The file the committed count was made from (D-043): VEST's 2020 precinct
 #: returns on the Harvard Dataverse, with the MD5 Dataverse publishes for the
 #: zip and the SHA-256 of the two members tools/prepare_data.py reads, and the
-#: credit and licence the counts carry as material adapted from it (D-044;
+#: credit and licence link the counts carry (D-044;
 #: docs/first-result/ATTRIBUTION.md). The record names it only when those
 #: members are the files read here (:func:`returns_source`).
 VEST_SOURCE = {"dataset": "doi:10.7910/DVN/K7760H", "version": "49.0",
