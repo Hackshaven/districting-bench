@@ -34,9 +34,10 @@ from the returns, which the repository does not redistribute; the counts are
 committed as ``docs/first-result/ia-seats-v2.csv.gz``, with a record of what the
 recount read. :func:`seat_distribution` reads every draw's seats as below and
 refuses unless the reading agrees with the count on every draw under both
-contests, and unless the record names the draws file read here, so every bar,
-dot and whisker is what the counts give. The reading stays because it is how the
-draws file is read, and the count is how it is checked. The recount also keys
+contests, and unless the record names the draws file read here and the
+returns the footer credits, so every bar, dot and whisker is what the counts
+give. The reading stays because it is how the draws file is read, and the count
+is how it is checked. The recount also keys
 each draw's plan, and distinct plans are counted by those keys: rows of the
 draws file cannot count them, because a plan with its districts renumbered can
 move its mean Polsby-Popper in the last bit, and two plans can share every
@@ -84,6 +85,12 @@ two Monte Carlo standard errors of the pooled share, from its effective sample
 size on the rectangle. Block means over every committed draw, which see
 dependence longer than the rectangle can, give a larger standard error, and the
 footer quotes that one too.
+
+**The committed PNG was rendered in Inter.** The machine it was made on sets
+matplotlib's ``font.family`` to Inter, without hinting, through ``MATPLOTLIBRC``;
+nothing in the repository sets it. In matplotlib's stock DejaVu Sans, which CI
+uses, the text, the numbers and the line breaks are the same, since the wrap
+counts characters, but the image's bytes are not.
 """
 from __future__ import annotations
 
@@ -125,6 +132,9 @@ RECOUNT = ROOT / "docs" / "first-result" / "ia-seats-v2.csv.gz"
 #: What the recount read: it must name the draws file read here, and the counts
 #: file beside it, byte for byte.
 RECOUNT_RECORD = ROOT / "docs" / "first-result" / "ia-seats-v2.json"
+#: The dataset the footer credits. The recount's record must name it as the
+#: returns it counted from, so the credit is held to the record (D-044).
+RETURNS_DATASET = "doi:10.7910/DVN/K7760H"
 #: The draws file's integer metrics besides competitive districts, which a plan
 #: key's draws must share.
 INTEGER_METRICS = ("county_splits", "cut_edges", "population_spread")
@@ -468,9 +478,10 @@ def _read_counts(handle, path: Path, counted: dict, plans: dict) -> None:
 
 def check_recount_record(record, n_counted: int, spec, draws: Path, counts: Path) -> None:
     """Refuse a record that describes other draws, another configuration, other
-    totals or another counts file than the ones this script reads. It binds the
-    counts to the draws they describe; it cannot tell a pair the recount wrote
-    from one made some other way, which only rerunning the recount can (D-043)."""
+    totals or another counts file than the ones this script reads, or that does
+    not name the returns the footer credits. It binds the counts to the draws
+    they describe; it cannot tell a pair the recount wrote from one made some
+    other way, which only rerunning the recount can (D-043)."""
     if not isinstance(record, dict):
         raise ValueError(f"{RECOUNT_RECORD.name} is not a record")
     sidecar = json.loads(X._sidecar_for(draws).read_text())
@@ -493,6 +504,10 @@ def check_recount_record(record, n_counted: int, spec, draws: Path, counts: Path
         wrong.append(f"it counted {record.get('contests')}, not {[CONTEST, ALTERNATE]}")
     if record.get("certified_two_party_totals") != {c: list(t) for c, t in TWO_PARTY.items()}:
         wrong.append("its certified totals are not the ones asserted here")
+    source = record.get("returns_source")
+    if not (isinstance(source, dict) and source.get("dataset") == RETURNS_DATASET):
+        wrong.append(f"it does not name {RETURNS_DATASET}, which the footer credits, "
+                     "as the returns it counted from")
     if wrong:
         raise ValueError(f"{RECOUNT_RECORD.name} does not describe the count read "
                          "here: " + "; ".join(wrong))
@@ -878,13 +893,22 @@ def figure_text(d: dict) -> dict:
     footer = textwrap.wrap(
         f"Range in these draws: {min(span)}–{max(span)} D seats of {k}"
         + (f"; none reached {' or '.join(map(str, missing))}." if missing else ".") + reach
-        + " Seats are counted from VEST's 2020 returns, CC BY 4.0 (D-043, D-044). "
-        "Dots: each chain's share. "
+        + " Dots: each chain's share. "
         "Whiskers and ±: 2 Monte Carlo standard errors of the pooled share, from "
         f"its effective sample size{block}. Seat\u00a0count split R-hat {rhat:.3f}, {where} "
         f"CRITERIA §8's {RHAT_BAND[0]:.2f}–{RHAT_BAND[1]:.2f} band"
         + ("; " + ", and ".join(caution) if caution else "")
         + ". Regenerate: tools/plot_seat_distribution.py, from committed files only.",
+        FOOTER_WIDTH, break_on_hyphens=False)
+    # then VEST's credit, on lines of its own, as a source line. The figure
+    # travels without ATTRIBUTION.md, so it names the dataset and the
+    # licence's link as well (D-044); no-break spaces keep the licence's name
+    # and the references whole
+    footer += textwrap.wrap(
+        "Election returns: Voting and Election Science Team (VEST), 2020, "
+        f"{RETURNS_DATASET}, licensed CC\u00a0BY\u00a04.0, "
+        "creativecommons.org/licenses/by/4.0; each draw's seats are counted from them "
+        "(D-043,\u00a0D-044).",
         FOOTER_WIDTH, break_on_hyphens=False)
     return {
         "title": f"Seats in a neutral ReCom ensemble for {state}",

@@ -1561,26 +1561,73 @@ licenses under CC BY 4.0, and the four decisions D-042 and D-043 quote stand as
 recorded there. The author carried the credit and the link to where the counts
 and what is drawn from them are read:
 
-- `docs/first-result/ATTRIBUTION.md` gives VEST's citation, the licence and its
-  link, what was changed (the precinct returns summed to counties, then seats
-  counted per draw; no vote count kept), and VEST's disclaimer of warranties;
+- `docs/first-result/ATTRIBUTION.md` gives VEST's citation, a link to version
+  49, the licence and its link, where VEST states the licence, what was changed
+  (the precinct returns summed to counties, then seats counted per draw; no vote
+  count kept), where VEST describes its own processing, the counts' columns, and
+  VEST's disclaimer of warranties;
 - the recount's record, `docs/first-result/ia-seats-v2.json`, carries the
-  citation and the licence link in `returns_source`. The recount's own write
-  step wrote it from the committed counts and the last full run's float
-  differences (all 0.0), without regenerating the draws again: three full runs
-  have written the counts byte for byte the same, and a credit changes nothing
-  they measure;
-- the first-result figure's footer credits VEST and names the licence, because
-  the figure travels without the README;
-- the README's licence section names VEST's licence, the adapted file and the
-  attribution, where it said the returns carry no declared licence.
+  citation, the licence (`CC-BY-4.0`) and its link, and a pointer to that notice,
+  in `returns_source`;
+- the first-result figure's footer ends with VEST's credit, the dataset's DOI,
+  and the licence and its link, because the figure travels without the README or
+  the notice, and the plotter refuses a record that does not name the dataset the
+  footer credits;
+- the README's licence section names VEST's licence, the counts as adapted from
+  VEST's data, and the notice, where it said the returns carry no declared
+  licence. It also says the counts' own licence is undecided, and that other
+  committed files hold metrics computed from the same returns without a credit.
+
+The recount's write step wrote the record twice for this entry, from the
+committed counts, without regenerating the draws: a short script read the counts
+file back into the form a run produces, gave every chain the float differences
+the last full run recorded (all 0.0), and called `write` with `provenance()`
+taken then. Three full runs have written the counts byte for byte the same, and
+the credit changes nothing they measure; the counts file came out byte for byte
+the same both times, and the record changed only in `returns_source`. The script
+has no option that does this, so the steps are recorded here, and
+`tests/test_recount_seats.py` holds every field of the committed record that the
+write step takes from a constant, `returns_source` among them, to the script's
+constants.
 
 *Alternatives:* committing the counts without a credit, or withdrawing them so
 that only the reading stands. The owner chose neither.
 
-*Still the owner's:* `docs/CRITERIA.md` §9.1, which still says no licence is
-declared, and the other statements D-043 lists (`CITATION.cff`, the release notes
-in `.github/workflows/release.yml`, the comments in `.github/workflows/tests.yml`,
-`tests/dataguard.py` and `tests/test_experiment_3_plans.py`, and D-039's "the
-returns cannot be redistributed"), and which licence, if any, the repository
-offers its own adaptation, the counts, under.
+*Still the owner's to amend*, as statements that say the returns carry no
+licence, cannot be redistributed, or cannot be fetched by a script, though
+Dataverse serves them to one:
+- `docs/CRITERIA.md`: §9.1, which says no licence is declared, records version
+  48.0, and gives the missing licence as why no election data is committed; its
+  Sources entry for VEST, "no licence declared"; and its table of sources, which
+  says the returns cannot be fetched by script;
+- the README's "Getting the data" and `tools/fetch_raw.sh`, which send the reader
+  to download the returns by hand behind a click-through;
+- `CITATION.cff`, which says no licence is declared on the deposit and names no
+  version;
+- `.github/workflows/release.yml`, whose release notes, archived with every DOI,
+  say the returns are not redistributable;
+- the comments in `.github/workflows/tests.yml`, `tests/dataguard.py` and
+  `tests/test_experiment_3_plans.py`;
+- D-039 above, "the returns cannot be redistributed", unmerged;
+- on `main`, as history: D-037, D-038 and `docs/progress.md`'s note on the suite.
+
+*Open, for the owner, with counsel where the question is one of law:*
+- which licence, if any, the repository offers the counts under. The README says
+  Apache 2.0 covers the repository's code and documentation, and the counts sit
+  under `docs/`;
+- whether the other committed files that hold metrics computed from VEST's
+  returns need the same credit: the experiments' draws files, results and
+  figures, the Phase 2 report, and the PlanScore cross-check;
+- D-043's second question, whether the counts are election data under §9.1,
+  which the owner's answer did not address;
+- whether the figure's footer is notice enough for a figure that travels alone;
+- whether this branch's earlier commits, which carry the counts without the
+  notice and which a merge commit brings into `main`'s history (D-042), need
+  anything.
+
+*Corrected in review:* the first version of this entry left `docs/CRITERIA.md`'s
+Sources entry and table of sources, `tools/fetch_raw.sh` and D-038 out of its
+list, did not name the questions the owner's answer leaves open, and described
+the README as naming "the adapted file", as if no other committed file held
+values computed from VEST's returns. The Scientific Data Steward agent's review
+showed each.

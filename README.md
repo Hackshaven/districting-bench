@@ -13,7 +13,7 @@ map adoption.**
 
 ## First result
 
-![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats and from 0.4% to 2.5% at 0. Iowa's enacted plan is marked at 0 seats; the figure's note says its 0 turns on one district at 49.8% Democratic, that the comparison is not like-for-like because the draws are not held to the plan's 94-person population spread, and that it is not yet a finding. The footer says each draw's seats are counted from VEST's 2020 returns, licensed CC BY 4.0 (D-043, D-044).](docs/figures/ia-neutral-seat-distribution.png)
+![Bar chart of Democratic seats won, of 4, across 27,564 neutral ReCom draws for Iowa under the 2020 presidential vote: 0 seats in 1.4% of draws (±0.8 points), 1 seat in 49.0% and 2 seats in 49.5%, each of those two with whiskers of about ±6 points (2 Monte Carlo standard errors by one estimate; others run higher), and none at 3 or 4; the six chains range from 41% to 58% at 2 seats and from 0.4% to 2.5% at 0. Iowa's enacted plan is marked at 0 seats; the figure's note says its 0 turns on one district at 49.8% Democratic, that the comparison is not like-for-like because the draws are not held to the plan's 94-person population spread, and that it is not yet a finding. The footer credits the election returns to the Voting and Election Science Team (VEST), 2020, with the dataset's DOI and the licence, CC BY 4.0, and its link, and says each draw's seats are counted from them (D-043, D-044).](docs/figures/ia-neutral-seat-distribution.png)
 
 Across 27,564 draws from a ReCom sampler with no access to election data, **a
 neutral ensemble for Iowa gives Democrats 0–2 of 4 seats under the 2020
@@ -187,7 +187,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 660 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 662 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -231,14 +231,14 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 806 passed, 5 skipped (derived; see below)
+PYTHONPATH=src pytest tests -q         # 808 passed, 5 skipped (derived; see below)
 python tools/check_firewall.py         # must print: clean
 ```
 
-The 806 and the 5 are derived, not measured: with the data, this file
-recorded 719 passed and 5 skipped at v0.1.0; the 87 tests added since need
+The 808 and the 5 are derived, not measured: with the data, this file
+recorded 719 passed and 5 skipped at v0.1.0; the 89 tests added since need
 neither the data nor the network (without the data, passes rose from 573 to
-660 and skips stayed at 151); and no code that a v0.1.0 test runs has
+662 and skips stayed at 151); and no code that a v0.1.0 test runs has
 changed since, except docstrings.
 
 **Without the election returns you can still generate.** The neutral half needs
@@ -280,7 +280,8 @@ seats from the returns. It runs Experiment 2's sampler again, but asks it only
 for the committed draws, so it counts the same draws rather than drawing new
 ones. The plotter refuses to draw unless its reading of every draw agrees with
 that count, and unless the count's record matches the draws file the plotter
-reads: its SHA-256, configuration, chains, contests and certified totals.
+reads (its SHA-256, configuration, chains, contests and certified totals) and
+names VEST's dataset, which the figure's footer credits, as the returns counted.
 
 The recount writes only if every draw reproduces and no district is tied;
 otherwise it exits non-zero and writes nothing. Its docstring lists every
@@ -303,6 +304,7 @@ The rows should match exactly; the compressed bytes also depend on your zlib.
 The record differs wherever your setup does:
 
 - `python`: your Python version.
+- `counts_sha256`: wherever your zlib compresses the same rows differently.
 - `inputs_sha256` for `data/processed/ia_units.gpkg`: on every build, because a
   GeoPackage stores the time it was written.
 - `largest_float_difference.polsby_popper_mean`: a last-bit difference rather
@@ -451,8 +453,13 @@ Team's *2020 Precinct-Level Election Results*
 (<https://doi.org/10.7910/DVN/K7760H>), which VEST licenses under CC BY 4.0
 (<https://creativecommons.org/licenses/by/4.0/>).
 
-One committed file is adapted from them: `docs/first-result/ia-seats-v2.csv.gz`,
-the seat counts of every committed Iowa draw. `docs/first-result/ATTRIBUTION.md`
-gives VEST's credit, the licence link and what was changed (D-044), and the
-first-result figure credits VEST in its footer. The data policy in
-`docs/CRITERIA.md` §9.1 was written before VEST's licence was read (D-043).
+`docs/first-result/ia-seats-v2.csv.gz`, the seat counts of every committed Iowa
+draw, is committed as adapted from them: `docs/first-result/ATTRIBUTION.md` gives
+VEST's credit, the licence link and what was changed (D-044), and the
+first-result figure credits VEST in its footer. Which licence, if any, this
+repository offers the counts under is not yet decided. Other committed files
+hold metrics computed from the same returns, among them the experiments' draws
+files, results and figures, the Phase 2 report and the PlanScore cross-check;
+they carry no such credit, and whether they need one is open (D-044). The data
+policy in `docs/CRITERIA.md` §9.1 was written before VEST's licence was read
+(D-043).

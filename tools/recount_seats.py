@@ -45,8 +45,9 @@ earlier files at that path stay as they were.
 The rows depend on the counts and keys alone; their compressed bytes also depend
 on the zlib library Python uses. The record differs from the committed one
 wherever the run's setup does, and ``git diff`` on it shows where: the Python
-version; the hash of ``data/processed/ia_units.gpkg`` on any other build of it,
-since a GeoPackage stores when it was written; under Python 3.12 or later, a
+version; the counts file's hash, wherever zlib compresses the same rows
+differently; the hash of ``data/processed/ia_units.gpkg`` on any other build of
+it, since a GeoPackage stores when it was written; under Python 3.12 or later, a
 last-bit difference in mean Polsby-Popper (:data:`FLOAT_TOLERANCE`); and
 ``returns_source``, which is null unless the files unpacked in
 ``data/raw/vest/`` are VEST's version 49 (:func:`returns_source`).
@@ -80,9 +81,11 @@ unpacked in ``data/raw/vest/``, ``tools/prepare_data.py``) and gerrychain as
 seeds, and the run then fails. No plan is kept: each is measured, counted, keyed
 and dropped. No vote count from the returns is written: the files hold seat
 counts, and the record holds the certified statewide totals the returns are
-checked against. The counts are adapted from VEST's dataset, which VEST licenses
-under CC BY 4.0; the record carries VEST's credit and the licence link, and
-``docs/first-result/ATTRIBUTION.md`` gives both, with what was changed (D-044).
+checked against. Counts made from VEST's returns are adapted from a dataset VEST
+licenses under CC BY 4.0. When the files read are VEST's version 49, the record's
+``returns_source`` carries VEST's credit, the licence and its link, and points to
+``docs/first-result/ATTRIBUTION.md``, which gives them with what was changed
+(D-044); otherwise ``returns_source`` is null, and the plotter refuses the record.
 
 These are the committed draws regenerated, not new ones: the sampler is asked
 for each chain's committed draws and no more, and a draw that does not
@@ -142,7 +145,11 @@ VEST_SOURCE = {"dataset": "doi:10.7910/DVN/K7760H", "version": "49.0",
                "credit": "Voting and Election Science Team, 2020, \"2020 Precinct-Level "
                          "Election Results\", https://doi.org/10.7910/DVN/K7760H, "
                          "Harvard Dataverse, V49",
-               "license": "CC BY 4.0, https://creativecommons.org/licenses/by/4.0/"}
+               "license": "CC-BY-4.0",
+               "license_url": "https://creativecommons.org/licenses/by/4.0/",
+               # the notice beside the counts: the credit, the licence, VEST's
+               # disclaimer, what was changed, and the counts' columns (D-044)
+               "attribution": "docs/first-result/ATTRIBUTION.md"}
 
 #: Iowa's certified 2020 two-party totals, ``(D, R)``, as tools/prepare_data.py
 #: and tests/test_elections.py assert them. The unsigned metrics the draws file

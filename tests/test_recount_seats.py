@@ -301,6 +301,21 @@ def test_the_record_names_vest_s_file_only_when_the_files_are_its_own(
     assert R.returns_source(R.vest_digests()) is None
 
 
+def test_the_committed_record_is_what_the_script_would_write_from_its_constants():
+    # The committed record was last written by the script's own write step from
+    # the committed counts (D-044), and a full run takes half an hour, so hold
+    # every field write takes from a constant to that constant here, with no
+    # data: an edit to one without the other fails CI, not the next full run.
+    record = json.loads(R.sidecar_path(R.OUT).read_text(encoding="utf-8"))
+    assert record["returns_source"] == R.VEST_SOURCE
+    assert record["generated_by"] == "tools/recount_seats.py"
+    assert record["contests"] == list(R.CONTESTS)
+    assert record["certified_two_party_totals"] == {
+        c: list(t) for c, t in R.CERTIFIED.items()}
+    assert record["integer_columns"] == sorted(R.INTEGER_COLUMNS)
+    assert record["float_tolerance"] == R.FLOAT_TOLERANCE
+
+
 def test_a_write_that_fails_leaves_both_files_as_they_were(tmp_path, monkeypatch):
     out = tmp_path / "ia-seats-v2.csv.gz"
     out.write_bytes(b"the last counts that passed")

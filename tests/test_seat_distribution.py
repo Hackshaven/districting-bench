@@ -49,6 +49,12 @@ IOWA_VOTES = sum(S.TWO_PARTY["G20PRE"])
 TOTAL_VOTES = {"IA": IOWA_VOTES, "CO": 1_804_352 + 1_364_607}
 K = 4
 
+#: VEST's credit, as Harvard Dataverse cites version 49, and the link to the
+#: licence it states, which the counts carry as adapted material (D-044).
+VEST_CREDIT = ('Voting and Election Science Team, 2020, "2020 Precinct-Level Election '
+               'Results", https://doi.org/10.7910/DVN/K7760H, Harvard Dataverse, V49')
+LICENCE_URL = "https://creativecommons.org/licenses/by/4.0/"
+
 
 @pytest.fixture(scope="module")
 def dist():
@@ -445,22 +451,15 @@ def test_the_count_s_record_names_the_draws_and_counts_read_here(tmp_path, monke
     # under Python 3.11, as the README pins it, every committed row reproduced
     assert set(record["largest_float_difference"].values()) == {0.0}
     # the returns: VEST's version 49 file, which D-043 names, by the files read,
-    # with the credit and licence link the counts carry as adapted material (D-044)
-    credit = ('Voting and Election Science Team, 2020, "2020 Precinct-Level Election '
-              'Results", https://doi.org/10.7910/DVN/K7760H, Harvard Dataverse, V49')
-    licence = "https://creativecommons.org/licenses/by/4.0/"
+    # with the credit and licence the counts carry as adapted material, and the
+    # notice beside them (D-044)
     assert record["returns_source"] == {
         "dataset": "doi:10.7910/DVN/K7760H", "version": "49.0", "file_id": 14304797,
         "file": "ia_2020.zip", "md5": "500252facae6107b93128406ebf5177b",
         "dbf_sha256": "c37230a71af50a83735ef80e1361447d23307175f7fcc22842f17706fbc16080",
         "shp_sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a",
-        "credit": credit, "license": f"CC BY 4.0, {licence}"}
-    # and beside the counts, the same credit, the licence and its link
-    notice = " ".join((S.RECOUNT.parent / "ATTRIBUTION.md").read_text().split())
-    for part in ('Voting and Election Science Team, 2020, "2020 Precinct-Level Election '
-                 'Results"', "https://doi.org/10.7910/DVN/K7760H", "Harvard Dataverse, V49",
-                 "CC BY 4.0", licence, "WITHOUT WARRANTY OF ANY KIND"):
-        assert part in notice
+        "credit": VEST_CREDIT, "license": "CC-BY-4.0", "license_url": LICENCE_URL,
+        "attribution": "docs/first-result/ATTRIBUTION.md"}
     for change, why in (
             (lambda r: r.update(draws_sha256="0" * 64), "a draws file other than"),
             (lambda r: r.update(counts_sha256="0" * 64), "a counts file other than"),
@@ -471,7 +470,11 @@ def test_the_count_s_record_names_the_draws_and_counts_read_here(tmp_path, monke
             (lambda r: r.update(n_rows=57_552), "it records 57552 rows"),
             (lambda r: r.update(contests=["G20USS", "G20PRE"]), "it counted"),
             (lambda r: r["certified_two_party_totals"]["G20USS"].reverse(),
-             "certified totals")):
+             "certified totals"),
+            # the footer credits VEST's dataset, so the record must name it
+            (lambda r: r.update(returns_source=None), "the returns it counted from"),
+            (lambda r: r["returns_source"].update(dataset="doi:10.0/other"),
+             "the returns it counted from")):
         changed = copy.deepcopy(record)
         change(changed)
         with pytest.raises(ValueError, match=why):
@@ -484,6 +487,22 @@ def test_the_count_s_record_names_the_draws_and_counts_read_here(tmp_path, monke
     monkeypatch.setattr(S, "RECOUNT_RECORD", path)
     with pytest.raises(ValueError, match="does not describe the count read here"):
         S.seat_distribution()
+
+
+def test_the_counts_carry_vest_s_notice():
+    # The record points to the notice beside the counts, and the notice gives
+    # what D-044 says it gives: the file it covers, VEST's credit, the licence
+    # and its link, what was changed, and VEST's disclaimer. Whether that is
+    # enough is for the owner, not a test.
+    record = json.loads(S.RECOUNT_RECORD.read_text(encoding="utf-8"))
+    path = S.ROOT / "docs" / "first-result" / "ATTRIBUTION.md"
+    assert S.ROOT / record["returns_source"]["attribution"] == path
+    notice = " ".join(path.read_text(encoding="utf-8").split())
+    for part in ("`ia-seats-v2.csv.gz`", VEST_CREDIT.split(", https")[0],
+                 "https://doi.org/10.7910/DVN/K7760H", "Harvard Dataverse, V49",
+                 "CC BY 4.0", LICENCE_URL, "holds no vote count from the dataset",
+                 "WITHOUT WARRANTY OF ANY KIND"):
+        assert part in notice, part
 
 
 def test_a_plan_key_names_one_plan(dist, tmp_path, monkeypatch):
@@ -626,11 +645,20 @@ def test_the_figure_text_is_pinned(dist):
                    "all in one chain's first 500 draws; committed draws outside these "
                    "reach it in 3 more plans.",
                    "2-seat share's standard error at 3.3–3.9 pts",
-                   "R-hat 1.014, above CRITERIA §8's 1.00–1.01 band",
-                   "Seats are counted from VEST's 2020 returns, CC BY 4.0 (D-043, "
-                   "D-044). Dots"):
+                   "R-hat 1.014, above CRITERIA §8's 1.00–1.01 band"):
         assert phrase in footer
     assert all(len(line) <= S.FOOTER_WIDTH for line in text["footer"])
+    # VEST's credit closes the footer, on lines of its own, with the dataset's
+    # DOI and the licence's link, because the figure travels without
+    # ATTRIBUTION.md (D-044); no-break spaces keep the licence's name whole
+    credit = ("Election returns: Voting and Election Science Team (VEST), 2020, "
+              "doi:10.7910/DVN/K7760H, licensed CC\u00a0BY\u00a04.0, "
+              "creativecommons.org/licenses/by/4.0; each draw's seats are counted from "
+              "them (D-043,\u00a0D-044).")
+    first = [i for i, line in enumerate(text["footer"]) if line.startswith("Election returns:")]
+    assert len(first) == 1
+    assert " ".join(text["footer"][first[0]:]) == credit
+    assert text["footer"][first[0] - 1].endswith("from committed files only.")
 
 
 def footer_of(d: dict) -> str:
@@ -665,7 +693,7 @@ def test_the_figure_text_follows_the_values(dist):
     # says so even when these draws reach none
     reach = "8 draws reach 3 seats, in 2 distinct plans, all in one chain's first 500 draws"
     d["alternate_beyond_all"]["more_plans"] = 0
-    assert f"{reach}. Seats are counted" in footer_of(d)
+    assert f"{reach}. Dots" in footer_of(d)
     d["alternate_beyond_all"]["more_plans"] = 1
     assert f"{reach}; committed draws outside these reach it in 1 more plan." in footer_of(d)
     d["alternate_beyond"].update(draws=[], distinct=0)
