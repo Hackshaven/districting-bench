@@ -381,7 +381,7 @@ separates a real detector from a partisan-geography thermometer.
 | Source | Provides | Known defect |
 | --- | --- | --- |
 | Census PL 94-171 (2020) | Population, race, VAP by block | **Differential privacy noise** from the TopDown algorithm. Relative error is largest in small-population blocks. Whether redistricting law permits, forbids, or requires accounting for this is unsettled. Quantify the effect on your metrics; do not ignore it. |
-| VEST — [10.7910/DVN/K7760H](https://doi.org/10.7910/DVN/K7760H) | Precinct-level election results. **The only source here that cannot be fetched by script** — Harvard Dataverse requires a click-through, so `tools/fetch_raw.sh` prints instructions instead. | Crosswalked from 2010 precinct shapes to 2020 blocks and re-aggregated. Introduces estimation error before you touch it. Two further defects of *our* use of it are below. |
+| VEST — [10.7910/DVN/K7760H](https://doi.org/10.7910/DVN/K7760H) | Precinct-level election results. **The only source here not fetched by script**: `tools/fetch_raw.sh` prints instructions for downloading it by hand. | Crosswalked from 2010 precinct shapes to 2020 blocks and re-aggregated. Introduces estimation error before you touch it. A further gap in *our* use of it is below. |
 | ALARM 2020 Redistricting Data Files | VEST joined to Census at precinct level, tidied | The recommended starting point. Saves weeks. |
 | Redistricting Data Hub | Shapefiles, enacted plans, COI submissions | Coverage varies by state |
 | PlanScore | Scored enacted and historical plans | Useful as an external cross-check on your metric implementations |
@@ -399,20 +399,31 @@ One dataset holds every state as a separate ESRI shapefile. This project uses
 `ia_2020` and `co_2020`, unpacked to `data/raw/vest/` and `data/raw/vest_co/` —
 directory names that are this repository's convention, not VEST's.
 
-**Two gaps, recorded rather than smoothed over:**
+**What VEST licenses, and what is committed.** VEST states CC BY 4.0
+(<https://creativecommons.org/licenses/by/4.0/>) in the dataset's Terms of Use on
+Dataverse and in its documentation file. The dataset's licence field on
+Dataverse is empty, which this section once read as "no licence is declared"
+(D-043). The returns themselves are not committed: `data/` is gitignored, and
+each reader downloads them. The per-draw seat counts in `docs/first-result/` are
+not election data in this section's sense: for plans drawn by computer, they
+count how many districts each party would have carried, and hold no vote count.
+They are committed with VEST's credit and the licence's link, and the repository
+offers them, and the figure drawn from them, under CC BY 4.0
+(`docs/first-result/ATTRIBUTION.md`, D-044). Whether other committed values
+computed from the returns need the same credit is open (D-044). An unstated
+licence is still not taken as a licence to redistribute.
 
-- **No licence is declared on the dataset.** Harvard Dataverse reports no licence
-  for this DOI, so the terms of reuse are unstated rather than permissive. That is
-  why no election data is committed to this repository and why `data/` is
-  gitignored — the position taken here is that an unstated licence is not a
-  licence to redistribute.
+**One gap, recorded rather than smoothed over:**
+
 - **The dataset version used was not recorded at download time.** The DOI is
   version-less and resolves to the latest; the deposit is at version 48.0 as of
   2025-09-12. What can be checked is that the files carry VEST's own dates —
   Iowa 2021-06-09, Colorado 2021-06-28 — and that `tools/prepare_data.py`
   asserts the Iowa two-party presidential totals (897,672 R, 759,061 D). A
-  different vintage fails that assertion loudly rather than silently shifting
-  every downstream number, which is the property that actually matters.
+  vintage with other totals fails that assertion loudly rather than silently
+  shifting every downstream number; one with the same totals passes it. The seat
+  counts are the exception: they were made from version 49, identified by hash
+  (D-043).
 
 `EMPIRICAL` and worth a one-time measurement: run the detection loop with and
 without DP noise injected and report whether it changes any conclusion. If it
@@ -488,7 +499,7 @@ every output, and make every value choice a visible, changeable parameter.
 - DeFord, Duchin & Solomon, "Recombination: A Family of Markov Chains for Redistricting"
 - McCartan & Imai, "Sequential Monte Carlo for Sampling Balanced and Compact Redistricting Plans"
 - MGGG GerryChain — https://mggg.org/posts/gerrychain
-- Voting and Election Science Team, *2020 Precinct-Level Election Results*, Harvard Dataverse — https://doi.org/10.7910/DVN/K7760H (no licence declared; see §9.1)
+- Voting and Election Science Team, *2020 Precinct-Level Election Results*, Harvard Dataverse — https://doi.org/10.7910/DVN/K7760H (CC BY 4.0, stated in its Terms of Use; see §9.1)
 - ALARM Project `redist` and 50-State Simulations — https://alarm-redist.org/
 - PlanScore metric documentation — https://planscore.org/metrics/
 - Redistricting Data Hub, "Racially Polarized Voting" — https://redistrictingdatahub.org/resources/racially-polarized-voting/

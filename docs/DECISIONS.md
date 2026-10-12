@@ -1085,3 +1085,608 @@ to a stranger.
 What share of this work an agent performed is visible in the commit history and
 is left for the author to describe. It is deliberately not encoded in citation
 metadata by the agent itself.
+
+## D-039 — Iowa's seat counts are read off the committed efficiency gap, not recounted
+
+**Date:** 2026-10-11 · **Phase:** post-release
+
+*Since:* D-043 counts every committed draw's seats from the returns, on plans
+regenerated from their seeds, and the reading agrees on all 57,553 under both
+contests.
+
+The README's figure and its two numbers came from a 1,820-draw ensemble and a
+gitignored results file (`docs/progress.md`, "The README's first result,
+re-derived on the v2 ensemble"). Re-deriving them on the v2 ensemble needs each
+draw's Democratic seat count, and `docs/experiment-2/ia-draws-v2.csv.gz` does not
+record one. It records |efficiency gap|, |mean-median| and competitive districts
+per contest.
+
+*Chosen:* read the seat count off the efficiency gap. On a fixed election the gap
+is pinned by the outcome. With wasted votes counted against half of each
+district's votes, `EG = 2V − ½ − τ` exactly, where `τ` is the share of two-party
+votes cast in districts the Democrats win, and `τ = s/k` when turnout is equal.
+Each seat count therefore has a level, `|2V − ½ − s/k|`, and a draw sits off its
+own level by its turnout imbalance. `tools/plot_seat_distribution.py` assigns
+each draw to its level only under two checks, and refuses the whole sample if
+either fails:
+- a draw read as a sweep (0 or `k` seats) must sit above its level by exactly
+  what the strict-majority threshold allows: `k − j/2` votes, where `j` counts
+  the districts with an odd total and so has the parity of the statewide total
+  `T`. That is 2.5 or 3.5 votes under the 2020 presidential vote, and 2, 3 or 4
+  under the Senate vote;
+- every other draw must sit within half of the half-gap of its level.
+
+*Alternatives:*
+- **Recount from plans and returns.** Not done: the plans are not committed (the
+  draws file holds metrics only) and would have to be regenerated from their
+  seeds, and the returns cannot be redistributed, so only a reader who has
+  fetched VEST could check the result, as for every experiment. A one-time
+  recount of one chain would verify that chain's readings and test the method
+  on the rest, and is worth doing wherever the data are built. Verifying the
+  0-seat count takes the draws read as 0 in all six chains, which means
+  rerunning each chain to its last such draw: 20,127 of the rectangle's 27,564
+  draws. The whole rectangle, for 37% more, would also verify the 1-versus-2
+  split.
+- **Keep the 1,820-draw figure.** Rejected: no reader can regenerate it (D-036),
+  and its sample is the least converged Iowa ensemble the repository quotes.
+- **Add a seats column to the draws file.** Rejected: that is a new measurement,
+  and the committed file is the record of the one that was made (D-027).
+- **Assign each draw to its nearest level, with no margin.** That was the first
+  version, and review showed the guard was nearly empty. Storing |EG| rather than
+  EG folds the sign away and brings Iowa's 1- and 2-seat levels to 0.083 apart,
+  and a nearest-level rule refuses only a draw exactly at the midpoint. A 1-seat
+  plan whose Democratic district cast 30% of the state's votes would have been
+  read as 2 seats without complaint.
+
+*What the checks establish:* the identity is exact and its only free term is
+turnout. Draws read as sweeps are checked to the half vote: all 395 draws read
+as 0 seats sit 2.5 or 3.5 votes above their level (216 and 179 of them), the
+only two offsets an odd statewide total allows. That check is necessary, not
+sufficient. Under the presidential vote a plan that is not a sweep, and has no
+exactly tied district, lands on the same grid only if the districts the
+Democrats win cast one of six totals, 1,379,512 to 1,379,517 votes (`4V − 1` of
+the two-party vote, 83%): a turnout imbalance of 0.083 at 3 seats, 0.333 at 2
+and 0.583 at 1. Any other tie-free plan whose gap lands nearest the 0-seat level
+stops the plotter, and none of the 57,553 committed draws does. A plan the
+Democrats win none of is always read as 0 unless one of its districts is exactly
+tied, so short of a tie a misreading could only add to the count. The 0-seat
+count is therefore a reading, but a harder one to get wrong than the 1-versus-2
+split, and only a recount of the draws read as 0, which are spread over all six
+chains, would verify it. Every other draw sits at most 0.0143 from its level,
+about a third of the 0.0413 half-gap, but that residual is measured from the
+level the draw was read at, so it cannot show on its own that the reading is
+right. Misreading a 1-seat plan as 2 would take a Democratic district casting
+over 31% of the state's two-party vote against 25% at equal turnout: a turnout
+imbalance of 0.062, three times the margin, by construction, and four times the
+largest residual, by measurement. From there to 0.103, a band about 68,000 votes
+wide, the misreading would pass without complaint, and so would a 2-seat plan
+read as 1 from the same band the other way. The two enacted plans in the Phase 2
+report, counted directly from the returns, read back correctly, but that is weak
+support: Iowa's is a sweep, exact whatever the turnout, and Colorado's sits far
+from Colorado's closest levels. Under the 2020 Senate vote the same checks pass
+with more room: the largest residual is 0.0159, against a half-gap of 0.0570.
+
+*Limits:* the method works only when every draw's turnout imbalance stays inside
+the margin. How close the folded levels sit is a property of the vote share, the
+district count, and the decision to store |EG|. On Colorado the closest levels
+are 0.028 apart. Of the 20,000 v2 draws, 125 sit farther than that half-gap from
+every level, and 9,857 farther than the margin the plotter applies, half the
+half-gap, so the plotter refuses Colorado (`tests/test_seat_distribution.py`
+pins both counts). Nothing uses the method there. Storing the signed gap, or
+the seat count, in the next measurement would remove the need for any of this.
+
+*Earlier entries:* D-012 and D-013 quote the 1,820-draw shares (2 seats at
+43.0%). Their conclusions rest on the 0–2 span, which stands under the
+presidential vote. The shares themselves are superseded by the ones recorded
+here, and the entries are left as written.
+
+*Corrected in review:* an earlier version of this entry called the 0-seat count
+verified outright, because every draw read as a sweep sits on the half-vote
+grid. GitHub Copilot's automated review of pull request #7 constructed district
+vote totals that give the Democrats 2 of 4 seats and land on the grid too;
+`tests/test_seat_distribution.py::test_every_sweep_sits_on_the_half_vote_grid`
+keeps them. The paragraph above now says what the grid does and does not
+establish, after the fourth audit in `docs/first-result/INSTRUMENT-AUDIT.md`.
+
+## D-040 — PlanScore's published efficiency gaps use a different formula; this repository keeps CRITERIA.md's
+
+**Date:** 2026-10-11 · **Phase:** post-release · **VALUE** (whether to report both forms)
+
+`prompt.md` asks for the metric implementations to be cross-checked against
+PlanScore. On the same district totals, rounded to whole votes, three metrics
+agree up to sign and scale, and the efficiency gap does not. PlanScore's code
+computes, and its files publish, the equal-turnout form `(S − ½) − 2(V − ½)`,
+while `evaluate.partisan` counts wasted votes (`docs/progress.md`, "Cross-check
+against PlanScore"). PlanScore's own metric page, which `CRITERIA.md` cites,
+describes the wasted-vote form, as `CRITERIA.md` §5.1 does. PlanScore's code
+counted wasted votes until August 2021, when commit 24331854 changed it "to use
+vote share instead of raw counts"; the per-race values compared here arrived after
+that (19927c3e, September 2021), so PlanScore's code has never computed them in
+the wasted-vote form, though its plan page still describes them in wasted-vote
+words (`planscore/website/static/plan.js` at 3f866f9). PlanScore first swings any
+statewide vote share outside 25–75% into that band. Inside it, where all eight
+races compared lie, and on a plan with no tied or empty district, as none of
+these has, the two differ in PlanScore's orientation by `τ − S`, plus a
+strict-majority term of at most `k/T`, so they agree whenever `τ = S`, which
+includes equal turnout and any one-party sweep.
+
+*Chosen:* keep the wasted-vote form, correct the docstring that called the two
+the same up to sign, and record how far apart they are on a real plan. Whether
+to report both forms is left open below, for the owner.
+
+*Alternatives:*
+- **Switch to PlanScore's form.** Rejected: `CRITERIA.md` §5.1 defines the
+  efficiency gap by wasted votes, and only the owner amends it. Switching would
+  also move every efficiency gap this repository has published, in the Phase 2
+  report and in all three experiments.
+- **Report both forms side by side.** Not done here, and the **VALUE** part of
+  this entry. It is what `prompt.md`'s "disagreements highlighted rather than
+  resolved" points toward. But it adds a metric to the report and to every
+  experiment's columns, so it is the owner's call.
+- **Commit PlanScore's files so the check runs offline.** Rejected: they hold
+  district-level election returns under no stated licence, and `CRITERIA.md`
+  §9.1 commits nothing under an unstated licence. The script fetches the files
+  and pins each by sha256, so a re-scored file fails the check rather than
+  passing as the same input. The cost is that the check needs the network, and
+  needs PlanScore's storage to stay up.
+
+*How the check is built:* PlanScore's four definitions are re-implemented in
+`tools/check_planscore.py` from the formulas in `planscore/score.py` at 566cda4,
+the commit both pinned files record as having scored them, sign, scale and tie
+rules included; 3f866f9 rewrites the four functions in vectorized form, and they
+compute the same. None of PlanScore's code is copied, and its repository states
+no licence. Every run checks each conversion against the re-implementation
+(declination only on Colorado: every Iowa race is a sweep, where ours is
+undefined, so there the re-implementation is checked against PlanScore's sweep
+value), the efficiency gap against PlanScore's published values, the identity
+above with `τ` computed from the district totals, and the wasted-vote count
+against GerryChain's own `wasted_votes`, which PlanScore's files cannot check
+because they publish no wasted-vote gap. So a defect in the wasted-vote count
+fails rather than passing as a difference of definition. Nothing in this
+repository runs PlanScore's code. Whether to tell PlanScore that its published
+values and its metric page describe different formulas is the owner's call.
+
+## D-041 — The enacted-plan comparison is not conditioned on population equality or compactness
+
+**Date:** 2026-10-11 · **Phase:** post-release · **VALUE**
+
+The README locates Iowa's enacted plan in the v2 ensemble's seat distribution: it
+returns 0 seats, as 1.43% of the draws do (`docs/progress.md`, "The enacted plan's
+caveats, now with numbers"). The comparison is not like-for-like: the draws are
+not held to the enacted plan's 94-person population spread, and only 454 of the
+27,564 are that equal. How its compactness compares depends on the measure: 88% of
+the draws have fewer cut edges than its 51, but on mean Polsby-Popper, the other
+measure the draws carry, it sits mid-ensemble, with 48.7% of them more compact. The
+two measures order the draws with a rank correlation of 0.76, below the ~0.9 above
+which `CRITERIA.md` §3 says the choice of measure does not matter. Pooled,
+restricting the draws to those no more compact than the plan raises the zero-seat
+share to 4.5% on cut edges, where the plan is in the least compact eighth, and to
+2.0% on Polsby-Popper, where it is mid-ensemble; neither restriction is a matched
+reference, and the size of either contrast is not robust (`docs/progress.md`).
+
+*Chosen:* report the unconditioned share, with the population mismatch as the
+reason the comparison is not yet a finding; report compactness on both measures
+beside it, in the README and `docs/progress.md` but not on the figure, which has no
+room for both and their disagreement; and leave any conditioning to the owner.
+
+*Why the two are not treated alike:* population equality ranks first in Iowa Code
+§42.4 (Iowa Code 2026) and compactness fourth, "to the extent consistent with the
+standards established by subsections 1, 2, and 3". For congressional districts
+neither the statute nor *Karcher v. Daggett* sets a person count: Iowa Code
+§42.4(1)(b) requires populations "as nearly equal as practicable" to the ideal,
+with its one-percent cap yielding to Iowa Const. art. III, §37, and *Karcher v.
+Daggett*, 462 U.S. 725, 730 (1983), requires population equality "as nearly as is
+practicable". 94 persons is the spread the enacted plan reached (Iowa Legislative
+Services Agency, Plan 2 report, Table 1, 21 October 2021). Matching the reference
+to it would match on the enacted plan's achieved level of the first-ranked
+standard, not on a legal threshold. In a sampler a population level is an input,
+the bound its draws are held to, so matching on it means re-sampling under that
+bound. Compactness is an output of where the lines go, and whether to match on it cannot be settled from
+these draws, because the cut-edge gap has three possible sources that
+conditioning treats differently. If it comes from choices made in drawing the plan,
+conditioning absorbs part of the difference the comparison measures (the second
+audit in `docs/first-result/INSTRUMENT-AUDIT.md`). If it comes from constraints
+the draws are not held to, conditioning could move the reference toward a matched
+one, but only if the draws' relation between compactness and seats carries over
+to plans drawn at the enacted tolerance, which these draws cannot show;
+illustrative reweightings of them, none a matched reference, give zero-seat shares
+from 0.44% to 2.4% under the constructions the third audit there tried, and other
+constructions give other values. If it comes from the sampler's own
+preference for few cut edges, conditioning undoes part of the reference's target,
+which is a choice about what the neutral baseline is. Which measure to match on is
+a further question. Iowa Code §42.4(4) names length-width and perimeter
+compactness for comparing plans, and the draws carry neither. For plans made of
+whole counties the perimeter test, summed over a plan's districts as the statute
+allows, ranks plans by the total length of the county boundaries their district
+lines follow, a length-weighted form of cut edges; mean Polsby-Popper uses the
+same district perimeters, scaled by each district's area. How closely either
+measure the draws carry follows the statute's tests is unmeasured here, and the
+statute does not say how to weigh its two tests if they disagree. Of the two
+measures the draws do carry, they are more compact than the plan on cut edges and
+not on Polsby-Popper. Part of the cut-edge gap may follow from the population gap,
+by an amount these draws cannot measure: the 454 population-tight draws average
+48.1 cut edges against 45.5 for the rest, but across the draws population spread
+and cut edges are barely associated, and too few of the 454 give 0 seats to show
+whether compactness matters among them.
+
+*Alternatives:*
+- **Filter the ensemble to draws as equal as the enacted plan.** Not done. A
+  filter shows what goes with more equality inside this ensemble, not what a
+  sampler drawing at that tolerance produces (Experiment 1 §3), and the 454
+  population-tight draws hold one zero-seat plan.
+- **Filter or constrain the ensemble on compactness.** Not done, for the reasons
+  above; on cut edges the zero-seat share among the draws no more compact than the
+  plan also halves once each chain's warm-up is dropped.
+- **Re-sample at the enacted plan's tolerance.** The matched comparison, and a new
+  experiment with its own name (D-036). Its plans may be less compact, and it may
+  need another sampler or start: at this ensemble's tolerance 10 of its 12 chains
+  stopped short of their 12,000 draws. It must also bound the spread itself, since
+  a per-district tolerance that admits the enacted plan admits spreads up to 105.5
+  persons.
+
+*Why this is the owner's:* which features of an enacted plan a neutral ensemble
+must match before a comparison with it counts, and on which compactness measure,
+is a judgment `docs/CRITERIA.md` does not settle. Its §2.1 does not mention
+§42.4(4)'s tests; the `Election Law Analyst`'s claim register on these sentences,
+`docs/first-result/LEGAL-CLAIMS.md`, marks for an election-law attorney how a
+court would apply them, and proposes a corrected §2.1 for the owner.
+
+*Corrected in review:* the first version of this entry gave compactness on cut
+edges alone, said the draws already exceed the enacted plan's level of it, and
+argued only the first of the cases above. The third audit in
+`docs/first-result/INSTRUMENT-AUDIT.md` records that correction; the routing
+reviews after it added the third case, showed that none of the reweightings is a
+matched reference, and brought in §42.4(4). Earlier versions also called matching
+on population equality matching "on a constraint", which read the enacted plan's
+94-person spread as a legal requirement.
+
+## D-042 — An entry not yet merged is corrected in place, with a note
+
+**Date:** 2026-10-11 · **Phase:** post-release
+
+*Since:* the owner confirmed both decisions below on 2026-10-12 (D-044).
+
+The decision log's rule is that entries aren't rewritten, and a reversal is a new
+entry (`CLAUDE.md`, and this file's preamble). D-039 and D-041 were written in the
+change that became pull request #7, which has not merged, and both were corrected
+before merge: D-039 after GitHub Copilot's automated review of the pull request and
+the fourth agent audit, D-041 after the third agent audit and the agent routing
+reviews that followed it. The audits are recorded in
+`docs/first-result/INSTRUMENT-AUDIT.md`; the routing reviews are not. Each entry was
+corrected in place, under a "*Corrected in review:*" note that says what the
+earlier version claimed and what showed it wrong.
+
+*Chosen, by the owner:* asked whether those in-place corrections should stand, the
+owner answered on 2026-10-11, in conversation with the author rather than on the
+pull request: "corrected in review is the right approach". The question
+concerned D-039 and D-041; the author applies the answer as a rule to every
+unmerged entry, this one and D-043 included. So an entry that has not merged is
+corrected in place, with such a note. Once an entry is on `main` it
+is not rewritten, and a reversal is a new entry, as before. The author's reasons:
+until merge an entry is a draft; correcting it in place keeps the log to the
+decisions that were in force, and the note keeps each correction visible. The
+author also reads the rule as letting an unmerged entry carry a pointer to a later
+one, as D-039 points to D-043. Whether an entry on `main` may carry one is the
+owner's question, not settled here.
+
+*Alternative:* a new entry for every correction made before merge. Rejected by the
+author: a reader of `main` would meet entries superseded before anyone could act
+on them, with the one in force at the end.
+
+*Also chosen, by the owner:* "let's use a merge commit" for pull request #7, not a
+squash. The author's reason: the audit records in `docs/first-result/` and
+`docs/cross-checks/` cite the branch's commits by hash, and a squash would leave
+those hashes resolving to nothing on `main`.
+
+*Not changed here:* `CLAUDE.md` and this file's preamble still state the rule
+without the exception. Amending them is the owner's.
+
+*Corrected in review:* the first version of this entry said the owner chose "on
+pull request #7", which reads as a comment there, and nothing was posted there. It
+gave the author's reasons under the owner's name, said "review" without naming
+whose, and marked itself with an "Owner's decision" label this file does not
+define. The Pre-Submission Peer Reviewer agent's review of the change showed all
+four.
+
+## D-043 — Every committed Iowa draw's seats are counted from the returns, and the reading agrees
+
+**Date:** 2026-10-11 · **Phase:** post-release
+
+*Since:* the owner confirmed both decisions below and answered both questions it
+leaves for merge: the counts carry VEST's credit and the licence link, and they
+are not election data in §9.1's sense (D-044).
+
+D-039 reads each draw's Democratic seats off its committed |efficiency gap|,
+because the draws file holds metrics, not plans. Its fourth audit showed that the
+reading is hard to get wrong but cannot verify itself. The owner made two
+decisions on 2026-10-11, in conversation with the author. The first was to count:
+"Verify the count". The second answered this question: "Counting seats needs
+VEST's Iowa 2020 returns (ia_2020.zip, 5 MB). The dataset's stated terms are CC BY
+4.0 plus a no-warranty disclaimer; [...] Nothing from it would be committed except
+per-draw seat counts, a derived metric like the |efficiency gap| already
+committed. May I download it on your behalf?" The owner chose "Download it for
+me", whose description read: "I fetch ia_2020.zip from the Dataverse API,
+accepting CC BY 4.0 and the disclaimer on your behalf, use it locally to build
+data/processed/ia_elections.csv (gitignored), and commit only the seat counts."
+Counting every committed draw, rather than only those read as 0 seats, was the
+author's choice, for the reasons under *Alternatives*, which are the author's.
+
+*Chosen:* count every committed draw. Experiment 2's v1 draws, 12,050 rows, are
+the v2 chains' first rows, row for row, in all ten chains that have any (the
+Pre-Submission Peer Reviewer agent's check), so they are counted too.
+`tools/recount_seats.py` regenerates each committed chain from its seed, as
+`tools/experiment_2_tradeoffs.py` drew it, under Python 3.11 and the versions
+`requirements.txt` pins, and measures every draw with that script's own
+`measure_plan`. All 57,553 committed draws reproduce their committed rows exactly:
+cut edges, population spread and competitive districts; |efficiency gap| and
+|mean-median|, under both contests; and mean Polsby-Popper. County splits match
+too, but they are 0 on every Iowa plan by construction, since the units are whole
+counties. An earlier run under Python 3.13 found mean Polsby-Popper up to one unit
+in the last place off, 5.6×10⁻¹⁷: the per-district values reproduce, but Python
+3.12 made the built-in `sum` of floats compensated on most builds, and
+`measure_plan` averages them with it. The match is of the chains' paths, not of
+57,553 independent checks: the draws hold 5,588 distinct plans, and each change of
+plan recurs at its committed step. It identifies the plans up to the numbering of
+their districts, which seats do not depend on. Each draw's seats are then counted
+from the returns, and the counts are committed as
+`docs/first-result/ia-seats-v2.csv.gz`, with a key for each draw's plan that
+ignores district numbers, and a record of what the count read and wrote: the draws
+file's hash and the counts file's, which binds the two, the configuration, every
+chain, the hashes of the inputs and of VEST's files, VEST's dataset, version and
+file, and the Python and gerrychain versions. No district is tied; a tie would
+refuse the count. The plotter checks its reading against the count on every draw,
+under both contests, and refuses on any difference, if the record does not match
+the draws and counts files it reads, or if a plan key names draws that differ.
+None of these refuses, so every seat value behind the figure equals its count, and
+no seat count, share or interval the repository has published moves. The Monte
+Carlo intervals are unchanged in value and in meaning: they never included the
+reading as a source of error, and their convergence caveats stand. The plan keys
+do move published numbers: the distinct-plan counts in `docs/progress.md`, which
+counted rows of metrics and called them a lower bound, and the two shares taken
+over distinct plans, in four places there. A renumbered plan can leave two or
+three rows. Those places now quote counted plans, and the D-043 section there says
+what changed.
+
+These are the same draws, counted, not new ones: each regenerated draw reproduces
+its committed row. That is the author's reading of D-036, which names a re-run of
+an experiment a new experiment, and of `prompt.md`'s "run each once": the sampler
+is asked for exactly the committed draws and checked against them, and a draw that
+differed would refuse the count rather than join it.
+
+*The returns:* VEST's Iowa file, `ia_2020.zip`, as Harvard Dataverse served it on
+2026-10-11: dataset doi:10.7910/DVN/K7760H, version 49.0, file 14304797, uploaded
+2026-10-03, MD5 `500252facae6107b93128406ebf5177b`. The dataset's terms of use
+state CC BY 4.0, with a no-warranty disclaimer; its structured licence field is
+empty, and version 48, which `docs/CRITERIA.md` §9.1 records, carried the same
+terms text, by the redistricting scientist and Pre-Submission Peer Reviewer
+agents' reading of its Dataverse record. The file postdates the draws, and the
+repository never recorded which version they were measured with. Three things tie
+the count to the returns the draws were measured with:
+- **The district totals.** Every |efficiency gap| and |mean-median|, under both
+  contests, on every plan the chains visit, reproduces exactly. |Efficiency gap|
+  alone could not show this: it is blind to an even number of votes moved between
+  districts the same party wins, and to a trade of votes between the parties
+  across two counties, wherever no district changes hands. |Mean-median| moved
+  under both in the fifth audit's probes.
+- **Which party is which.** Those metrics are unsigned, and would reproduce with
+  the parties swapped, turning `s` seats into `4 − s`. The recount refuses unless
+  each contest's statewide two-party totals equal the certified ones, 759,061 D
+  and 897,672 R for president and 754,859 D and 864,997 R for Senate, and the
+  plotter's reading is anchored on the same totals.
+- **Version 48 against version 49.** The two files' attribute tables hold the same
+  values in all 1,661 precinct rows, in the same order; two minor-candidate
+  columns are renamed (`G20PREOFUE` to `G20PREADEL`, `G20USSOHER` to
+  `G20USSIHER`). The `.shp` and `.shx` files differ, and version 49 adds a
+  `.shp.xml`; `tools/prepare_data.py` sums precincts by their county attribute, so
+  the county totals do not depend on them. Version 48's file is Dataverse file
+  4789403, MD5 `f204468e6747db41f97573af1844a959`, created 2021-06-09. The
+  redistricting scientist agent found this and the author checked it.
+
+What this does not show is that the county totals are accurate. The code checks
+only the statewide totals against the certified figures, and regenerated plans
+have districts within 17 votes of a tie (fifth audit). The redistricting scientist
+agent compared all 99 county totals with the Secretary of State's canvass under
+both contests and found none different; the GIS QA Engineer has not confirmed it.
+
+*Alternatives:*
+- **Count only the draws read as 0 seats.** Verifying the 395 in the rectangle
+  means regenerating 20,127 draws, and verifying all 832 committed ones, 55,159.
+  Not chosen: the whole rectangle, 37% more than 20,127, would also check each
+  draw's 1-or-2 reading, which the reading could get wrong without complaint, and
+  every committed draw, as chosen, is 57,553: 2.9 times 20,127, and 4% more than
+  55,159.
+- **Keep the reading, and say on the figure that it is one.** Offered to the owner
+  as a footer note. The owner asked whether counting would make it unnecessary
+  ("the figure filter issue goes away if we verify the count?", the footer meant);
+  it does, since the count confirms every reading.
+- **Add a seats column to the draws file.** Rejected for D-039's reason: that file
+  is the record of the measurement that was made (D-027). The counts sit beside
+  it.
+
+*Limits:* the recount needs the data and 25 to 30 minutes on an idle four-core
+machine, so CI cannot run it; CI checks the committed counts and their record
+instead. CI cannot tell a pair the recount wrote from one made some other way;
+only rerunning the recount can.
+
+Statements elsewhere say the returns carry no licence or cannot be redistributed.
+Version 48's record, which `docs/CRITERIA.md` §9.1 cites, already stated CC BY 4.0
+in its terms of use; only its licence field was empty. So §9.1's "the terms of
+reuse are unstated" did not match that record when it was written, and the
+statements that follow it are errors to correct, not statements made stale by the
+owner's choice. Amending them is the owner's:
+- `docs/CRITERIA.md` §9.1, which also records version 48.0 and Iowa's file date
+  2021-06-09, and gives the missing licence as why no election data is committed;
+- the README's licence section ("carry no declared licence at all") and its
+  "Getting the data", which says the files sit behind a click-through a script
+  cannot accept, though Dataverse serves them to a script;
+- `CITATION.cff`, which says no licence is declared on the deposit;
+- `.github/workflows/release.yml`, whose release notes, archived with every DOI,
+  say the returns are not redistributable;
+- the comments in `.github/workflows/tests.yml`, `tests/dataguard.py` and
+  `tests/test_experiment_3_plans.py`;
+- D-039 above, "the returns cannot be redistributed", unmerged;
+- on `main`, as history: D-037 and `docs/progress.md`'s note on the suite.
+
+The owner's choice covered committing per-draw seat counts and nothing else from
+the file. Whether they need VEST's credit and a licence link under CC BY 4.0, and
+whether they are election data under §9.1, are questions for the owner and the
+election-law reader, to answer before this merges.
+
+*Corrected in review:* the first version of this entry said reproducing
+|efficiency gap| alone showed the returns give the draws' district totals, which
+cannot fix which party is which; put the cost of counting every draw at 37% more
+than the 0-seat recount, when 37% buys the rectangle; credited the Polsby-Popper
+difference to the geometry library's rounding, when it came from running the
+recount under Python 3.13, whose `sum` of floats is compensated; listed county
+splits among the columns that confirm the regeneration; said the figure's bars are
+counts; and named one owner's decision of two. The fifth agent audit in
+`docs/first-result/INSTRUMENT-AUDIT.md` and the agent routing reviews showed each.
+The second version called the licence statements stale, when version 48's own
+record already stated CC BY 4.0, and its list of them was incomplete; the
+Pre-Submission Peer Reviewer agent's second review showed both.
+
+## D-044 — The seat counts carry VEST's credit and its licence link
+
+**Date:** 2026-10-12 · **Phase:** post-release
+
+D-043 left two questions for the owner, to answer before merge: whether the
+committed seat counts need VEST's credit and a licence link under CC BY 4.0, and
+whether they are election data under `docs/CRITERIA.md` §9.1. It also asked the
+owner to confirm the decisions D-042 and D-043 quote.
+
+*Chosen, by the owner,* on 2026-10-12, in conversation with the author: "Commit
+the seat counts with a VEST credit and license link. I confirm the decisions." So
+the counts are committed with VEST's credit and a link to the licence VEST states
+for its dataset, CC BY 4.0, and the four decisions D-042 and D-043 quote stand as
+recorded there. The answer chose a credit and a link. It did not say whether CC
+BY 4.0's conditions reach the counts, or the figure drawn from them, at all, and
+if so what notice each owes; that is for counsel (below). The notice and the
+README say only that the counts are made from VEST's returns. The author carried
+the credit and the link to where the counts and what is drawn from them are read:
+
+- `docs/first-result/ATTRIBUTION.md` gives VEST's citation, a link to version
+  49, the licence and its link, where VEST states the licence, what the counts
+  describe (plans drawn by computer, not real districts or results), what was
+  changed (the precinct returns summed to counties, then seats counted per draw;
+  no vote count kept), where VEST describes its own processing, the file's
+  format, rows and columns, and VEST's disclaimer of warranties;
+- the recount's record, `docs/first-result/ia-seats-v2.json`, carries the
+  citation, the licence (`CC-BY-4.0`) and its link, and a pointer to that notice,
+  in `returns_source`;
+- the first-result figure's footer ends with VEST's credit, the version counted,
+  the dataset's DOI, and the licence and its link, because the figure travels
+  without the README or the notice, and the plotter refuses a record that does not
+  name the dataset and version the footer credits;
+- the README's licence section names VEST's licence, the counts and the notice,
+  where it said the returns carry no declared licence. It also says the
+  repository offers the counts and the figure under CC BY 4.0 while `LICENSE`
+  and `CITATION.cff` still declare Apache 2.0 for the whole repository, and that
+  other committed files hold values computed from the same returns without a
+  credit.
+
+The recount's write step wrote the record twice for this entry, from the
+committed counts, without regenerating the draws: a short script read the counts
+file back into the form a run produces, gave every chain the float differences
+the last full run recorded (all 0.0), and called `write` with `provenance()`
+taken then. Three full runs have written the counts byte for byte the same, and
+the credit changes nothing they measure; the counts file came out byte for byte
+the same both times, and the record changed only in `returns_source`. The script
+has no option that does this, so the steps are recorded here, and
+`tests/test_recount_seats.py` holds every field of the committed record that the
+write step takes from a constant, `returns_source` among them, to the script's
+constants.
+
+The README's "Getting the data" and `tools/fetch_raw.sh` gave a click-through
+that a script cannot accept as why the returns are downloaded by hand. The
+author wrote that reason (46b5065), and it is not so: Dataverse's API served
+version 49's files to a script on 2026-10-12 with no step to accept. Both now
+say only that the repository does not fetch them; whether it should is the
+owner's.
+
+*Alternatives:* committing the counts without a credit, or withdrawing them so
+that only the reading stands. The owner chose neither.
+
+*Still the owner's to amend*, as statements that say the returns carry no
+licence, cannot be redistributed, or cannot be fetched by a script
+(`docs/CRITERIA.md`'s §9.1, table of sources and Sources entry are amended, as
+above):
+- before the next version bump, which reads both: `CITATION.cff`, which says no
+  licence is declared on the deposit and names no version, and
+  `.github/workflows/release.yml`, whose notes on each GitHub release say the
+  returns are not redistributable. v0.1.0's DOI record took its description and
+  licence from `CITATION.cff`, and holds the workflow only as a file in the
+  archive;
+- the comments in `.github/workflows/tests.yml`, `tests/dataguard.py` and
+  `tests/test_experiment_3_plans.py`;
+- D-039 above, "the returns cannot be redistributed", unmerged;
+- on `main`, as history: D-037, D-038 and `docs/progress.md`'s note on the suite.
+
+*Answered by the owner* on 2026-10-12, in conversation with the author, to the
+two questions that held the merge:
+- Asked "CRITERIA §9.1 says no election data is committed. Are the per-draw seat
+  counts election data in that sense?", the owner chose "No; amend §9.1", whose
+  description read: "They're seat tallies for computer-drawn plans, not returns,
+  and VEST's CC BY 4.0 allows them with the credit now in place. I draft §9.1's
+  new text for your approval and record your answer in D-044." So the counts are
+  not election data in §9.1's sense. Shown the author's draft of §9.1, its table
+  of sources and its Sources entry, the owner chose "Approve as drafted", and the
+  text is applied in a commit of its own.
+- Asked "Which licence should the repository offer the seat counts and the
+  first-result figure under?", the owner chose "CC BY 4.0, like VEST", whose
+  description read: "Code stays Apache 2.0, and the counts and figure are CC BY
+  4.0 with VEST's credit. I state it in the attribution file, the README and
+  D-044. CITATION.cff and the release notes change at the version bump." So the
+  counts and the figure drawn from them are offered under CC BY 4.0, keeping
+  VEST's credit, and are not committed under an unstated licence;
+  `docs/first-result/ATTRIBUTION.md` and the README say so.
+
+*Open, for the owner*, with counsel where the question is one of law:
+- **Before the next version bump**, which mints a DOI: `CITATION.cff`, whose
+  `license: Apache-2.0` declares Apache 2.0 for the whole repository, counts and
+  figure included, and the release notes in `.github/workflows/release.yml`.
+  v0.1.0's DOI record took its licence from `CITATION.cff`. With them, whether
+  that record and the next name VEST's dataset as a source: v0.1.0's
+  `CITATION.cff` listed VEST among its references, and its DOI record still names
+  no source, so `CITATION.cff` alone did not carry it; a record's metadata can be
+  changed in place.
+- **When, the owner decides**; the Scientific Data Steward agent would have the
+  owner answer each before merge:
+  - whether CC BY 4.0's conditions reach the counts and the figure drawn from them
+    at all, and if so whether the notice and the figure's footer, which carries no
+    title, disclaimer or pointer to the notice, are enough. The repository now
+    offers both under that licence with VEST's credit whatever the answer;
+  - whether the other committed files that hold values computed from VEST's
+    returns need the same credit, and under which licence the repository offers
+    them, among them: the experiments' draws files, results and figures, the
+    Phase 2 report, the PlanScore cross-check, numbers the README and
+    `docs/progress.md` quote and the tests that pin them, and the test's district
+    vote totals. Which VEST version they were computed from was never recorded
+    (§9.1), so a credit to them cannot name one. The PlanScore cross-check also
+    holds values computed from PlanScore's files, whose repository states no
+    licence (`docs/cross-checks/INSTRUMENT-AUDIT.md`);
+  - whether this branch's earlier commits that carry the counts without the
+    notice, 10564b0, 3054a64 and 7c335ff, need anything. They are public already,
+    on the branch and on GitHub's ref for this pull request, which outlives the
+    branch; a merge commit decides only whether `main`'s history carries them
+    (D-042);
+  - whether the repository should fetch VEST's returns by script, or keep the
+    download by hand. This holds nothing.
+
+*Corrected in review:* the first version of this entry left `docs/CRITERIA.md`'s
+Sources entry and table of sources, `tools/fetch_raw.sh` and D-038 out of its
+list, did not name the questions the owner's answer leaves open, and described
+the README as naming "the adapted file", as if no other committed file held
+values computed from VEST's returns. The second called the counts adapted
+material on the strength of the owner's answer, which chose a credit and a link
+and did not characterize the counts; described the other files as holding
+metrics, though `tests/test_partisan.py` holds district vote totals; left out of
+the licence question the Apache 2.0 that `LICENSE` and `CITATION.cff` declare;
+said the release notes are archived with every DOI; did not say which open
+questions hold the merge; and asked only whether the figure's footer is notice
+enough, not whether the figure needs one. The third asked the licence question
+of the counts and the figure alone; placed `CLAUDE.md`'s commit rule at the
+version bump, though it governs committing; listed the other files as if the
+list were complete; stated what the licence makes of the facts while sending
+that question to counsel; and kept as the owner's a reason for the download by
+hand that the author wrote and that is not so. The Scientific Data Steward
+agent's reviews showed each.

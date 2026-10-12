@@ -1,0 +1,550 @@
+{
+  "generated_by": "tools/check_planscore.py",
+  "planscore_source": "https://github.com/PlanScore/planscore/blob/566cda433ab7d145c2c86daf5872aff0cc175707/planscore/score.py",
+  "conventions": {
+    "ours": {
+      "efficiency_gap": "positive favours R",
+      "mean_median": "positive favours R",
+      "declination": "positive favours R",
+      "partisan_bias": "positive favours D"
+    },
+    "planscore": {
+      "efficiency_gap": "positive favours D; (S - 1/2) - 2(V - 1/2), the equal-turnout form",
+      "mean_median": "positive favours D; median - mean of D shares",
+      "partisan_bias": "positive favours D; same definition as ours",
+      "declination": "positive favours D; -(Warrington's angle) * ln(k) / 2, -ln(k)/2 when the Republicans win every seat and +ln(k)/2 when the Democrats do"
+    },
+    "efficiency_gap_terms": "in PlanScore's orientation: -ours - equal_turnout = turnout_term (tau - S) + threshold_term (at most k/T)",
+    "gerrychain_wasted_vote_gap": "positive favours D; GerryChain's wasted_votes, which wastes a winner's votes above half the district's total; within k/T of ours"
+  },
+  "note": "metric values, statewide shares and district populations only; no district vote counts are stored (CRITERIA.md section 9.1)",
+  "plans": {
+    "IA": {
+      "planscore_id": "20251203T023554.470826564Z",
+      "url": "https://planscore.s3.amazonaws.com/uploads/20251203T023554.470826564Z/index.json",
+      "sha256": "3b6e73c849712673330e08df323f258292dcf23cb387fafdf9b8b0dabac2092d",
+      "commit_sha": "566cda433ab7d145c2c86daf5872aff0cc175707",
+      "description": "Iowa Second Draft - US House",
+      "model_version": "2025B",
+      "district_populations": {
+        "1": 797576,
+        "2": 797589,
+        "3": 797551,
+        "4": 797645
+      },
+      "population_spread": 94,
+      "enacted_spread_documented": 94,
+      "population_minus_documented": {
+        "1": -8,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "races": {
+        "US President 2020": {
+          "n_districts": 4,
+          "dem_seats": 0,
+          "dem_vote_share": 0.45816814830195424,
+          "tau": 0.0,
+          "ours": {
+            "n_districts": 4,
+            "dem_seats": 0,
+            "rep_seats": 4,
+            "tied_districts": 0,
+            "dem_seat_share": 0.0,
+            "dem_vote_share": 0.45816814830195424,
+            "efficiency_gap": 0.41633810740205995,
+            "mean_median": -0.024256595815449644,
+            "declination": null,
+            "partisan_bias": 0.25
+          },
+          "ours_in_planscore_convention": {
+            "efficiency_gap_wasted_votes": -0.41633810740205995,
+            "efficiency_gap_equal_turnout": -0.4163362966039085,
+            "mean_median": 0.024256595815449644,
+            "partisan_bias": 0.25,
+            "declination": null
+          },
+          "planscore_definitions": {
+            "mean_median": 0.024256595815449644,
+            "partisan_bias": 0.25,
+            "declination": -0.6931471805599453
+          },
+          "declination_compared_with": "PlanScore's sweep convention: ours is undefined",
+          "gerrychain_wasted_vote_gap": -0.4163362966039084,
+          "planscore_published_efficiency_gap": -0.4163,
+          "efficiency_gap_terms": {
+            "wasted_minus_equal_turnout": -1.8107981514803306e-06,
+            "turnout_term": 0.0,
+            "threshold_term": -1.8107981514803306e-06
+          },
+          "checks": {
+            "published_efficiency_gap": true,
+            "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
+          }
+        },
+        "US Senate 2020": {
+          "n_districts": 4,
+          "dem_seats": 0,
+          "dem_vote_share": 0.4660043016275561,
+          "tau": 0.0,
+          "ours": {
+            "n_districts": 4,
+            "dem_seats": 0,
+            "rep_seats": 4,
+            "tied_districts": 0,
+            "dem_seat_share": 0.0,
+            "dem_vote_share": 0.4660043016275561,
+            "efficiency_gap": 0.43201045527616105,
+            "mean_median": -0.02554219994751561,
+            "declination": null,
+            "partisan_bias": 0.25
+          },
+          "ours_in_planscore_convention": {
+            "efficiency_gap_wasted_votes": -0.43201045527616105,
+            "efficiency_gap_equal_turnout": -0.43200860325511214,
+            "mean_median": 0.02554219994751561,
+            "partisan_bias": 0.25,
+            "declination": null
+          },
+          "planscore_definitions": {
+            "mean_median": 0.02554219994751561,
+            "partisan_bias": 0.25,
+            "declination": -0.6931471805599453
+          },
+          "declination_compared_with": "PlanScore's sweep convention: ours is undefined",
+          "gerrychain_wasted_vote_gap": -0.4320086032551122,
+          "planscore_published_efficiency_gap": -0.432,
+          "efficiency_gap_terms": {
+            "wasted_minus_equal_turnout": -1.852021048909247e-06,
+            "turnout_term": 0.0,
+            "threshold_term": -1.852021048909247e-06
+          },
+          "checks": {
+            "published_efficiency_gap": true,
+            "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
+          }
+        },
+        "US President 2016": {
+          "n_districts": 4,
+          "dem_seats": 0,
+          "dem_vote_share": 0.4493650697625817,
+          "tau": 0.0,
+          "ours": {
+            "n_districts": 4,
+            "dem_seats": 0,
+            "rep_seats": 4,
+            "tied_districts": 0,
+            "dem_seat_share": 0.0,
+            "dem_vote_share": 0.4493650697625817,
+            "efficiency_gap": 0.3987315144282328,
+            "mean_median": -0.029956672943516227,
+            "declination": null,
+            "partisan_bias": 0.25
+          },
+          "ours_in_planscore_convention": {
+            "efficiency_gap_wasted_votes": -0.3987315144282328,
+            "efficiency_gap_equal_turnout": -0.39873013952516345,
+            "mean_median": 0.029956672943516227,
+            "partisan_bias": 0.25,
+            "declination": null
+          },
+          "planscore_definitions": {
+            "mean_median": 0.029956672943516227,
+            "partisan_bias": 0.25,
+            "declination": -0.6931471805599453
+          },
+          "declination_compared_with": "PlanScore's sweep convention: ours is undefined",
+          "gerrychain_wasted_vote_gap": -0.39873013952516345,
+          "planscore_published_efficiency_gap": -0.3987,
+          "efficiency_gap_terms": {
+            "wasted_minus_equal_turnout": -1.374903069339961e-06,
+            "turnout_term": 0.0,
+            "threshold_term": -1.374903069339961e-06
+          },
+          "checks": {
+            "published_efficiency_gap": true,
+            "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
+          }
+        },
+        "US Senate 2016": {
+          "n_districts": 4,
+          "dem_seats": 0,
+          "dem_vote_share": 0.3723976812702182,
+          "tau": 0.0,
+          "ours": {
+            "n_districts": 4,
+            "dem_seats": 0,
+            "rep_seats": 4,
+            "tied_districts": 0,
+            "dem_seat_share": 0.0,
+            "dem_vote_share": 0.3723976812702182,
+            "efficiency_gap": 0.2447970569238266,
+            "mean_median": -0.019408927103962137,
+            "declination": null,
+            "partisan_bias": 0.25
+          },
+          "ours_in_planscore_convention": {
+            "efficiency_gap_wasted_votes": -0.2447970569238266,
+            "efficiency_gap_equal_turnout": -0.24479536254043643,
+            "mean_median": 0.019408927103962137,
+            "partisan_bias": 0.25,
+            "declination": null
+          },
+          "planscore_definitions": {
+            "mean_median": 0.019408927103962137,
+            "partisan_bias": 0.25,
+            "declination": -0.6931471805599453
+          },
+          "declination_compared_with": "PlanScore's sweep convention: ours is undefined",
+          "gerrychain_wasted_vote_gap": -0.24479536254043646,
+          "planscore_published_efficiency_gap": -0.2448,
+          "efficiency_gap_terms": {
+            "wasted_minus_equal_turnout": -1.6943833901772454e-06,
+            "turnout_term": 0.0,
+            "threshold_term": -1.6943833901772454e-06
+          },
+          "checks": {
+            "published_efficiency_gap": true,
+            "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
+          }
+        }
+      },
+      "phase_2_report": {
+        "race": "US President 2020",
+        "plan": "exact: whole counties on both sides",
+        "committed": {
+          "efficiency_gap": 0.4163368508987266,
+          "mean_median": -0.024255745028397946,
+          "partisan_bias": 0.25,
+          "declination": null,
+          "dem_seats": 0
+        },
+        "on_planscore_totals": {
+          "efficiency_gap": 0.41633810740205995,
+          "mean_median": -0.024256595815449644,
+          "partisan_bias": 0.25,
+          "declination": null,
+          "dem_seats": 0
+        },
+        "differences": {
+          "efficiency_gap": 1.2565033333800102e-06,
+          "mean_median": -8.507870516982763e-07,
+          "partisan_bias": 0.0,
+          "declination": null
+        }
+      },
+      "compactness": {
+        "polsby_popper": {
+          "planscore": {
+            "mean": 0.33325,
+            "min": 0.277,
+            "max": 0.4201
+          },
+          "committed": {
+            "mean": 0.3333823549525501,
+            "min": 0.2755156753771399,
+            "max": 0.4195181379995191
+          }
+        },
+        "reock": {
+          "planscore": {
+            "mean": 0.4496,
+            "min": 0.3529,
+            "max": 0.5341
+          },
+          "committed": {
+            "mean": 0.45066429487890064,
+            "min": 0.3579621093856953,
+            "max": 0.5356108754544063
+          }
+        }
+      }
+    },
+    "CO": {
+      "planscore_id": "20251203T023818.696378561Z",
+      "url": "https://planscore.s3.amazonaws.com/uploads/20251203T023818.696378561Z/index.json",
+      "sha256": "f2f46c823d2941b3fb38215c589abbaa056286fb89ef3f1de202fc5eb77fde4e",
+      "commit_sha": "566cda433ab7d145c2c86daf5872aff0cc175707",
+      "description": "Colorado Final Approved Congressional Plan",
+      "model_version": "2025B",
+      "district_populations": {
+        "1": 721714,
+        "2": 721714,
+        "3": 721714,
+        "4": 721715,
+        "5": 721714,
+        "6": 721715,
+        "7": 721714,
+        "8": 721714
+      },
+      "population_spread": 1,
+      "enacted_spread_documented": null,
+      "population_minus_documented": null,
+      "races": {
+        "US President 2020": {
+          "n_districts": 8,
+          "dem_seats": 5,
+          "dem_vote_share": 0.5693831949230015,
+          "tau": 0.6235170603343243,
+          "ours": {
+            "n_districts": 8,
+            "dem_seats": 5,
+            "rep_seats": 3,
+            "tied_districts": 0,
+            "dem_seat_share": 0.625,
+            "dem_vote_share": 0.5693831949230015,
+            "efficiency_gap": 0.015248540609076986,
+            "mean_median": 0.020196911868702205,
+            "declination": 0.07325802113640939,
+            "partisan_bias": 0.0
+          },
+          "ours_in_planscore_convention": {
+            "efficiency_gap_wasted_votes": -0.015248540609076986,
+            "efficiency_gap_equal_turnout": -0.01376638984600298,
+            "mean_median": -0.020196911868702205,
+            "partisan_bias": 0.0,
+            "declination": -0.07616788620615457
+          },
+          "planscore_definitions": {
+            "mean_median": -0.020196911868702205,
+            "partisan_bias": 0.0,
+            "declination": -0.07616788620615457
+          },
+          "declination_compared_with": "ours",
+          "gerrychain_wasted_vote_gap": -0.015249329511678756,
+          "planscore_published_efficiency_gap": -0.0138,
+          "efficiency_gap_terms": {
+            "wasted_minus_equal_turnout": -0.0014821507630740065,
+            "turnout_term": -0.0014829396656756977,
+            "threshold_term": 7.889026016911355e-07
+          },
+          "checks": {
+            "published_efficiency_gap": true,
+            "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
+          }
+        },
+        "US Senate 2020": {
+          "n_districts": 8,
+          "dem_seats": 5,
+          "dem_vote_share": 0.5477156761343628,
+          "tau": 0.6242946370744606,
+          "ours": {
+            "n_districts": 8,
+            "dem_seats": 5,
+            "rep_seats": 3,
+            "tied_districts": 0,
+            "dem_seat_share": 0.625,
+            "dem_vote_share": 0.5477156761343628,
+            "efficiency_gap": -0.028863759398115616,
+            "mean_median": 0.017062227711129863,
+            "declination": -0.025870455429496814,
+            "partisan_bias": 0.0
+          },
+          "ours_in_planscore_convention": {
+            "efficiency_gap_wasted_votes": 0.028863759398115616,
+            "efficiency_gap_equal_turnout": 0.029568647731274433,
+            "mean_median": -0.017062227711129863,
+            "partisan_bias": 0.0,
+            "declination": 0.026898049861136166
+          },
+          "planscore_definitions": {
+            "mean_median": -0.017062227711129863,
+            "partisan_bias": 0.0,
+            "declination": 0.026898049861136315
+          },
+          "declination_compared_with": "ours",
+          "gerrychain_wasted_vote_gap": 0.0288632848057351,
+          "planscore_published_efficiency_gap": 0.0296,
+          "efficiency_gap_terms": {
+            "wasted_minus_equal_turnout": -0.0007048883331588172,
+            "turnout_term": -0.0007053629255393545,
+            "threshold_term": 4.74592380537292e-07
+          },
+          "checks": {
+            "published_efficiency_gap": true,
+            "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
+          }
+        },
+        "US President 2016": {
+          "n_districts": 8,
+          "dem_seats": 4,
+          "dem_vote_share": 0.5268331475399128,
+          "tau": 0.5265765912881839,
+          "ours": {
+            "n_districts": 8,
+            "dem_seats": 4,
+            "rep_seats": 4,
+            "tied_districts": 0,
+            "dem_seat_share": 0.5,
+            "dem_vote_share": 0.5268331475399128,
+            "efficiency_gap": 0.02708950704604988,
+            "mean_median": 0.021041942504684163,
+            "declination": 0.10220325172470243,
+            "partisan_bias": -0.125
+          },
+          "ours_in_planscore_convention": {
+            "efficiency_gap_wasted_votes": -0.02708950704604988,
+            "efficiency_gap_equal_turnout": -0.05366629507982568,
+            "mean_median": -0.021041942504684163,
+            "partisan_bias": -0.125,
+            "declination": -0.10626284366555377
+          },
+          "planscore_definitions": {
+            "mean_median": -0.021041942504684163,
+            "partisan_bias": -0.125,
+            "declination": -0.10626284366555377
+          },
+          "declination_compared_with": "ours",
+          "gerrychain_wasted_vote_gap": -0.027089703791641696,
+          "planscore_published_efficiency_gap": -0.0537,
+          "efficiency_gap_terms": {
+            "wasted_minus_equal_turnout": 0.026576788033775795,
+            "turnout_term": 0.026576591288183904,
+            "threshold_term": 1.9674559189122864e-07
+          },
+          "checks": {
+            "published_efficiency_gap": true,
+            "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
+          }
+        },
+        "US Senate 2016": {
+          "n_districts": 8,
+          "dem_seats": 5,
+          "dem_vote_share": 0.5300443266490824,
+          "tau": 0.6238325246932652,
+          "ours": {
+            "n_districts": 8,
+            "dem_seats": 5,
+            "rep_seats": 3,
+            "tied_districts": 0,
+            "dem_seat_share": 0.625,
+            "dem_vote_share": 0.5300443266490824,
+            "efficiency_gap": -0.06374483812826538,
+            "mean_median": 0.01261076580057885,
+            "declination": -0.0960931720293726,
+            "partisan_bias": -0.125
+          },
+          "ours_in_planscore_convention": {
+            "efficiency_gap_wasted_votes": 0.06374483812826538,
+            "efficiency_gap_equal_turnout": 0.06491134670183518,
+            "mean_median": -0.01261076580057885,
+            "partisan_bias": -0.125,
+            "declination": 0.09991006689483212
+          },
+          "planscore_definitions": {
+            "mean_median": -0.01261076580057885,
+            "partisan_bias": -0.125,
+            "declination": 0.09991006689483212
+          },
+          "declination_compared_with": "ours",
+          "gerrychain_wasted_vote_gap": 0.06374387139510036,
+          "planscore_published_efficiency_gap": 0.0649,
+          "efficiency_gap_terms": {
+            "wasted_minus_equal_turnout": -0.0011665085735697994,
+            "turnout_term": -0.0011674753067347776,
+            "threshold_term": 9.667331649781952e-07
+          },
+          "checks": {
+            "published_efficiency_gap": true,
+            "efficiency_gap_identity": true,
+            "external_wasted_vote_gap": true,
+            "definition_mean_median": true,
+            "definition_partisan_bias": true,
+            "definition_declination": true
+          }
+        }
+      },
+      "phase_2_report": {
+        "race": "US President 2020",
+        "plan": "approximate: the Phase 2 report's plan is whole VTDs (D-015), PlanScore's is the enacted plan",
+        "committed": {
+          "efficiency_gap": 0.014742380699781853,
+          "mean_median": 0.02000123520087793,
+          "partisan_bias": 0.0,
+          "declination": 0.0726132997043703,
+          "dem_seats": 5
+        },
+        "on_planscore_totals": {
+          "efficiency_gap": 0.015248540609076986,
+          "mean_median": 0.020196911868702205,
+          "partisan_bias": 0.0,
+          "declination": 0.07325802113640939,
+          "dem_seats": 5
+        },
+        "differences": {
+          "efficiency_gap": 0.0005061599092951331,
+          "mean_median": 0.00019567666782427384,
+          "partisan_bias": 0.0,
+          "declination": 0.0006447214320390859
+        }
+      },
+      "compactness": {
+        "polsby_popper": {
+          "planscore": {
+            "mean": 0.26525,
+            "min": 0.0893,
+            "max": 0.5584
+          },
+          "committed": {
+            "mean": 0.2869738432028552,
+            "min": 0.08970356469854351,
+            "max": 0.5847505703478957
+          }
+        },
+        "reock": {
+          "planscore": {
+            "mean": 0.4008875,
+            "min": 0.1818,
+            "max": 0.6555
+          },
+          "committed": {
+            "mean": 0.3963984799453435,
+            "min": 0.1826619644477965,
+            "max": 0.6421364557046951
+          }
+        }
+      }
+    }
+  },
+  "ensemble_location": {
+    "ensemble": "CO v2, 20,000 draws",
+    "contest": "G20PRE",
+    "efficiency_gap": {
+      "committed": 41.815,
+      "on_planscore_totals": 43.16
+    },
+    "mean_median": {
+      "committed": 66.265,
+      "on_planscore_totals": 66.735
+    }
+  }
+}

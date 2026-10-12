@@ -1,0 +1,131 @@
+{
+  "generated_by": "tools/recount_seats.py",
+  "draws": "docs/experiment-2/ia-draws-v2.csv.gz",
+  "draws_sha256": "bc77a174258bf9665fd93f28dce272e9f965a348df228fa806d2f8c4e5b1e2d1",
+  "counts_sha256": "70731357e66d395c5232b283e25925e8b7a03aff0aeea45ad9a8475b63ff3847",
+  "config_digest": "9c12c12b71d67878",
+  "chains": [
+    {
+      "index": 0,
+      "seed": 4598121023295815364,
+      "n_rows": 12000
+    },
+    {
+      "index": 1,
+      "seed": 2886321513896777121,
+      "n_rows": 8133
+    },
+    {
+      "index": 2,
+      "seed": 4721323868467649745,
+      "n_rows": 6495
+    },
+    {
+      "index": 3,
+      "seed": 8578766234884288292,
+      "n_rows": 4282
+    },
+    {
+      "index": 4,
+      "seed": 8458559163655332203,
+      "n_rows": 0
+    },
+    {
+      "index": 5,
+      "seed": 5253085204740225123,
+      "n_rows": 4594
+    },
+    {
+      "index": 6,
+      "seed": 6021033162876088556,
+      "n_rows": 12000
+    },
+    {
+      "index": 7,
+      "seed": 8181738652657340395,
+      "n_rows": 0
+    },
+    {
+      "index": 8,
+      "seed": 1491668099493327661,
+      "n_rows": 1863
+    },
+    {
+      "index": 9,
+      "seed": 4674702755440810699,
+      "n_rows": 1
+    },
+    {
+      "index": 10,
+      "seed": 5344298679110264931,
+      "n_rows": 8136
+    },
+    {
+      "index": 11,
+      "seed": 3911660532335731725,
+      "n_rows": 49
+    }
+  ],
+  "n_rows": 57553,
+  "contests": [
+    "G20PRE",
+    "G20USS"
+  ],
+  "certified_two_party_totals": {
+    "G20PRE": [
+      759061,
+      897672
+    ],
+    "G20USS": [
+      754859,
+      864997
+    ]
+  },
+  "inputs_sha256": {
+    "data/processed/ia_units.gpkg": "7facb984d55d53c8e743e29fb619e3d5c8a0a66324b296ab16d09159485e93a4",
+    "data/processed/ia_units.csv": "1026546384ad2476dacbfef5f33d7c0a53e5bbb0f25e81c094615f2d6475958c",
+    "data/processed/ia_adjacency.json": "ce746c9fdee86e2446342f482c2694412ec7c34414e3762a4a387b0a735aa41c",
+    "data/processed/ia_elections.csv": "18d9cd34f7276d3a5e1e2a9c8de88989c8f9eb39d5297183fb48de70f7fb6058"
+  },
+  "returns_source": {
+    "dataset": "doi:10.7910/DVN/K7760H",
+    "version": "49.0",
+    "file_id": 14304797,
+    "file": "ia_2020.zip",
+    "md5": "500252facae6107b93128406ebf5177b",
+    "dbf_sha256": "c37230a71af50a83735ef80e1361447d23307175f7fcc22842f17706fbc16080",
+    "shp_sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a",
+    "credit": "Voting and Election Science Team, 2020, \"2020 Precinct-Level Election Results\", https://doi.org/10.7910/DVN/K7760H, Harvard Dataverse, V49",
+    "license": "CC-BY-4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "docs/first-result/ATTRIBUTION.md"
+  },
+  "vest": {
+    "data/raw/vest/ia_2020.zip": {
+      "md5": "500252facae6107b93128406ebf5177b"
+    },
+    "data/raw/vest/ia_2020.dbf": {
+      "sha256": "c37230a71af50a83735ef80e1361447d23307175f7fcc22842f17706fbc16080"
+    },
+    "data/raw/vest/ia_2020.shp": {
+      "sha256": "33501da206b5171b0290f0a4a86e9f378cad2d7751485f431b33d9912a0b4c3a"
+    }
+  },
+  "python": "3.11.17",
+  "gerrychain": "1.0.0",
+  "integer_columns": [
+    "competitive_districts@G20PRE",
+    "competitive_districts@G20USS",
+    "county_splits",
+    "cut_edges",
+    "population_spread"
+  ],
+  "float_tolerance": 1e-12,
+  "largest_float_difference": {
+    "abs_efficiency_gap@G20PRE": 0.0,
+    "abs_efficiency_gap@G20USS": 0.0,
+    "abs_mean_median@G20PRE": 0.0,
+    "abs_mean_median@G20USS": 0.0,
+    "polsby_popper_mean": 0.0
+  }
+}
