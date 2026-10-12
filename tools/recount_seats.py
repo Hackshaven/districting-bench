@@ -51,11 +51,11 @@ it, since a GeoPackage stores when it was written; under Python 3.12 or later, a
 last-bit difference in mean Polsby-Popper (:data:`FLOAT_TOLERANCE`); and
 ``returns_source``, which is null unless the ``.dbf`` and ``.shp`` unpacked in
 ``data/raw/vest/`` are VEST's version 49, and the zip, if kept, is too
-(:func:`returns_source`). The plotter
-refuses a record that does not name that dataset and version, and
-``tests/test_seat_distribution.py`` and ``tests/test_recount_seats.py`` require
-the committed record to name that file, so to check the committed counts rather
-than replace them, write elsewhere with ``--out`` and compare.
+(:func:`returns_source`). The plotter refuses a record that does not name that
+dataset and version, and ``tests/test_seat_distribution.py`` and
+``tests/test_recount_seats.py`` require the committed record to name VEST's
+version-49 file, so to check the committed counts rather than replace them,
+write elsewhere with ``--out`` and compare.
 
 It refuses, printing one ``refused:`` line, if ``--out`` does not end in
 ``.csv.gz`` or a file it reads under ``data/processed`` is missing. It fails,
@@ -78,7 +78,8 @@ with these counts, and the record describes what it reads: the draws file (its
 SHA-256, and its sidecar's chains, seeds and row counts), the counts file (its
 SHA-256 and row count), the ensemble's configuration, the two contests and their
 certified totals, and the VEST dataset and version the figure credits as the
-returns counted. It also refuses if one plan key names draws that differ.
+returns counted. It also refuses if draws that share a plan key differ in a seat
+count or an integer metric.
 
 It needs the Iowa data built (``tools/fetch_raw.sh ia``, VEST's ``ia_2020.zip``
 unpacked in ``data/raw/vest/``, ``tools/prepare_data.py``) and gerrychain as

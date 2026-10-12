@@ -769,29 +769,33 @@ def test_the_figure_draws_what_the_text_says(dist, tmp_path):
     assert placed["marker_x"] == dist["enacted_dem_seats"]
     # the note sits right of every bar a draw reached, never on one
     assert placed["note_x"] > 2 + S.WIDTH / 2
-    # and it, and the labels over every bar a draw reached, sit on opaque
-    # boxes of the surface's colour, drawn above the gridlines, which sit
-    # below every patch and line, so no gridline runs through them
+    # and it, and each label over every bar a draw reached, and nothing else,
+    # sit on opaque boxes of the surface's colour, above the gridlines, so no
+    # gridline runs through them
     text = S.figure_text(dist)
     reached = [s for s in range(K + 1) if p["counts"][s]]
-    boxed = {string: (colour, layer) for string, colour, layer in placed["boxed"]}
-    for string in (text["note"], *(t for s in reached for t in text["labels"][s])):
-        colour, layer = boxed[string]
+    assert sorted(string for string, _, _ in placed["boxed"]) == sorted(
+        [text["note"], *(t for s in reached for t in text["labels"][s])])
+    for string, colour, layer in placed["boxed"]:
         assert colour == matplotlib.colors.to_rgba(S.SURFACE), string
-        assert layer > 1, string
+        assert layer > placed["grid_layer"], string
     assert_every_string_is_drawn_whole(dist, placed)
 
 
-def test_the_boxes_hide_only_gridlines(dist, tmp_path, monkeypatch):
+@pytest.mark.parametrize("contest", ["primary", "alternate"])
+def test_the_boxes_hide_only_gridlines(dist, tmp_path, monkeypatch, contest):
     # With no gridlines drawn, the boxes under the labels and the note have
     # nothing to hide: the figure is the same, pixel for pixel, with the boxes
-    # clear. A box that reaches a label, a dot or a whisker would show.
+    # clear. A box that reaches a label, a dot or a whisker would show. Under
+    # the Senate vote the note sits further right, past a fourth bar.
+    d = copy.deepcopy(dist)
+    d["primary"] = d[contest]
     monkeypatch.setattr(matplotlib.axes.Axes, "grid", lambda self, *a, **k: None)
-    S.draw(dist, tmp_path / "boxes.png")
+    S.draw(d, tmp_path / "boxes.png")
     set_bbox = matplotlib.text.Text.set_bbox
     monkeypatch.setattr(matplotlib.text.Text, "set_bbox", lambda self, props: set_bbox(
         self, None if props is None else props | {"facecolor": "none"}))
-    S.draw(dist, tmp_path / "clear.png")
+    S.draw(d, tmp_path / "clear.png")
     boxes, clear = (matplotlib.image.imread(tmp_path / f"{name}.png")
                     for name in ("boxes", "clear"))
     assert boxes.shape == clear.shape and (boxes == clear).all()

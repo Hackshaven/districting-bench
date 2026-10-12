@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Fetch every raw input that can be fetched, for both states.
+# Fetch the Census inputs, for both states. The election returns are not
+# fetched; see below.
 #
 # `feasibility/fetch_data.sh` predates Colorado and Phase 2. It fetches four
 # Iowa files and is left alone because it is part of the feasibility record --
@@ -13,7 +14,7 @@
 # NOT FETCHED: the precinct-level election returns. Both preparers read
 # data/raw/vest/ia_2020.shp and data/raw/vest_co/co_2020.shp, which come from
 # VEST on the Harvard Dataverse; this script does not download them. See the
-# "elections" section printed at the end, and README.md.
+# instructions it prints at the end, and README.md.
 #
 # Usage:  tools/fetch_raw.sh [ia|co|all]     (default: all)
 # Run from the repository root. Downloads ~700 MB into data/raw/.
@@ -95,14 +96,25 @@ shapefile:
   VEST, "2020 Precinct-Level Election Results"
   https://doi.org/10.7910/DVN/K7760H
 
+The DOI resolves to the latest version. The committed seat counts were made
+from version 49, and tools/recount_seats.py names only that version's Iowa
+files as its returns:
+
+  https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/K7760H&version=49.0
+
 Take the Iowa and Colorado files and unpack them where the preparers look --
 these directory names are this repository's convention, not VEST's:
 
   ia_2020.shp  ->  data/raw/vest/ia_2020.shp
   co_2020.shp  ->  data/raw/vest_co/co_2020.shp
 
+Keeping Iowa's ia_2020.zip in data/raw/vest/ is optional; if it is there,
+tools/recount_seats.py checks it against version 49's MD5 too.
+
 prepare_data.py asserts the Iowa totals (897,672 R and 759,061 D on G20PRE), so
-a wrong or mis-vintaged file fails loudly rather than silently changing results.
+a wrong file fails loudly rather than silently changing results. Another vintage
+with the same totals passes that check; tools/recount_seats.py then names no
+source for the returns, and the first-result figure will not draw from them.
 
 Without them, tools/prepare_data.py builds the NEUTRAL layer only: units,
 adjacency and the enacted plan. That is enough to draw ensembles, and it is

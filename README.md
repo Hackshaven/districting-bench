@@ -187,7 +187,7 @@ pip install -r requirements.txt
 **The tests run at this point, and most of them pass.** No data required:
 
 ```bash
-PYTHONPATH=src pytest tests -q        # 663 passed, 151 skipped
+PYTHONPATH=src pytest tests -q        # 664 passed, 151 skipped
 ```
 
 The 151 skips are not a problem to fix — they are every test that needs real
@@ -209,8 +209,10 @@ VEST publishes them on the Harvard Dataverse:
 
 - VEST, *2020 Precinct-Level Election Results*, <https://doi.org/10.7910/DVN/K7760H>.
   The DOI resolves to the latest version; the seat counts were made from version
-  49 (<https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/K7760H&version=49.0>),
-  and the recount names only those files as its returns.
+  49 (<https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/K7760H&version=49.0>).
+  Take Iowa's file from that version: the recount's record credits VEST as its
+  returns (`returns_source`, under Reproducing) only when your files are version
+  49's.
 - Save Iowa's `ia_2020.zip` in `data/raw/vest/` and unpack it there, so that
   `data/raw/vest/ia_2020.shp` exists; `tools/recount_seats.py` identifies the
   returns by the unpacked files, and by the zip if you keep it (D-043). Unpack
@@ -234,14 +236,14 @@ downstream number.
 With the data built, the full suite runs:
 
 ```bash
-PYTHONPATH=src pytest tests -q         # 809 passed, 5 skipped (derived; see below)
+PYTHONPATH=src pytest tests -q         # 810 passed, 5 skipped (derived; see below)
 python tools/check_firewall.py         # must print: clean
 ```
 
-The 809 and the 5 are derived, not measured: with the data, this file
-recorded 719 passed and 5 skipped at v0.1.0; the 90 tests added since need
+The 810 and the 5 are derived, not measured: with the data, this file
+recorded 719 passed and 5 skipped at v0.1.0; the 91 tests added since need
 neither the data nor the network (without the data, passes rose from 573 to
-663 and skips stayed at 151); and no code that a v0.1.0 test runs has
+664 and skips stayed at 151); and no code that a v0.1.0 test runs has
 changed since, except docstrings.
 
 **Without the election returns you can still generate.** The neutral half needs
@@ -295,9 +297,9 @@ that count, and unless the count's record describes what the plotter reads: the
 draws file (its SHA-256, and its sidecar's chains, seeds and row counts), the
 counts file (its SHA-256 and row count), the ensemble's configuration, the two
 contests and their certified statewide totals, and the VEST dataset and version
-the figure's footer credits as the returns counted. It also refuses if one plan
-key names draws that differ. Replace the counts file and its record together, as
-the recount does.
+the figure's footer credits as the returns counted. It also refuses if draws that
+share a plan key differ in a seat count or an integer metric. Replace the counts
+file and its record together, as the recount does.
 
 The recount writes only if every draw reproduces and no district is tied;
 otherwise it exits non-zero and writes nothing. Its docstring lists every
@@ -332,11 +334,12 @@ The record differs wherever your setup does:
   you did not keep it.
 
 A record written in place fails `tests/test_seat_distribution.py` wherever it
-differs from the committed one in `python`, `gerrychain` or the float
-differences, and a `null` `returns_source` also fails
-`tests/test_recount_seats.py` and makes the plotter refuse to draw. If you ran
-the recount in place, `git checkout -- docs/first-result/` restores the
-committed files.
+differs from the committed one in `python`, `gerrychain`, the float differences
+or `returns_source`. A `null` `returns_source` fails most of that file, since its
+tests run the plotter and the plotter refuses to draw, and fails
+`tests/test_recount_seats.py` too. If you ran the recount in place,
+`git checkout -- docs/first-result/ia-seats-v2.csv.gz docs/first-result/ia-seats-v2.json`
+restores the committed files.
 
 One check reaches outside the repository. It needs the network, not the data:
 
@@ -494,5 +497,6 @@ the repository offers them, is open (D-044).
 licence, and §9.1 says the version used was not recorded. Both licence statements
 rest on the dataset's licence field on Dataverse, which is empty; VEST's Terms of
 Use state CC BY 4.0, as version 48's already did when §9.1 was written, and the
-counts were made from version 49 (D-043). Only the repository's owner amends
-§9.1.
+counts were made from version 49 (D-043); which version the draws and the other
+results were measured with is still not recorded. Only the repository's owner
+amends §9.1.

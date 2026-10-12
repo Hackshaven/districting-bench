@@ -23,7 +23,8 @@ by computer, not real districts, and its counts are not real election results.
 Each plan splits Iowa's 99 counties into 4 congressional districts of near-equal
 population. A ReCom Markov-chain sampler drew them without seeing any election
 data: they are Experiment 2's v2 ensemble (`docs/experiment-2/`), the second,
-longer run, whose chains continue the first's from the same seeds. A *chain* is
+longer run, whose chains repeat the first run's draws from the same seeds and run
+on past them. A *chain* is
 one run of the sampler from its own seed, and a *draw* is one plan in that run.
 For each draw, the file counts how many of its districts the Democratic candidate
 would have carried in 2020. Numbers such as D-043 are entries in
@@ -44,12 +45,14 @@ and which precincts it merged, is in the Iowa section of `documentation.txt`.
 **The file's columns.** The file is gzip-compressed CSV: ASCII text, comma
 separated, with a header row and CRLF line ends. It holds one row for each of the
 57,553 committed draws, in the order of `docs/experiment-2/ia-draws-v2.csv.gz`,
-and no cell is empty. The bars, dots, whiskers and shares of the README's first
-result and its figure use 27,564 of these rows: chains 0, 1, 2, 5, 6 and 10, each
-cut to its first 4,594 draws (D-035). Shares taken over every row differ from
-theirs. Their sentence on the Senate vote also counts plans in the other rows,
-the figure's footer quotes a standard error from block means over all 57,553, and
-the plotter checks its reading against every row.
+and no cell is empty. The figure's bars, dots and whiskers, and the shares the
+README's first result quotes for them, use 27,564 of these rows: chains 0, 1, 2,
+5, 6 and 10, each cut to its first 4,594 draws (D-035). Shares taken over every
+row differ from those. Other numbers in the figure and the README's first result
+use other rows as well, among them: the plans reaching 3 seats under the Senate
+vote, the standard errors from block means and from 260-draw windows, and the
+shares of the two chains that ran to 12,000 draws. The plotter checks its reading
+against every row.
 
 | Column | What it holds |
 | --- | --- |
